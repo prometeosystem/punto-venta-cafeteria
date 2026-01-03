@@ -22,5 +22,11 @@ export const ventasService = {
     const response = await api.get('/api/ventas/ver_ventas', { params })
     return response.data
   },
+
+  // Obtener información del ticket actual
+  obtenerInfoTicketActual: async () => {
+    const response = await api.get('/api/ventas/info_ticket_actual')
+    return response.data
+  },
 }
 

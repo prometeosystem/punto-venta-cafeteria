@@ -24,9 +24,22 @@ const PuntoVenta = () => {
   const [comentarios, setComentarios] = useState('')
 
   const { productos, loading: productosLoading } = useProductos()
-  const { crearVenta, loading: ventaLoading } = useVentas()
+  const { crearVenta, obtenerInfoTicketActual, loading: ventaLoading } = useVentas()
   const { crearComanda, loading: comandaLoading } = useComandas()
   const { obtenerPreordenes, procesarPago, actualizarPreorden, loading: preordenesLoading } = usePreordenes()
+  const [numeroTicket, setNumeroTicket] = useState(null)
+
+  // Cargar número de ticket actual
+  const cargarNumeroTicket = async () => {
+    try {
+      const info = await obtenerInfoTicketActual()
+      if (info?.numero_ticket_actual) {
+        setNumeroTicket(info.numero_ticket_actual)
+      }
+    } catch (error) {
+      console.error('Error al cargar número de ticket:', error)
+    }
+  }
 
   // Cargar pre-órdenes pendientes
   useEffect(() => {
@@ -52,6 +65,12 @@ const PuntoVenta = () => {
     // Refrescar cada 10 segundos
     const interval = setInterval(cargarPreordenes, 10000)
     return () => clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Cargar número de ticket al montar el componente
+  useEffect(() => {
+    cargarNumeroTicket()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -167,6 +186,7 @@ const PuntoVenta = () => {
       // Crear venta con los nuevos campos
       const ventaResponse = await crearVenta({
         id_cliente: idCliente,
+        nombre_cliente: nombreCliente || null,
         total: totalConExtra,
         metodo_pago: metodoPago,
         tipo_servicio: tipoServicio,
@@ -200,6 +220,9 @@ const PuntoVenta = () => {
       setTipoServicio('comer-aqui')
       setTipoLeche('entera')
       setComentarios('')
+      
+      // Actualizar número de ticket después de crear la venta
+      await cargarNumeroTicket()
       
       await Swal.fire({
         icon: 'success',
@@ -656,13 +679,21 @@ const PuntoVenta = () => {
             ) : (
               <>
                 {/* Vista de Carrito Normal */}
-                <div className="flex items-center gap-2 mb-4">
-                  <ShoppingCart className="w-5 h-5 text-matcha-600" />
-                  <h2 className="text-lg font-semibold text-gray-900">Orden Actual</h2>
-                  {cart.length > 0 && (
-                    <span className="bg-matcha-100 text-matcha-700 text-xs font-medium px-2 py-1 rounded-full">
-                      {cart.reduce((sum, item) => sum + item.quantity, 0)}
-                    </span>
+                <div className="mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <ShoppingCart className="w-5 h-5 text-matcha-600" />
+                    <h2 className="text-lg font-semibold text-gray-900">Orden Actual</h2>
+                    {cart.length > 0 && (
+                      <span className="bg-matcha-100 text-matcha-700 text-xs font-medium px-2 py-1 rounded-full">
+                        {cart.reduce((sum, item) => sum + item.quantity, 0)}
+                      </span>
+                    )}
+                  </div>
+                  {numeroTicket !== null && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <span>Ticket #</span>
+                      <span className="font-semibold text-matcha-600">{numeroTicket}</span>
+                    </div>
                   )}
                 </div>
 

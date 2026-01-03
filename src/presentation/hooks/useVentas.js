@@ -17,6 +17,7 @@ export const useVentas = () => {
 
       const venta = {
         id_cliente: ventaData.id_cliente || null,
+        nombre_cliente: ventaData.nombre_cliente || null,
         id_usuario: usuario.id_usuario,
         total: ventaData.total,
         metodo_pago: ventaData.metodo_pago,
@@ -27,6 +28,10 @@ export const useVentas = () => {
         extra_leche: ventaData.extra_leche || null,
         detalles: ventaData.detalles,
       }
+
+      // Log de depuración
+      console.log('📦 Datos de venta a enviar:', venta)
+      console.log('📦 nombre_cliente:', venta.nombre_cliente)
 
       const response = await ventasService.crearVenta(venta)
       return response
@@ -69,12 +74,25 @@ export const useVentas = () => {
     }
   }
 
+  const obtenerInfoTicketActual = async () => {
+    setError(null)
+    try {
+      const data = await ventasService.obtenerInfoTicketActual()
+      return data
+    } catch (err) {
+      const errorMessage = err.response?.data?.detail || err.message || 'Error al obtener info del ticket'
+      setError(errorMessage)
+      throw err
+    }
+  }
+
   return {
     loading,
     error,
     crearVenta,
     obtenerVentas,
     obtenerVenta,
+    obtenerInfoTicketActual,
   }
 }
 

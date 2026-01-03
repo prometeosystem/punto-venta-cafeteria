@@ -274,18 +274,18 @@ const Barista = () => {
                   </span>
                 </div>
 
+                {/* Nombre del cliente - Siempre visible y destacado */}
+                <div className="mb-4 pb-3 border-b border-gray-200">
+                  <div className="flex items-center gap-2">
+                    <User className="w-5 h-5 text-matcha-600" />
+                    <span className="text-base font-semibold text-gray-900">
+                      {comanda.preorden?.nombre_cliente || comanda.venta?.nombre_cliente || 'Cliente no especificado'}
+                    </span>
+                  </div>
+                </div>
+
                 {/* Información del cliente y venta */}
                 <div className="mb-4 pb-4 border-b border-gray-200 space-y-2">
-                  {/* Nombre del cliente (de pre-orden o venta) */}
-                  {(comanda.preorden?.nombre_cliente || comanda.venta?.nombre_cliente) && (
-                    <div className="flex items-center gap-2">
-                      <User className="w-4 h-4 text-gray-600" />
-                      <span className="font-medium text-gray-900">
-                        {comanda.preorden?.nombre_cliente || comanda.venta?.nombre_cliente}
-                      </span>
-                    </div>
-                  )}
-                  
                   {/* Tipo de servicio (de pre-orden o venta) */}
                   {(comanda.preorden?.tipo_servicio || comanda.venta?.tipo_servicio) && (
                     <div className="flex items-center gap-2">
@@ -300,15 +300,21 @@ const Barista = () => {
                     </div>
                   )}
                   
-                  {/* Información de leche (de pre-orden o venta) */}
+                  {/* Información de leche (de pre-orden o venta) - Resaltada si es deslactosada */}
                   {((comanda.preorden?.tipo_leche || comanda.venta?.tipo_leche) || 
                     (comanda.preorden?.extra_leche || comanda.venta?.extra_leche)) && (
-                    <div className="text-xs text-gray-500">
+                    <div className="flex items-center gap-2 flex-wrap">
                       {(comanda.preorden?.tipo_leche || comanda.venta?.tipo_leche) && (
-                        <span>Leche: {comanda.preorden?.tipo_leche || comanda.venta?.tipo_leche}</span>
+                        <span className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
+                          (comanda.preorden?.tipo_leche || comanda.venta?.tipo_leche)?.toLowerCase() === 'deslactosada'
+                            ? 'bg-orange-200 text-orange-900 border-2 border-orange-400'
+                            : 'bg-gray-100 text-gray-700'
+                        }`}>
+                          Leche: {comanda.preorden?.tipo_leche || comanda.venta?.tipo_leche}
+                        </span>
                       )}
                       {(comanda.preorden?.extra_leche || comanda.venta?.extra_leche) && (
-                        <span className="ml-2">
+                        <span className="text-xs text-gray-600">
                           Extra: ${parseFloat(comanda.preorden?.extra_leche || comanda.venta?.extra_leche || 0).toFixed(2)}
                         </span>
                       )}
