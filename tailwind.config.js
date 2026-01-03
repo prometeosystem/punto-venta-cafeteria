@@ -7,42 +7,42 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Paleta de colores para cafetería
+        // Paleta de colores según mockups
         matcha: {
-          50: '#f0f7f0',
-          100: '#d9ede0',
-          200: '#b8ddc6',
-          300: '#8cc5a3',
-          400: '#5fa67a',
-          500: '#3d8b5f', // Matcha principal
-          600: '#2d6f4c',
-          700: '#25593e',
-          800: '#204834',
-          900: '#1c3c2c',
+          50: '#d4e8d4',
+          100: '#b8ddc6',
+          200: '#9dd2b8',
+          300: '#6faa6f',
+          400: '#5a8f5a',
+          500: '#5a8f5a', // Matcha principal
+          600: '#4a7a4a',
+          700: '#3a653a',
+          800: '#2a502a',
+          900: '#1a3a1a',
         },
         coffee: {
-          50: '#faf7f4',
-          100: '#f4ede4',
-          200: '#e7d9c8',
-          300: '#d6bfa3',
-          400: '#c19f7a',
-          500: '#a67f5a', // Café principal
-          600: '#8b6647',
-          700: '#71513a',
-          800: '#5d4330',
-          900: '#4d3828',
+          50: '#f5f0e8',
+          100: '#e8ddd0',
+          200: '#d4c4a8',
+          300: '#b89a7a',
+          400: '#8b6f47', // Café principal
+          500: '#8b6f47',
+          600: '#6d5638',
+          700: '#4f3f29',
+          800: '#2d2318', // Café oscuro
+          900: '#1a150d',
         },
         green: {
-          50: '#f0fdf4',
-          100: '#dcfce7',
-          200: '#bbf7d0',
-          300: '#86efac',
-          400: '#4ade80',
-          500: '#22c55e',
-          600: '#16a34a',
-          700: '#15803d',
-          800: '#166534',
-          900: '#14532d',
+          50: '#d4e8d4',
+          100: '#b8ddc6',
+          200: '#9dd2b8',
+          300: '#6faa6f',
+          400: '#5a8f5a',
+          500: '#5a8f5a',
+          600: '#4a7a4a',
+          700: '#3a653a',
+          800: '#2a502a',
+          900: '#1a3a1a',
         },
       },
       fontFamily: {
@@ -53,4 +53,5 @@ export default {
   },
   plugins: [],
 }
+
 

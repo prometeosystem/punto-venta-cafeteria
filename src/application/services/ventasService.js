@@ -1,0 +1,26 @@
+import api from '../../infrastructure/api'
+
+export const ventasService = {
+  // Crear venta
+  crearVenta: async (ventaData) => {
+    const response = await api.post('/api/ventas/crear_venta', ventaData)
+    return response.data
+  },
+
+  // Ver venta específica
+  obtenerVenta: async (idVenta) => {
+    const response = await api.get(`/api/ventas/ver_venta/${idVenta}`)
+    return response.data
+  },
+
+  // Listar ventas
+  obtenerVentas: async (fechaInicio = null, fechaFin = null) => {
+    const params = {}
+    if (fechaInicio) params.fecha_inicio = fechaInicio
+    if (fechaFin) params.fecha_fin = fechaFin
+    
+    const response = await api.get('/api/ventas/ver_ventas', { params })
+    return response.data
+  },
+}
+
