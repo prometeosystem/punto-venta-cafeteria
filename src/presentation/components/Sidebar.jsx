@@ -1,6 +1,8 @@
 import { NavLink } from 'react-router-dom'
 import { useLayout } from '../context/LayoutContext'
+import { useAuth } from '../context/AuthContext'
 import { useMediaQuery } from '../hooks/useMediaQuery'
+import { hasRouteAccess } from '../utils/rolePermissions'
 import Logo from './Logo'
 import {
   LayoutDashboard,
@@ -34,7 +36,14 @@ const menuItems = [
 
 const Sidebar = () => {
   const { sidebarOpen, toggleSidebar } = useLayout()
+  const { usuario } = useAuth()
   const isMobile = useMediaQuery('(max-width: 1023px)')
+
+  // Filtrar items del menú según el rol del usuario
+  const filteredMenuItems = menuItems.filter(item => {
+    if (!usuario || !usuario.rol) return false
+    return hasRouteAccess(usuario.rol, item.path)
+  })
 
   return (
     <>
@@ -71,31 +80,37 @@ const Sidebar = () => {
 
         {/* Navegación */}
         <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-          {menuItems.map((item) => {
-            const Icon = item.icon
-            return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors duration-200 ${
-                    isActive
-                      ? 'bg-matcha-500 text-white font-medium'
-                      : 'text-gray-300 hover:bg-coffee-700 hover:text-white'
-                  }`
-                }
-                onClick={() => {
-                  // Cerrar sidebar en móvil/tablet al hacer clic
-                  if (isMobile) {
-                    toggleSidebar()
+          {filteredMenuItems.length === 0 ? (
+            <div className="text-gray-400 text-sm text-center py-4">
+              No hay opciones disponibles
+            </div>
+          ) : (
+            filteredMenuItems.map((item) => {
+              const Icon = item.icon
+              return (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors duration-200 ${
+                      isActive
+                        ? 'bg-matcha-500 text-white font-medium'
+                        : 'text-gray-300 hover:bg-coffee-700 hover:text-white'
+                    }`
                   }
-                }}
-              >
-                <Icon className="w-5 h-5" />
-                <span>{item.label}</span>
-              </NavLink>
-            )
-          })}
+                  onClick={() => {
+                    // Cerrar sidebar en móvil/tablet al hacer clic
+                    if (isMobile) {
+                      toggleSidebar()
+                    }
+                  }}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span>{item.label}</span>
+                </NavLink>
+              )
+            })
+          )}
         </nav>
 
         {/* Footer del Sidebar */}

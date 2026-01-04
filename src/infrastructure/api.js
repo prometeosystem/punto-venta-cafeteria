@@ -15,7 +15,8 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
-  // Si es FormData, no establecer Content-Type (el navegador lo hace automáticamente)
+  // Si es FormData, eliminar Content-Type para que el navegador lo establezca automáticamente
+  // con el boundary correcto para multipart/form-data
   if (config.data instanceof FormData) {
     delete config.headers['Content-Type']
   }
@@ -31,9 +32,15 @@ api.interceptors.response.use(
       localStorage.removeItem('token')
       localStorage.removeItem('usuario')
       // Redirigir al login si no estamos ya ahí
-      if (window.location.pathname !== '/login') {
+      // Evitar bucles de redirección
+      if (window.location.pathname !== '/login' && !window.location.pathname.includes('/login')) {
         window.location.href = '/login'
       }
+    }
+    // Si hay error de red (sin respuesta), no redirigir automáticamente
+    // Dejar que los componentes manejen el error
+    if (!error.response && error.code === 'ERR_NETWORK') {
+      console.error('Error de red: Backend no disponible')
     }
     return Promise.reject(error)
   }

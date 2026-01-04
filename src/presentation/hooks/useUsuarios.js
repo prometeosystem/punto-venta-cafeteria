@@ -3,6 +3,7 @@ import { usuariosService } from '../../application/services/usuariosService'
 
 export const useUsuarios = () => {
   const [usuarios, setUsuarios] = useState([])
+  const [estadisticas, setEstadisticas] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -20,14 +21,44 @@ export const useUsuarios = () => {
     }
   }
 
+  const obtenerEstadisticas = async () => {
+    try {
+      const data = await usuariosService.obtenerEstadisticas()
+      setEstadisticas(data)
+      return data
+    } catch (err) {
+      console.error('Error al obtener estadísticas:', err)
+      // No lanzar error, simplemente no actualizar las estadísticas
+      return null
+    }
+  }
+
   useEffect(() => {
     obtenerUsuarios()
+    obtenerEstadisticas()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const crearUsuario = async (usuarioData) => {
     try {
-      const response = await usuariosService.crearUsuario(usuarioData)
+      // Asegurarse de que la contraseña sea un string simple antes de enviar
+      let datosLimpios = { ...usuarioData }
+      
+      if (datosLimpios.contrasena && typeof datosLimpios.contrasena === 'object') {
+        datosLimpios.contrasena = datosLimpios.contrasena.valorCompleto || 
+                                  datosLimpios.contrasena.valor || 
+                                  datosLimpios.contrasena.password ||
+                                  String(datosLimpios.contrasena)
+      }
+      
+      // Validar que sea string
+      if (datosLimpios.contrasena && typeof datosLimpios.contrasena !== 'string') {
+        throw new Error('La contraseña debe ser un texto válido')
+      }
+      
+      const response = await usuariosService.crearUsuario(datosLimpios)
       await obtenerUsuarios() // Refrescar lista
+      await obtenerEstadisticas() // Refrescar estadísticas
       return response
     } catch (err) {
       throw err.response?.data || err
@@ -36,8 +67,24 @@ export const useUsuarios = () => {
 
   const editarUsuario = async (idUsuario, usuarioData) => {
     try {
-      const response = await usuariosService.editarUsuario(idUsuario, usuarioData)
+      // Asegurarse de que la contraseña sea un string simple antes de enviar (si se proporciona)
+      let datosLimpios = { ...usuarioData }
+      
+      if (datosLimpios.contrasena && typeof datosLimpios.contrasena === 'object') {
+        datosLimpios.contrasena = datosLimpios.contrasena.valorCompleto || 
+                                  datosLimpios.contrasena.valor || 
+                                  datosLimpios.contrasena.password ||
+                                  String(datosLimpios.contrasena)
+      }
+      
+      // Validar que sea string si se proporciona
+      if (datosLimpios.contrasena && typeof datosLimpios.contrasena !== 'string') {
+        throw new Error('La contraseña debe ser un texto válido')
+      }
+      
+      const response = await usuariosService.editarUsuario(idUsuario, datosLimpios)
       await obtenerUsuarios() // Refrescar lista
+      await obtenerEstadisticas() // Refrescar estadísticas
       return response
     } catch (err) {
       throw err.response?.data || err
@@ -48,6 +95,7 @@ export const useUsuarios = () => {
     try {
       const response = await usuariosService.eliminarUsuario(idUsuario)
       await obtenerUsuarios() // Refrescar lista
+      await obtenerEstadisticas() // Refrescar estadísticas
       return response
     } catch (err) {
       throw err.response?.data || err
@@ -56,9 +104,11 @@ export const useUsuarios = () => {
 
   return {
     usuarios,
+    estadisticas,
     loading,
     error,
     obtenerUsuarios,
+    obtenerEstadisticas,
     crearUsuario,
     editarUsuario,
     eliminarUsuario,

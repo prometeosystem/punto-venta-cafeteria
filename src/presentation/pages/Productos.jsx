@@ -241,13 +241,22 @@ const Productos = () => {
       console.log('Enviando recetas:', recetasJSON)
 
       // Agregar imagen si hay una nueva
+      // El backend espera el archivo con el nombre 'imagen'
       if (imagen) {
-        formDataToSend.append('imagen', imagen)
+        // Asegurarse de que el archivo tenga el nombre correcto
+        // El backend puede leer el filename y content_type del archivo
+        formDataToSend.append('imagen', imagen, imagen.name)
+        console.log('[DEBUG FRONTEND] Imagen a enviar:', {
+          name: imagen.name,
+          type: imagen.type,
+          size: imagen.size,
+        })
       }
 
       // Si se está editando y se quiere eliminar la imagen
       if (productoEditando && eliminarImagen) {
         formDataToSend.append('eliminar_imagen', 'true')
+        console.log('[DEBUG FRONTEND] Marcando imagen para eliminar')
       }
 
       if (productoEditando) {
