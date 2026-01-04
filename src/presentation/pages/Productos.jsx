@@ -18,6 +18,7 @@ const Productos = () => {
     precio: '',
     activo: true,
   })
+  const [usandoCategoriaNueva, setUsandoCategoriaNueva] = useState(false)
   const [guardando, setGuardando] = useState(false)
   const [imagen, setImagen] = useState(null)
   const [imagenPreview, setImagenPreview] = useState(null)
@@ -144,6 +145,7 @@ const Productos = () => {
       precio: '',
       activo: true,
     })
+    setUsandoCategoriaNueva(false)
     setImagen(null)
     setImagenPreview(null)
     setEliminarImagen(false)
@@ -155,16 +157,21 @@ const Productos = () => {
   // Abrir modal para editar producto
   const abrirModalEditar = async (producto) => {
     setProductoEditando(producto)
+    const categoria = producto.categoria || ''
+    const categoriasExistentes = [...new Set(productos.map(p => p.categoria))]
     setFormData({
       nombre: producto.nombre || '',
       descripcion: producto.descripcion || '',
-      categoria: producto.categoria || '',
+      categoria: categoria,
       precio: producto.precio || '',
       activo: producto.activo !== undefined ? producto.activo : true,
     })
+    // Determinar si la categoría es nueva o existente
+    setUsandoCategoriaNueva(categoria && !categoriasExistentes.includes(categoria))
     // Cargar imagen existente si hay
     if (producto.id_producto && producto.tipo_imagen) {
-      setImagenPreview(`http://localhost:8000/api/productos/imagen/${producto.id_producto}`)
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+      setImagenPreview(`${apiUrl}/api/productos/imagen/${producto.id_producto}`)
     } else {
       setImagenPreview(null)
     }
@@ -679,31 +686,52 @@ const Productos = () => {
                       Categoría <span className="text-red-500">*</span>
                     </label>
                     <div className="flex gap-2">
-                      <select
-                        required
-                        value={formData.categoria}
-                        onChange={(e) => {
-                          const categoriaSeleccionada = e.target.value
-                          setFormData({ ...formData, categoria: categoriaSeleccionada })
-                        }}
-                        className="input flex-1"
-                      >
-                        <option value="">Selecciona una categoría</option>
-                        {categoriasUnicas.map(cat => (
-                          <option key={cat} value={cat}>{cat}</option>
-                        ))}
-                      </select>
-                      {/* Mostrar input de texto solo si no hay categoría seleccionada del dropdown */}
-                      {!formData.categoria || !categoriasUnicas.includes(formData.categoria) ? (
-                        <input
-                          type="text"
-                          required={!formData.categoria || !categoriasUnicas.includes(formData.categoria)}
+                      {!usandoCategoriaNueva ? (
+                        <select
+                          required={!usandoCategoriaNueva}
                           value={formData.categoria}
-                          onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
+                          onChange={(e) => {
+                            const categoriaSeleccionada = e.target.value
+                            if (categoriaSeleccionada === 'nueva') {
+                              // Usuario quiere crear nueva categoría
+                              setUsandoCategoriaNueva(true)
+                              setFormData({ ...formData, categoria: '' })
+                            } else {
+                              // Usuario seleccionó una categoría existente
+                              setFormData({ ...formData, categoria: categoriaSeleccionada })
+                            }
+                          }}
                           className="input flex-1"
-                          placeholder="O escribe una nueva"
-                        />
-                      ) : null}
+                        >
+                          <option value="">Selecciona una categoría</option>
+                          {categoriasUnicas.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                          <option value="nueva">➕ Crear nueva categoría</option>
+                        </select>
+                      ) : (
+                        <div className="flex gap-2 flex-1">
+                          <input
+                            type="text"
+                            required
+                            value={formData.categoria}
+                            onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
+                            className="input flex-1"
+                            placeholder="Escribe el nombre de la nueva categoría"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setUsandoCategoriaNueva(false)
+                              setFormData({ ...formData, categoria: '' })
+                            }}
+                            className="btn-outline px-3"
+                            title="Volver a seleccionar categoría existente"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
 
