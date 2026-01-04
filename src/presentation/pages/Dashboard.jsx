@@ -4,20 +4,36 @@ import { useVentas } from '../hooks/useVentas'
 import { useComandas } from '../hooks/useComandas'
 import { useClientes } from '../hooks/useClientes'
 import { useProductos } from '../hooks/useProductos'
+import { useReportes } from '../hooks/useReportes'
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from 'recharts'
 
 const Dashboard = () => {
   const { obtenerVentas } = useVentas()
   const { obtenerComandas } = useComandas()
   const { clientes } = useClientes()
   const { productos } = useProductos()
+  const { obtenerVentasPorDia } = useReportes()
   const [ventas, setVentas] = useState([])
   const [comandas, setComandas] = useState([])
+  const [ventasSemana, setVentasSemana] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadingGrafico, setLoadingGrafico] = useState(false)
 
   useEffect(() => {
     const cargarDatos = async () => {
       try {
         setLoading(true)
+        setLoadingGrafico(true)
+        
         // Obtener ventas del día
         const hoy = new Date().toISOString().split('T')[0]
         const ventasHoy = await obtenerVentas(hoy, hoy)
@@ -27,10 +43,21 @@ const Dashboard = () => {
         const comandasActivas = await obtenerComandas('pendiente')
         const comandasEnPreparacion = await obtenerComandas('en_preparacion')
         setComandas([...(comandasActivas || []), ...(comandasEnPreparacion || [])])
+
+        // Obtener ventas de la semana (últimos 7 días)
+        const fechaFin = new Date()
+        const fechaInicio = new Date()
+        fechaInicio.setDate(fechaInicio.getDate() - 7)
+        const ventasSemanaData = await obtenerVentasPorDia(
+          fechaInicio.toISOString().split('T')[0],
+          fechaFin.toISOString().split('T')[0]
+        )
+        setVentasSemana(ventasSemanaData || [])
       } catch (error) {
         console.error('Error al cargar datos del dashboard:', error)
       } finally {
         setLoading(false)
+        setLoadingGrafico(false)
       }
     }
     cargarDatos()
@@ -41,6 +68,12 @@ const Dashboard = () => {
   const ventasDelDia = ventas.reduce((sum, v) => sum + parseFloat(v.total || 0), 0)
   const ordenesActivas = comandas.length
   const productosActivos = productos.filter(p => p.activo).length
+
+  // Formatear fecha para gráficos
+  const formatearFechaSemana = (fechaStr) => {
+    const fecha = new Date(fechaStr)
+    return fecha.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric' })
+  }
 
   const stats = [
     {
@@ -123,9 +156,52 @@ const Dashboard = () => {
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
             Ventas de la Semana
           </h2>
-          <div className="h-64 flex items-center justify-center text-gray-400">
-            <p>Gráfico de ventas (integrar con librería de gráficos)</p>
-          </div>
+          {loadingGrafico ? (
+            <div className="h-64 flex items-center justify-center">
+              <Loader2 className="w-6 h-6 animate-spin text-matcha-600" />
+            </div>
+          ) : ventasSemana.length === 0 ? (
+            <div className="h-64 flex items-center justify-center text-gray-400">
+              <p>No hay datos para mostrar</p>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={ventasSemana}>
+                <defs>
+                  <linearGradient id="colorVentasSemana" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#5a8f5a" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="#5a8f5a" stopOpacity={0.1} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis 
+                  dataKey="fecha" 
+                  tickFormatter={formatearFechaSemana}
+                  stroke="#6b7280"
+                />
+                <YAxis stroke="#6b7280" />
+                <Tooltip 
+                  formatter={(value) => `$${value.toFixed(2)}`}
+                  labelFormatter={(label) => {
+                    const fecha = new Date(label)
+                    return fecha.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'short' })
+                  }}
+                  contentStyle={{ backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                />
+                <Legend />
+                <Area 
+                  type="monotone" 
+                  dataKey="total_ventas" 
+                  stroke="#5a8f5a" 
+                  strokeWidth={3}
+                  fill="url(#colorVentasSemana)"
+                  dot={{ fill: '#5a8f5a', r: 4, strokeWidth: 2, stroke: '#fff' }}
+                  activeDot={{ r: 6 }}
+                  name="Ventas ($)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         <div className="card">
