@@ -1,6 +1,7 @@
 import axios from 'axios'
 
-const API_BASE_URL = 'http://localhost:8000'
+// Usar variable de entorno, con fallback a localhost para desarrollo local
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -33,8 +34,8 @@ api.interceptors.response.use(
       localStorage.removeItem('usuario')
       // Redirigir al login si no estamos ya ahí
       // Evitar bucles de redirección
-      if (window.location.pathname !== '/login' && !window.location.pathname.includes('/login')) {
-        window.location.href = '/login'
+      if (window.location.pathname !== '/sistema/login' && !window.location.pathname.includes('/login')) {
+        window.location.href = '/sistema/login'
       }
     }
     // Si hay error de red (sin respuesta), no redirigir automáticamente
