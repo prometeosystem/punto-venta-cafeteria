@@ -4,6 +4,7 @@ import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
+  base: '/sistema/', // <--- Configuración para servir desde subcarpeta
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

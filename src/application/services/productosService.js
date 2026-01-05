@@ -15,21 +15,28 @@ export const productosService = {
 
   // Crear producto (acepta FormData o JSON)
   crearProducto: async (productoData) => {
-    // Si es FormData, no establecer Content-Type (el navegador lo hace automáticamente)
-    const config = productoData instanceof FormData 
-      ? { headers: { 'Content-Type': undefined } }
-      : {}
-    const response = await api.post('/api/productos/crear_producto', productoData, config)
+    // Si es FormData, el interceptor de api.js ya maneja el Content-Type
+    // No necesitamos config adicional, axios lo maneja automáticamente
+    console.log('[DEBUG SERVICE] Creando producto, es FormData:', productoData instanceof FormData)
+    if (productoData instanceof FormData) {
+      // Log para debugging (no mostrar datos sensibles)
+      console.log('[DEBUG SERVICE] FormData tiene imagen:', productoData.has('imagen'))
+    }
+    const response = await api.post('/api/productos/crear_producto', productoData)
     return response.data
   },
 
   // Editar producto (acepta FormData o JSON)
   editarProducto: async (idProducto, productoData) => {
-    // Si es FormData, no establecer Content-Type (el navegador lo hace automáticamente)
-    const config = productoData instanceof FormData 
-      ? { headers: { 'Content-Type': undefined } }
-      : {}
-    const response = await api.put(`/api/productos/editar_producto/${idProducto}`, productoData, config)
+    // Si es FormData, el interceptor de api.js ya maneja el Content-Type
+    // No necesitamos config adicional, axios lo maneja automáticamente
+    console.log('[DEBUG SERVICE] Editando producto, es FormData:', productoData instanceof FormData)
+    if (productoData instanceof FormData) {
+      // Log para debugging (no mostrar datos sensibles)
+      console.log('[DEBUG SERVICE] FormData tiene imagen:', productoData.has('imagen'))
+      console.log('[DEBUG SERVICE] FormData tiene eliminar_imagen:', productoData.has('eliminar_imagen'))
+    }
+    const response = await api.put(`/api/productos/editar_producto/${idProducto}`, productoData)
     return response.data
   },
 

@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route } from 'react-router-dom'
 import MainLayout from '../layouts/MainLayout'
 import Login from '../pages/Login'
 import Dashboard from '../pages/Dashboard'
@@ -12,6 +12,8 @@ import Configuracion from '../pages/Configuracion'
 import Loyabit from '../pages/Loyabit'
 import Barista from '../pages/Barista'
 import ProtectedRoute from '../components/ProtectedRoute'
+import RoleProtectedRoute from '../components/RoleProtectedRoute'
+import RoleBasedRedirect from '../components/RoleBasedRedirect'
 
 function AppRouter() {
   return (
@@ -28,17 +30,80 @@ function AppRouter() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="punto-venta" element={<PuntoVenta />} />
-        <Route path="barista" element={<Barista />} />
-        <Route path="productos" element={<Productos />} />
-        <Route path="inventario" element={<Inventario />} />
+        <Route index element={<RoleBasedRedirect />} />
+        <Route 
+          path="dashboard" 
+          element={
+            <RoleProtectedRoute>
+              <Dashboard />
+            </RoleProtectedRoute>
+          } 
+        />
+        <Route 
+          path="punto-venta" 
+          element={
+            <RoleProtectedRoute>
+              <PuntoVenta />
+            </RoleProtectedRoute>
+          } 
+        />
+        <Route 
+          path="barista" 
+          element={
+            <RoleProtectedRoute>
+              <Barista />
+            </RoleProtectedRoute>
+          } 
+        />
+        <Route 
+          path="productos" 
+          element={
+            <RoleProtectedRoute>
+              <Productos />
+            </RoleProtectedRoute>
+          } 
+        />
+        <Route 
+          path="inventario" 
+          element={
+            <RoleProtectedRoute>
+              <Inventario />
+            </RoleProtectedRoute>
+          } 
+        />
         {/* <Route path="clientes" element={<Clientes />} /> */} {/* Temporalmente oculto */}
-        <Route path="loyabit" element={<Loyabit />} />
-        <Route path="empleados" element={<Empleados />} />
-        <Route path="reportes" element={<Reportes />} />
-        <Route path="configuracion" element={<Configuracion />} />
+        <Route 
+          path="loyabit" 
+          element={
+            <RoleProtectedRoute>
+              <Loyabit />
+            </RoleProtectedRoute>
+          } 
+        />
+        <Route 
+          path="empleados" 
+          element={
+            <RoleProtectedRoute>
+              <Empleados />
+            </RoleProtectedRoute>
+          } 
+        />
+        <Route 
+          path="reportes" 
+          element={
+            <RoleProtectedRoute>
+              <Reportes />
+            </RoleProtectedRoute>
+          } 
+        />
+        <Route 
+          path="configuracion" 
+          element={
+            <RoleProtectedRoute>
+              <Configuracion />
+            </RoleProtectedRoute>
+          } 
+        />
       </Route>
     </Routes>
   )

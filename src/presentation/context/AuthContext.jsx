@@ -9,18 +9,39 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const token = localStorage.getItem('token')
+    
+    // Si hay un usuario guardado en localStorage, usarlo temporalmente mientras se carga
+    const storedUser = authService.getStoredUser()
+    if (storedUser) {
+      setUsuario(storedUser)
+    }
+    
     if (token) {
-      // Intentar obtener el usuario actual
+      // Intentar obtener el usuario actual del backend
+      // Agregar timeout para evitar carga infinita
+      const timeoutId = setTimeout(() => {
+        setLoading(false)
+      }, 5000) // Timeout de 5 segundos
+      
       authService
         .getCurrentUser()
         .then((userData) => {
+          clearTimeout(timeoutId)
           setUsuario(userData)
+          // Actualizar localStorage con los datos más recientes
+          if (userData) {
+            localStorage.setItem('usuario', JSON.stringify(userData))
+          }
         })
-        .catch(() => {
-          // Token inválido, limpiar
+        .catch((error) => {
+          clearTimeout(timeoutId)
+          console.error('Error al obtener usuario:', error)
+          // Token inválido o backend no disponible, limpiar
           authService.logout()
+          setUsuario(null)
         })
         .finally(() => {
+          clearTimeout(timeoutId)
           setLoading(false)
         })
     } else {

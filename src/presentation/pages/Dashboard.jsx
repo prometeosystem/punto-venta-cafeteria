@@ -36,12 +36,21 @@ const Dashboard = () => {
         
         // Obtener ventas del día
         const hoy = new Date().toISOString().split('T')[0]
-        const ventasHoy = await obtenerVentas(hoy, hoy)
+        const ventasHoy = await obtenerVentas(hoy, hoy).catch(err => {
+          console.error('Error al obtener ventas:', err)
+          return []
+        })
         setVentas(ventasHoy || [])
 
         // Obtener comandas activas
-        const comandasActivas = await obtenerComandas('pendiente')
-        const comandasEnPreparacion = await obtenerComandas('en_preparacion')
+        const comandasActivas = await obtenerComandas('pendiente').catch(err => {
+          console.error('Error al obtener comandas activas:', err)
+          return []
+        })
+        const comandasEnPreparacion = await obtenerComandas('en_preparacion').catch(err => {
+          console.error('Error al obtener comandas en preparación:', err)
+          return []
+        })
         setComandas([...(comandasActivas || []), ...(comandasEnPreparacion || [])])
 
         // Obtener ventas de la semana (últimos 7 días)
@@ -55,6 +64,9 @@ const Dashboard = () => {
         setVentasSemana(ventasSemanaData || [])
       } catch (error) {
         console.error('Error al cargar datos del dashboard:', error)
+        // Asegurarse de que los estados estén vacíos si hay error
+        setVentas([])
+        setComandas([])
       } finally {
         setLoading(false)
         setLoadingGrafico(false)
