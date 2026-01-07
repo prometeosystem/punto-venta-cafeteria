@@ -18,6 +18,7 @@ const Productos = () => {
     categoria: '',
     precio: '',
     activo: true,
+    lleva_leche: false,
   })
   const [usandoCategoriaNueva, setUsandoCategoriaNueva] = useState(false)
   const [guardando, setGuardando] = useState(false)
@@ -147,6 +148,7 @@ const Productos = () => {
       categoria: '',
       precio: '',
       activo: true,
+      lleva_leche: false,
     })
     setUsandoCategoriaNueva(false)
     setImagen(null)
@@ -170,6 +172,7 @@ const Productos = () => {
       categoria: categoria,
       precio: producto.precio || '',
       activo: producto.activo !== undefined ? producto.activo : true,
+      lleva_leche: producto.lleva_leche !== undefined ? producto.lleva_leche : false,
     })
     // Determinar si la categoría es nueva o existente
     setUsandoCategoriaNueva(categoria && !categoriasExistentes.includes(categoria))
@@ -218,6 +221,7 @@ const Productos = () => {
       formDataToSend.append('categoria', formData.categoria.trim())
       formDataToSend.append('precio', precio.toString())
       formDataToSend.append('activo', formData.activo.toString())
+      formDataToSend.append('lleva_leche', formData.lleva_leche.toString())
 
       // ⚠️ CRÍTICO: SIEMPRE enviar recetas como string JSON
       // Convertir recetas del estado al formato del backend
@@ -793,6 +797,22 @@ const Productos = () => {
                         </label>
                       </div>
                     </div>
+                  </div>
+
+                  {/* ¿Lleva leche? */}
+                  <div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.lleva_leche}
+                        onChange={(e) => setFormData({ ...formData, lleva_leche: e.target.checked })}
+                        className="w-4 h-4 text-matcha-600 rounded border-gray-300 focus:ring-matcha-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700">¿Lleva leche?</span>
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1 ml-6">
+                      Marca esta opción si el producto requiere leche
+                    </p>
                   </div>
                 </div>
 
