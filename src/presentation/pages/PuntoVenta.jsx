@@ -165,18 +165,25 @@ const PuntoVenta = () => {
     setMostrarModalFinalizar(true)
   }
 
+  // Verificar si hay productos con leche en el carrito
+  const tieneProductosConLeche = cart.some(item => {
+    const idProducto = item.id_producto || item.id
+    const producto = productos.find(p => p.id_producto === idProducto)
+    return producto?.lleva_leche === true
+  })
+
   // Función para procesar venta completa
   const procesarVenta = async () => {
     setProcesando(true)
     setMostrarModalFinalizar(false)
     try {
-      // Calcular total con extra de leche deslactosada
-      const extraLeche = tipoLeche === 'deslactosada' ? 15.00 : null
+      // Calcular total con extra de leche deslactosada o almendras (solo si hay productos con leche)
+      const extraLeche = tieneProductosConLeche && (tipoLeche === 'deslactosada' || tipoLeche === 'almendras') ? 15.00 : null
       const totalConExtra = total + (extraLeche || 0)
 
       // Crear detalles de venta (NO incluir el extra de leche como producto)
       const detallesVenta = cart.map(item => ({
-        id_producto: item.id_producto,
+        id_producto: item.id_producto || item.id,
         cantidad: item.quantity,
         precio_unitario: parseFloat(item.precio),
         subtotal: parseFloat(item.precio) * item.quantity,
@@ -190,7 +197,7 @@ const PuntoVenta = () => {
         total: totalConExtra,
         metodo_pago: metodoPago,
         tipo_servicio: tipoServicio,
-        tipo_leche: tipoLeche,
+        tipo_leche: tieneProductosConLeche ? tipoLeche : null,
         comentarios: comentarios || null,
         extra_leche: extraLeche,
         detalles: detallesVenta,
@@ -200,7 +207,7 @@ const PuntoVenta = () => {
 
       // Crear detalles de comanda con observaciones
       const detallesComanda = cart.map(item => ({
-        id_producto: item.id_producto,
+        id_producto: item.id_producto || item.id,
         cantidad: item.quantity,
         observaciones: item.observaciones || null,
       }))
@@ -978,34 +985,46 @@ const PuntoVenta = () => {
                 </div>
               </div>
 
-              {/* Tipo de Leche */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tipo de Leche
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => setTipoLeche('entera')}
-                    className={`py-3 px-4 rounded-lg border-2 transition-all ${
-                      tipoLeche === 'entera'
-                        ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    Entera
-                  </button>
-                  <button
-                    onClick={() => setTipoLeche('deslactosada')}
-                    className={`py-3 px-4 rounded-lg border-2 transition-all ${
-                      tipoLeche === 'deslactosada'
-                        ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    Deslactosada (+$15)
-                  </button>
+              {/* Tipo de Leche (solo si hay productos con leche) */}
+              {tieneProductosConLeche && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Tipo de Leche
+                  </label>
+                  <div className="grid grid-cols-3 gap-3">
+                    <button
+                      onClick={() => setTipoLeche('entera')}
+                      className={`py-3 px-4 rounded-lg border-2 transition-all ${
+                        tipoLeche === 'entera'
+                          ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      Entera
+                    </button>
+                    <button
+                      onClick={() => setTipoLeche('deslactosada')}
+                      className={`py-3 px-4 rounded-lg border-2 transition-all ${
+                        tipoLeche === 'deslactosada'
+                          ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      Deslactosada (+$15)
+                    </button>
+                    <button
+                      onClick={() => setTipoLeche('almendras')}
+                      className={`py-3 px-4 rounded-lg border-2 transition-all ${
+                        tipoLeche === 'almendras'
+                          ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      Almendras (+$15)
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Comentarios */}
               <div>
@@ -1027,16 +1046,16 @@ const PuntoVenta = () => {
                   <span>Subtotal:</span>
                   <span>${total.toFixed(2)}</span>
                 </div>
-                {tipoLeche === 'deslactosada' && (
+                {tieneProductosConLeche && (tipoLeche === 'deslactosada' || tipoLeche === 'almendras') && (
                   <div className="flex items-center justify-between text-gray-600">
-                    <span>Extra Leche Deslactosada:</span>
+                    <span>Extra Leche {tipoLeche === 'deslactosada' ? 'Deslactosada' : 'Almendras'}:</span>
                     <span>+$15.00</span>
                   </div>
                 )}
                 <div className="flex items-center justify-between text-lg font-bold text-gray-900 pt-2 border-t border-gray-200">
                   <span>Total:</span>
                   <span className="text-matcha-600">
-                    ${(total + (tipoLeche === 'deslactosada' ? 15 : 0)).toFixed(2)}
+                    ${(total + (tieneProductosConLeche && (tipoLeche === 'deslactosada' || tipoLeche === 'almendras') ? 15 : 0)).toFixed(2)}
                   </span>
                 </div>
               </div>
