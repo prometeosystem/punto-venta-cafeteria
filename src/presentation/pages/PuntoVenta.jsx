@@ -270,18 +270,22 @@ const PuntoVenta = () => {
 
     setProcesando(true)
     try {
-      // Verificar y actualizar estado si es necesario
-      // El backend requiere que la pre-orden esté en estado "en_caja"
-      if (preordenSeleccionada.estado === 'preorden') {
+      // Verificar que la pre-orden esté en estado "en_caja"
+      // (El estado debería haberse actualizado al seleccionar la pre-orden)
+      if (preordenSeleccionada.estado !== 'en_caja') {
+        // Si por alguna razón no está en "en_caja", intentar actualizarla
         try {
-          await actualizarPreorden(preordenSeleccionada.id_preorden, {
+          const preordenActualizada = await actualizarPreorden(preordenSeleccionada.id_preorden, {
             estado: 'en_caja'
           })
-          // Actualizar el estado local de la pre-orden seleccionada
-          setPreordenSeleccionada({
-            ...preordenSeleccionada,
-            estado: 'en_caja'
-          })
+          
+          // Verificar si hubo error en la respuesta
+          if (preordenActualizada?.error) {
+            throw new Error(preordenActualizada.error)
+          }
+          
+          // Usar la pre-orden actualizada que retorna el backend
+          setPreordenSeleccionada(preordenActualizada)
         } catch (error) {
           console.error('Error al actualizar estado de pre-orden:', error)
           const errorMsg = extraerMensajeError(error)
@@ -355,9 +359,47 @@ const PuntoVenta = () => {
   }
 
   // Función para seleccionar pre-orden
-  const seleccionarPreorden = (preorden) => {
-    setPreordenSeleccionada(preorden)
+  const seleccionarPreorden = async (preorden) => {
     setCart([]) // Limpiar carrito cuando se selecciona una pre-orden
+    
+    // Si la pre-orden está en estado "preorden", actualizarla a "en_caja"
+    if (preorden.estado === 'preorden') {
+      try {
+        // Actualizar el estado a "en_caja" en el backend
+        const preordenActualizada = await actualizarPreorden(preorden.id_preorden, {
+          estado: 'en_caja'
+        })
+        
+        // Verificar si hubo error en la respuesta
+        if (preordenActualizada?.error) {
+          throw new Error(preordenActualizada.error)
+        }
+        
+        // Usar la pre-orden actualizada que retorna el backend
+        setPreordenSeleccionada(preordenActualizada)
+        
+        // Actualizar la lista de pre-órdenes para reflejar el cambio
+        const todasPreordenes = await obtenerPreordenes()
+        const preordenesFiltradas = (todasPreordenes || []).filter(p => 
+          p.estado === 'preorden' || p.estado === 'en_caja'
+        )
+        setPreordenes(preordenesFiltradas)
+      } catch (error) {
+        console.error('Error al actualizar estado de pre-orden:', error)
+        // Si falla la actualización, usar la pre-orden original pero mostrar error
+        setPreordenSeleccionada(preorden)
+        const errorMsg = error.response?.data?.error || error.message || 'Error al actualizar estado'
+        await Swal.fire({
+          icon: 'warning',
+          title: 'Aviso',
+          text: `No se pudo actualizar el estado a "en caja": ${errorMsg}`,
+          confirmButtonColor: '#10b981',
+        })
+      }
+    } else {
+      // Si ya está en otro estado, solo seleccionarla
+      setPreordenSeleccionada(preorden)
+    }
   }
 
   // Función para formatear fecha
