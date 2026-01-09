@@ -47,10 +47,10 @@ const Sidebar = () => {
 
   return (
     <>
-      {/* Overlay para móvil */}
-      {sidebarOpen && (
+      {/* Overlay para cerrar sidebar (solo en móvil) */}
+      {sidebarOpen && isMobile && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black bg-opacity-50 z-40"
           onClick={toggleSidebar}
         />
       )}
@@ -58,10 +58,11 @@ const Sidebar = () => {
       {/* Sidebar */}
       <aside
         className={`
-          fixed lg:static inset-y-0 left-0 z-50
+          fixed inset-y-0 left-0 z-50
           w-64 bg-coffee-800 border-r border-coffee-900
           transform transition-transform duration-300 ease-in-out
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          ${isMobile ? '' : sidebarOpen ? 'lg:translate-x-0' : 'lg:-translate-x-full'}
           flex flex-col
           shadow-lg lg:shadow-none
         `}
@@ -71,7 +72,7 @@ const Sidebar = () => {
           <Logo />
           <button
             onClick={toggleSidebar}
-            className="lg:hidden p-2 rounded-lg hover:bg-coffee-700 transition-colors"
+            className="p-2 rounded-lg hover:bg-coffee-700 transition-colors"
             aria-label="Cerrar menú"
           >
             <X className="w-5 h-5 text-gray-300" />
@@ -99,10 +100,8 @@ const Sidebar = () => {
                     }`
                   }
                   onClick={() => {
-                    // Cerrar sidebar en móvil/tablet al hacer clic
-                    if (isMobile) {
-                      toggleSidebar()
-                    }
+                    // Cerrar sidebar al hacer clic en un enlace
+                    toggleSidebar()
                   }}
                 >
                   <Icon className="w-5 h-5" />
@@ -116,7 +115,7 @@ const Sidebar = () => {
         {/* Footer del Sidebar */}
         <div className="p-4 border-t border-coffee-700">
           <div className="text-xs text-gray-400 text-center space-y-1">
-            <div>v1.0.0</div>
+            <div>v1.6.5</div>
             <div>Creado por Prothec</div>
           </div>
         </div>

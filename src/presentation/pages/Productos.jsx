@@ -4,6 +4,7 @@ import { useProductos } from '../hooks/useProductos'
 import { useInventario } from '../hooks/useInventario'
 import { recetasService } from '../../application/services/recetasService'
 import Swal from 'sweetalert2'
+import ImageCropModal from '../components/ImageCropModal'
 
 const Productos = () => {
   const [searchTerm, setSearchTerm] = useState('')
@@ -18,12 +19,15 @@ const Productos = () => {
     precio: '',
     activo: true,
     lleva_leche: false,
+    lleva_extras: false,
   })
   const [usandoCategoriaNueva, setUsandoCategoriaNueva] = useState(false)
   const [guardando, setGuardando] = useState(false)
   const [imagen, setImagen] = useState(null)
   const [imagenPreview, setImagenPreview] = useState(null)
   const [eliminarImagen, setEliminarImagen] = useState(false)
+  const [mostrarCropModal, setMostrarCropModal] = useState(false)
+  const [imagenParaRecortar, setImagenParaRecortar] = useState(null)
   const [recetas, setRecetas] = useState([])
   const [mostrarFormularioReceta, setMostrarFormularioReceta] = useState(false)
   const [recetaEditando, setRecetaEditando] = useState(null)
@@ -146,11 +150,14 @@ const Productos = () => {
       precio: '',
       activo: true,
       lleva_leche: false,
+      lleva_extras: false,
     })
     setUsandoCategoriaNueva(false)
     setImagen(null)
     setImagenPreview(null)
+    setImagenParaRecortar(null)
     setEliminarImagen(false)
+    setMostrarCropModal(false)
     setRecetas([])
     setMostrarFormularioReceta(false)
     setMostrarModalProducto(true)
@@ -168,6 +175,7 @@ const Productos = () => {
       precio: producto.precio || '',
       activo: producto.activo !== undefined ? producto.activo : true,
       lleva_leche: producto.lleva_leche !== undefined ? producto.lleva_leche : false,
+      lleva_extras: producto.lleva_extras !== undefined ? producto.lleva_extras : false,
     })
     // Determinar si la categoría es nueva o existente
     setUsandoCategoriaNueva(categoria && !categoriasExistentes.includes(categoria))
@@ -177,6 +185,7 @@ const Productos = () => {
       setImagenPreview(`${apiUrl}/api/productos/imagen/${producto.id_producto}`)
     } else {
       setImagenPreview(null)
+      setImagenParaRecortar(null)
     }
     setImagen(null)
     setEliminarImagen(false)
@@ -216,6 +225,7 @@ const Productos = () => {
       formDataToSend.append('precio', precio.toString())
       formDataToSend.append('activo', formData.activo.toString())
       formDataToSend.append('lleva_leche', formData.lleva_leche.toString())
+      formDataToSend.append('lleva_extras', formData.lleva_extras.toString())
 
       // ⚠️ CRÍTICO: SIEMPRE enviar recetas como string JSON
       // Convertir recetas del estado al formato del backend
@@ -308,7 +318,9 @@ const Productos = () => {
       setRecetas([])
       setImagen(null)
       setImagenPreview(null)
+      setImagenParaRecortar(null)
       setEliminarImagen(false)
+      setMostrarCropModal(false)
       setMostrarFormularioReceta(false)
     } catch (error) {
       console.error('Error al guardar producto:', error)
@@ -655,7 +667,9 @@ const Productos = () => {
                   setRecetas([])
                   setImagen(null)
                   setImagenPreview(null)
+                  setImagenParaRecortar(null)
                   setEliminarImagen(false)
+                  setMostrarCropModal(false)
                   setMostrarFormularioReceta(false)
                 }}
                 className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
@@ -789,19 +803,35 @@ const Productos = () => {
                     </div>
                   </div>
 
-                  {/* ¿Lleva leche? */}
+                  {/* Lleva Leche */}
                   <div>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={formData.lleva_leche}
                         onChange={(e) => setFormData({ ...formData, lleva_leche: e.target.checked })}
-                        className="w-4 h-4 text-matcha-600 rounded border-gray-300 focus:ring-matcha-500"
+                        className="w-4 h-4 text-matcha-600 rounded"
                       />
-                      <span className="text-sm font-medium text-gray-700">¿Lleva leche?</span>
+                      <span className="text-sm font-medium text-gray-700">Lleva Leche</span>
                     </label>
                     <p className="text-xs text-gray-500 mt-1 ml-6">
-                      Marca esta opción si el producto requiere leche
+                      Marca esta opción si el producto contiene leche
+                    </p>
+                  </div>
+
+                  {/* Lleva Extras */}
+                  <div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.lleva_extras}
+                        onChange={(e) => setFormData({ ...formData, lleva_extras: e.target.checked })}
+                        className="w-4 h-4 text-matcha-600 rounded"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Lleva Extras</span>
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1 ml-6">
+                      Marca esta opción si el producto permite agregar extras (Tocino, huevo, jamón, chorizo)
                     </p>
                   </div>
                 </div>
@@ -827,49 +857,93 @@ const Productos = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Imagen del Producto <span className="text-gray-400">(Opcional)</span>
                     </label>
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/jpg,image/png,image/webp"
-                      onChange={(e) => {
-                        const file = e.target.files[0]
-                        if (file) {
-                          // Validar tipo
-                          if (!file.type.match('image/(jpeg|jpg|png|webp)')) {
+                    <div className="space-y-2">
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/jpg,image/png,image/webp"
+                        onChange={(e) => {
+                          const file = e.target.files[0]
+                          if (file) {
+                            // Validar tipo
+                            if (!file.type.match('image/(jpeg|jpg|png|webp)')) {
+                              Swal.fire({
+                                icon: 'error',
+                                title: 'Formato no permitido',
+                                text: 'Solo se permiten imágenes JPEG, PNG o WebP',
+                                confirmButtonColor: '#10b981',
+                              })
+                              e.target.value = ''
+                              return
+                            }
+                            
+                            // Validar tamaño (5MB)
+                            if (file.size > 5 * 1024 * 1024) {
+                              Swal.fire({
+                                icon: 'error',
+                                title: 'Imagen demasiado grande',
+                                text: 'El tamaño máximo permitido es 5MB',
+                                confirmButtonColor: '#10b981',
+                              })
+                              e.target.value = ''
+                              return
+                            }
+                            
+                            // Guardar el archivo y preparar para recorte
+                            setImagen(file)
+                            setEliminarImagen(false)
+                            
+                            // Crear preview temporal
+                            const reader = new FileReader()
+                            reader.onloadend = () => {
+                              setImagenPreview(reader.result)
+                              // Guardar la imagen para recortar
+                              setImagenParaRecortar(reader.result)
+                            }
+                            reader.readAsDataURL(file)
+                          }
+                        }}
+                        className="input w-full"
+                        id="imagen-producto-input"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Si hay una imagen seleccionada, abrir modal de recorte
+                          if (imagenParaRecortar) {
+                            setMostrarCropModal(true)
+                          } else if (imagenPreview) {
+                            // Si hay preview pero no imagenParaRecortar, cargarla
+                            setImagenParaRecortar(imagenPreview)
+                            setMostrarCropModal(true)
+                          } else if (imagen) {
+                            // Si hay archivo pero no preview, crear preview primero
+                            const reader = new FileReader()
+                            reader.onloadend = () => {
+                              setImagenPreview(reader.result)
+                              setImagenParaRecortar(reader.result)
+                              setMostrarCropModal(true)
+                            }
+                            reader.readAsDataURL(imagen)
+                          } else {
                             Swal.fire({
-                              icon: 'error',
-                              title: 'Formato no permitido',
-                              text: 'Solo se permiten imágenes JPEG, PNG o WebP',
+                              icon: 'info',
+                              title: 'No hay imagen',
+                              text: 'Primero selecciona una imagen',
                               confirmButtonColor: '#10b981',
                             })
-                            return
                           }
-                          
-                          // Validar tamaño (5MB)
-                          if (file.size > 5 * 1024 * 1024) {
-                            Swal.fire({
-                              icon: 'error',
-                              title: 'Imagen demasiado grande',
-                              text: 'El tamaño máximo permitido es 5MB',
-                              confirmButtonColor: '#10b981',
-                            })
-                            return
-                          }
-                          
-                          setImagen(file)
-                          setEliminarImagen(false)
-                          
-                          // Crear preview
-                          const reader = new FileReader()
-                          reader.onloadend = () => {
-                            setImagenPreview(reader.result)
-                          }
-                          reader.readAsDataURL(file)
-                        }
-                      }}
-                      className="input w-full"
-                    />
+                        }}
+                        className={`w-full btn-outline flex items-center justify-center gap-2 ${
+                          (!imagen && !imagenPreview) ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                        disabled={!imagen && !imagenPreview}
+                      >
+                        <Edit className="w-4 h-4" />
+                        Editar Imagen
+                      </button>
+                    </div>
                     <p className="text-xs text-gray-500 mt-1">
-                      Formatos: JPEG, PNG, WebP. Máximo 5MB
+                      Formatos: JPEG, PNG, WebP. Máximo 5MB. Selecciona una imagen y luego haz clic en "Editar Imagen" para recortarla.
                     </p>
                     
                     {/* Preview de imagen */}
@@ -886,6 +960,7 @@ const Productos = () => {
                             onClick={() => {
                               setImagen(null)
                               setImagenPreview(null)
+                              setImagenParaRecortar(null)
                               setEliminarImagen(true)
                             }}
                             className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
@@ -1134,7 +1209,9 @@ const Productos = () => {
                     setRecetas([])
                     setImagen(null)
                     setImagenPreview(null)
+                    setImagenParaRecortar(null)
                     setEliminarImagen(false)
+                    setMostrarCropModal(false)
                     setMostrarFormularioReceta(false)
                   }}
                   className="btn-outline flex-1"
@@ -1161,6 +1238,33 @@ const Productos = () => {
           </div>
         </div>
       )}
+
+      {/* Modal de Recorte de Imagen - Fuera del modal del producto para evitar problemas de z-index */}
+      {mostrarCropModal && imagenParaRecortar && (
+        <>
+          {console.log('Renderizando ImageCropModal', { mostrarCropModal, tieneImagen: !!imagenParaRecortar })}
+          <ImageCropModal
+            imageSrc={imagenParaRecortar}
+            onCropComplete={(croppedFile) => {
+              console.log('Imagen recortada recibida')
+              setImagen(croppedFile)
+              setEliminarImagen(false)
+              // Crear preview de la imagen recortada
+              const reader = new FileReader()
+              reader.onloadend = () => {
+                setImagenPreview(reader.result)
+              }
+              reader.readAsDataURL(croppedFile)
+            }}
+            onClose={() => {
+              console.log('Cerrando modal de recorte')
+              setMostrarCropModal(false)
+              setImagenParaRecortar(null)
+            }}
+          />
+        </>
+      )}
+      {console.log('Estado actual:', { mostrarCropModal, tieneImagen: !!imagenParaRecortar })}
     </div>
   )
 }
