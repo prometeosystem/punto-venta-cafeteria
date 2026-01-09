@@ -11,6 +11,7 @@ import Reportes from '../pages/Reportes'
 import Configuracion from '../pages/Configuracion'
 import Loyabit from '../pages/Loyabit'
 import Barista from '../pages/Barista'
+import TestNotificationSounds from '../pages/TestNotificationSounds'
 import ProtectedRoute from '../components/ProtectedRoute'
 import RoleProtectedRoute from '../components/RoleProtectedRoute'
 import RoleBasedRedirect from '../components/RoleBasedRedirect'
@@ -103,6 +104,10 @@ function AppRouter() {
               <Configuracion />
             </RoleProtectedRoute>
           } 
+        />
+        <Route 
+          path="test-sonidos" 
+          element={<TestNotificationSounds />}
         />
       </Route>
     </Routes>

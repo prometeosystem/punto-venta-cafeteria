@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { CheckCircle, Clock, User, Package, Loader2, Coffee, Play } from 'lucide-react'
+import { CheckCircle, Clock, User, Package, Loader2, Coffee, Play, AlertTriangle } from 'lucide-react'
 import { useComandas } from '../hooks/useComandas'
 import { useProductos } from '../hooks/useProductos'
+import { useInventario } from '../hooks/useInventario'
 import Swal from 'sweetalert2'
 
 const Barista = () => {
@@ -10,6 +11,7 @@ const Barista = () => {
   const [esPrimeraCarga, setEsPrimeraCarga] = useState(true)
   const { obtenerComandas, actualizarEstado, loading } = useComandas()
   const { productos } = useProductos()
+  const { insumos } = useInventario()
 
   // Cargar comandas pendientes y en preparación (NO incluir terminadas)
   const cargarComandas = async (esRefresh = false) => {
@@ -145,6 +147,39 @@ const Barista = () => {
     }
   }
 
+  // Función auxiliar para obtener nombre del insumo por ID
+  const obtenerNombreInsumo = (idInsumo) => {
+    const insumo = insumos.find(i => i.id_insumo === idInsumo)
+    return insumo?.nombre || `Insumo #${idInsumo}`
+  }
+
+  // Función para parsear errores de stock y extraer información
+  const parsearErroresStock = (errores) => {
+    if (!Array.isArray(errores)) return []
+    
+    return errores
+      .filter(error => error.includes('stock insuficiente'))
+      .map(error => {
+        // Formato: "Insumo ID {id}: stock insuficiente (tiene {cantidad} {unidad}, necesita {cantidad} {unidad})"
+        const match = error.match(/Insumo ID (\d+): stock insuficiente \(tiene ([\d.]+) (\w+), necesita ([\d.]+) (\w+)\)/)
+        if (match) {
+          const [, idInsumo, cantidadActual, unidadActual, cantidadNecesaria, unidadNecesaria] = match
+          return {
+            idInsumo: parseInt(idInsumo),
+            nombre: obtenerNombreInsumo(parseInt(idInsumo)),
+            cantidadActual: parseFloat(cantidadActual),
+            unidadActual,
+            cantidadNecesaria: parseFloat(cantidadNecesaria),
+            unidadNecesaria,
+            mensajeCompleto: error
+          }
+        }
+        return {
+          mensajeCompleto: error
+        }
+      })
+  }
+
   // Función para marcar comanda como terminada
   const marcarComoTerminada = async (idComanda) => {
     try {
@@ -160,37 +195,141 @@ const Barista = () => {
       })
 
       if (result.isConfirmed) {
-        const respuesta = await actualizarEstado(idComanda, 'terminada')
-        
-        // ✅ IMPORTANTE: Refrescar la lista para que la comanda terminada desaparezca
-        await cargarComandas(true)
-        
-        // Notificar a otras instancias que se actualizó una comanda
-        window.dispatchEvent(new CustomEvent('comanda-actualizada'))
-        
-        // Mostrar información detallada si hay insumos restados
-        let mensaje = 'La comanda está lista para entregar.'
-        if (respuesta?.insumos_restados && respuesta.insumos_restados.length > 0) {
-          mensaje += `\n\nSe restaron ${respuesta.total_insumos_restados || respuesta.insumos_restados.length} insumo(s) del inventario.`
-        } else {
-          mensaje += '\n\nLos insumos se han restado automáticamente del inventario.'
+        try {
+          const respuesta = await actualizarEstado(idComanda, 'terminada')
+          
+          // Verificar si la respuesta contiene errores de stock
+          if (respuesta?.error && respuesta?.errores) {
+            const erroresStock = parsearErroresStock(respuesta.errores)
+            
+            if (erroresStock.length > 0) {
+              // Construir HTML para mostrar los insumos con problemas
+              let htmlContent = '<div style="text-align: left;">'
+              htmlContent += '<p style="margin-bottom: 15px; font-weight: 600; color: #dc2626;">No se puede terminar la comanda porque los siguientes insumos tienen stock insuficiente:</p>'
+              htmlContent += '<ul style="list-style: none; padding: 0; margin: 0;">'
+              
+              erroresStock.forEach((error, index) => {
+                if (error.idInsumo) {
+                  htmlContent += `<li style="padding: 10px; margin-bottom: 8px; background-color: #fef2f2; border-left: 4px solid #dc2626; border-radius: 4px;">`
+                  htmlContent += `<strong style="color: #991b1b;">${error.nombre}</strong><br/>`
+                  htmlContent += `<span style="color: #7f1d1d; font-size: 0.9em;">`
+                  htmlContent += `Stock actual: <strong>${error.cantidadActual} ${error.unidadActual}</strong><br/>`
+                  htmlContent += `Stock necesario: <strong>${error.cantidadNecesaria} ${error.unidadNecesaria}</strong>`
+                  htmlContent += `</span></li>`
+                } else {
+                  htmlContent += `<li style="padding: 10px; margin-bottom: 8px; background-color: #fef2f2; border-left: 4px solid #dc2626; border-radius: 4px;">`
+                  htmlContent += `<span style="color: #7f1d1d;">${error.mensajeCompleto}</span></li>`
+                }
+              })
+              
+              htmlContent += '</ul>'
+              htmlContent += '<p style="margin-top: 15px; color: #6b7280; font-size: 0.9em;">Por favor, actualiza el inventario antes de terminar esta comanda.</p>'
+              htmlContent += '</div>'
+              
+              await Swal.fire({
+                icon: 'error',
+                title: 'Stock Insuficiente',
+                html: htmlContent,
+                confirmButtonColor: '#dc2626',
+                confirmButtonText: 'Entendido',
+                width: '600px'
+              })
+              
+              // Refrescar comandas para asegurar que el estado se mantiene
+              await cargarComandas(true)
+              return
+            }
+          }
+          
+          // ✅ IMPORTANTE: Refrescar la lista para que la comanda terminada desaparezca
+          await cargarComandas(true)
+          
+          // Notificar a otras instancias que se actualizó una comanda
+          window.dispatchEvent(new CustomEvent('comanda-actualizada'))
+          
+          // ✅ Disparar evento para verificar stock inmediatamente después de terminar comanda
+          window.dispatchEvent(new CustomEvent('comanda-terminada', {
+            detail: { id_comanda: idComanda }
+          }))
+          
+          // Mostrar información detallada si hay insumos restados
+          let mensaje = 'La comanda está lista para entregar.'
+          if (respuesta?.insumos_restados && respuesta.insumos_restados.length > 0) {
+            mensaje += `\n\nSe restaron ${respuesta.total_insumos_restados || respuesta.insumos_restados.length} insumo(s) del inventario.`
+          } else {
+            mensaje += '\n\nLos insumos se han restado automáticamente del inventario.'
+          }
+          
+          await Swal.fire({
+            icon: 'success',
+            title: '¡Comanda terminada!',
+            text: mensaje,
+            confirmButtonColor: '#10b981',
+            timer: 3000,
+          })
+        } catch (error) {
+          console.error('Error al marcar como terminada:', error)
+          
+          // Verificar si el error contiene información sobre stock insuficiente
+          const errorData = error.response?.data
+          if (errorData?.errores) {
+            const erroresStock = parsearErroresStock(errorData.errores)
+            
+            if (erroresStock.length > 0) {
+              // Construir HTML para mostrar los insumos con problemas
+              let htmlContent = '<div style="text-align: left;">'
+              htmlContent += '<p style="margin-bottom: 15px; font-weight: 600; color: #dc2626;">No se puede terminar la comanda porque los siguientes insumos tienen stock insuficiente:</p>'
+              htmlContent += '<ul style="list-style: none; padding: 0; margin: 0;">'
+              
+              erroresStock.forEach((error) => {
+                if (error.idInsumo) {
+                  htmlContent += `<li style="padding: 10px; margin-bottom: 8px; background-color: #fef2f2; border-left: 4px solid #dc2626; border-radius: 4px;">`
+                  htmlContent += `<strong style="color: #991b1b;">${error.nombre}</strong><br/>`
+                  htmlContent += `<span style="color: #7f1d1d; font-size: 0.9em;">`
+                  htmlContent += `Stock actual: <strong>${error.cantidadActual} ${error.unidadActual}</strong><br/>`
+                  htmlContent += `Stock necesario: <strong>${error.cantidadNecesaria} ${error.unidadNecesaria}</strong>`
+                  htmlContent += `</span></li>`
+                } else {
+                  htmlContent += `<li style="padding: 10px; margin-bottom: 8px; background-color: #fef2f2; border-left: 4px solid #dc2626; border-radius: 4px;">`
+                  htmlContent += `<span style="color: #7f1d1d;">${error.mensajeCompleto}</span></li>`
+                }
+              })
+              
+              htmlContent += '</ul>'
+              htmlContent += '<p style="margin-top: 15px; color: #6b7280; font-size: 0.9em;">Por favor, actualiza el inventario antes de terminar esta comanda.</p>'
+              htmlContent += '</div>'
+              
+              await Swal.fire({
+                icon: 'error',
+                title: 'Stock Insuficiente',
+                html: htmlContent,
+                confirmButtonColor: '#dc2626',
+                confirmButtonText: 'Entendido',
+                width: '600px'
+              })
+              
+              // Refrescar comandas para asegurar que el estado se mantiene
+              await cargarComandas(true)
+              return
+            }
+          }
+          
+          // Si no es un error de stock, mostrar el error genérico
+          const errorMsg = errorData?.detail || errorData?.error || error.message || 'Error al marcar como terminada'
+          await Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: errorMsg,
+            confirmButtonColor: '#10b981',
+          })
         }
-        
-        Swal.fire({
-          icon: 'success',
-          title: '¡Comanda terminada!',
-          text: mensaje,
-          confirmButtonColor: '#10b981',
-          timer: 3000,
-        })
       }
     } catch (error) {
-      console.error('Error al marcar como terminada:', error)
-      const errorMsg = error.response?.data?.detail || error.response?.data?.error || error.message || 'Error al marcar como terminada'
-      Swal.fire({
+      console.error('Error inesperado al marcar como terminada:', error)
+      await Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: errorMsg,
+        text: 'Ocurrió un error inesperado. Por favor, intenta nuevamente.',
         confirmButtonColor: '#10b981',
       })
     }
@@ -300,9 +439,10 @@ const Barista = () => {
                     </div>
                   )}
                   
-                  {/* Información de leche (de pre-orden o venta) - Resaltada si es deslactosada */}
+                  {/* Información de leche global - Solo mostrar si NO hay items con observaciones individuales */}
                   {((comanda.preorden?.tipo_leche || comanda.venta?.tipo_leche) || 
-                    (comanda.preorden?.extra_leche || comanda.venta?.extra_leche)) && (
+                    (comanda.preorden?.extra_leche || comanda.venta?.extra_leche)) && 
+                    !comanda.detalles?.some(d => d.observaciones && (d.observaciones.includes('Leche') || d.observaciones.includes('Extras:'))) && (
                     <div className="flex items-center gap-2 flex-wrap">
                       {(comanda.preorden?.tipo_leche || comanda.venta?.tipo_leche) && (
                         <span className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
@@ -347,28 +487,52 @@ const Barista = () => {
                 {/* Items de la comanda */}
                 <div className="mb-4 space-y-2 max-h-64 overflow-y-auto">
                   <p className="text-sm font-medium text-gray-700 mb-2">Items ({itemsCount}):</p>
-                  {comanda.detalles?.map((detalle, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
-                    >
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900 text-sm">
-                          {detalle.producto_nombre || obtenerNombreProducto(detalle.id_producto)}
-                        </p>
-                        {detalle.observaciones && (
-                          <p className="text-xs text-gray-500 italic mt-1">
-                            {detalle.observaciones}
+                  {comanda.detalles?.map((detalle, index) => {
+                    // Separar observaciones para mostrar mejor
+                    const observaciones = detalle.observaciones ? detalle.observaciones.split(' - ') : []
+                    const tipoLecheObs = observaciones.find(obs => obs.includes('Leche'))
+                    const extrasObs = observaciones.find(obs => obs.includes('Extras:'))
+                    
+                    return (
+                      <div
+                        key={index}
+                        className="p-3 bg-gray-50 rounded-lg border border-gray-200"
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <p className="font-medium text-gray-900 text-sm">
+                            {detalle.producto_nombre || obtenerNombreProducto(detalle.id_producto)}
                           </p>
+                          <p className="text-sm font-semibold text-gray-900 ml-2">
+                            x{detalle.cantidad}
+                          </p>
+                        </div>
+                        {(tipoLecheObs || extrasObs) && (
+                          <div className="mt-2 space-y-1">
+                            {tipoLecheObs && (
+                              <div className="flex items-center gap-1">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-300">
+                                  {tipoLecheObs}
+                                </span>
+                              </div>
+                            )}
+                            {extrasObs && (
+                              <div className="flex items-center gap-1 flex-wrap">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 border border-purple-300">
+                                  {extrasObs.replace('Extras: ', '')}
+                                </span>
+                              </div>
+                            )}
+                            {/* Mostrar otras observaciones que no sean tipo de leche o extras */}
+                            {observaciones.filter(obs => !obs.includes('Leche') && !obs.includes('Extras:')).map((obs, obsIndex) => (
+                              <div key={obsIndex} className="flex items-center gap-1">
+                                <span className="text-xs text-gray-600 italic">{obs}</span>
+                              </div>
+                            ))}
+                          </div>
                         )}
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm font-semibold text-gray-900">
-                          x{detalle.cantidad}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
 
                 {/* Total */}
