@@ -320,14 +320,7 @@ const Reportes = () => {
               />
             </div>
           </div>
-          <button 
-            onClick={cargarDatos}
-            disabled={loading}
-            className="btn-primary flex items-center gap-2 disabled:opacity-50"
-          >
-            <Calendar className="w-4 h-4" />
-            {loading ? 'Cargando...' : 'Generar Reporte'}
-          </button>
+          
         </div>
       </div>
 

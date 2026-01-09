@@ -19,6 +19,7 @@ const Productos = () => {
     precio: '',
     activo: true,
     lleva_leche: false,
+    lleva_extras: false,
   })
   const [usandoCategoriaNueva, setUsandoCategoriaNueva] = useState(false)
   const [guardando, setGuardando] = useState(false)
@@ -149,6 +150,7 @@ const Productos = () => {
       precio: '',
       activo: true,
       lleva_leche: false,
+      lleva_extras: false,
     })
     setUsandoCategoriaNueva(false)
     setImagen(null)
@@ -173,6 +175,7 @@ const Productos = () => {
       precio: producto.precio || '',
       activo: producto.activo !== undefined ? producto.activo : true,
       lleva_leche: producto.lleva_leche !== undefined ? producto.lleva_leche : false,
+      lleva_extras: producto.lleva_extras !== undefined ? producto.lleva_extras : false,
     })
     // Determinar si la categoría es nueva o existente
     setUsandoCategoriaNueva(categoria && !categoriasExistentes.includes(categoria))
@@ -222,6 +225,7 @@ const Productos = () => {
       formDataToSend.append('precio', precio.toString())
       formDataToSend.append('activo', formData.activo.toString())
       formDataToSend.append('lleva_leche', formData.lleva_leche.toString())
+      formDataToSend.append('lleva_extras', formData.lleva_extras.toString())
 
       // ⚠️ CRÍTICO: SIEMPRE enviar recetas como string JSON
       // Convertir recetas del estado al formato del backend
@@ -799,19 +803,35 @@ const Productos = () => {
                     </div>
                   </div>
 
-                  {/* ¿Lleva leche? */}
+                  {/* Lleva Leche */}
                   <div>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={formData.lleva_leche}
                         onChange={(e) => setFormData({ ...formData, lleva_leche: e.target.checked })}
-                        className="w-4 h-4 text-matcha-600 rounded border-gray-300 focus:ring-matcha-500"
+                        className="w-4 h-4 text-matcha-600 rounded"
                       />
-                      <span className="text-sm font-medium text-gray-700">¿Lleva leche?</span>
+                      <span className="text-sm font-medium text-gray-700">Lleva Leche</span>
                     </label>
                     <p className="text-xs text-gray-500 mt-1 ml-6">
-                      Marca esta opción si el producto requiere leche
+                      Marca esta opción si el producto contiene leche
+                    </p>
+                  </div>
+
+                  {/* Lleva Extras */}
+                  <div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.lleva_extras}
+                        onChange={(e) => setFormData({ ...formData, lleva_extras: e.target.checked })}
+                        className="w-4 h-4 text-matcha-600 rounded"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Lleva Extras</span>
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1 ml-6">
+                      Marca esta opción si el producto permite agregar extras (Tocino, huevo, jamón, chorizo)
                     </p>
                   </div>
                 </div>

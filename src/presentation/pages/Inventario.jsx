@@ -1,11 +1,23 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { AlertTriangle, CheckCircle, Package, Plus, Loader2, Edit, Trash2, Search, X } from 'lucide-react'
 import { useInventario } from '../hooks/useInventario'
 import Swal from 'sweetalert2'
 
 const Inventario = () => {
   const { insumos, loading, crearInsumo, editarInsumo, obtenerInsumos, obtenerInsumosBajoStock } = useInventario()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [searchTerm, setSearchTerm] = useState('')
+  
+  // Leer parámetro de búsqueda de la URL al montar el componente
+  useEffect(() => {
+    const searchParam = searchParams.get('search')
+    if (searchParam) {
+      setSearchTerm(searchParam)
+      // Limpiar el parámetro de la URL después de leerlo (opcional, para mantener la URL limpia)
+      // setSearchParams({}, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
   const [mostrarModalInsumo, setMostrarModalInsumo] = useState(false)
   const [insumoEditando, setInsumoEditando] = useState(null)
   const [guardando, setGuardando] = useState(false)

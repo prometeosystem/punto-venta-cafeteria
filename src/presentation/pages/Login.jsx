@@ -59,16 +59,16 @@ const Login = () => {
 
             <div>
               <label htmlFor="correo" className="block text-sm font-medium text-gray-700 mb-2">
-                Correo electrónico
+                Usuario o Correo electrónico
               </label>
               <input
                 id="correo"
-                type="email"
+                type="text"
                 value={correo}
                 onChange={(e) => setCorreo(e.target.value)}
                 required
                 className="input w-full"
-                placeholder="correo@ejemplo.com"
+                placeholder="usuario@ejemplo.com"
                 disabled={loading}
               />
             </div>

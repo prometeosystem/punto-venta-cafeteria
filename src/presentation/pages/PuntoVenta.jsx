@@ -20,8 +20,11 @@ const PuntoVenta = () => {
   const [mostrarModalFinalizar, setMostrarModalFinalizar] = useState(false)
   const [nombreCliente, setNombreCliente] = useState('')
   const [tipoServicio, setTipoServicio] = useState('comer-aqui')
-  const [tipoLeche, setTipoLeche] = useState('entera')
   const [comentarios, setComentarios] = useState('')
+  
+  // Estados para opciones de producto desplegables
+  const [productoExpandido, setProductoExpandido] = useState(null) // ID del producto expandido
+  const [opcionesProductos, setOpcionesProductos] = useState({}) // { productId: { tipoLeche: 'entera', extras: [] } }
 
   const { productos, loading: productosLoading } = useProductos()
   const { crearVenta, obtenerInfoTicketActual, loading: ventaLoading } = useVentas()
@@ -74,17 +77,168 @@ const PuntoVenta = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const addToCart = (product) => {
-    const existingItem = cart.find(item => item.id === product.id)
+  const addToCart = (product, tipoLecheSeleccionado = null, extrasSeleccionados = []) => {
+    // Crear un ID único que incluya tipo de leche y extras para diferenciar productos
+    const tipoLecheHash = tipoLecheSeleccionado || 'none'
+    const extrasHash = extrasSeleccionados && extrasSeleccionados.length > 0 
+      ? extrasSeleccionados.sort().join(',') 
+      : 'none'
+    const uniqueId = `${product.id}-${tipoLecheHash}-${extrasHash}`
+    
+    // Construir observaciones basadas en tipo de leche y extras
+    const observaciones = []
+    if (tipoLecheSeleccionado && tipoLecheSeleccionado !== 'entera') {
+      if (tipoLecheSeleccionado === 'deslactosada') {
+        observaciones.push('Leche deslactosada')
+      } else if (tipoLecheSeleccionado === 'almendras') {
+        observaciones.push('Leche de almendras')
+      }
+    }
+    if (extrasSeleccionados && extrasSeleccionados.length > 0) {
+      const nombresExtras = {
+        'tocino': 'Tocino',
+        'huevo': 'Huevo',
+        'jamon': 'Jamón',
+        'chorizo': 'Chorizo'
+      }
+      const extrasNombres = extrasSeleccionados.map(id => nombresExtras[id] || id)
+      observaciones.push(`Extras: ${extrasNombres.join(', ')}`)
+    }
+    
+    const cartItem = {
+      ...product,
+      id: uniqueId,
+      originalId: product.id,
+      tipoLeche: tipoLecheSeleccionado,
+      extras: extrasSeleccionados || [],
+      observaciones: observaciones.length > 0 ? observaciones.join(' - ') : null,
+      quantity: 1
+    }
+    
+    const existingItem = cart.find(item => 
+      item.originalId === product.id && 
+      item.tipoLeche === tipoLecheSeleccionado &&
+      JSON.stringify(item.extras?.sort() || []) === JSON.stringify((extrasSeleccionados || []).sort())
+    )
+    
     if (existingItem) {
       setCart(cart.map(item =>
-        item.id === product.id
+        item.id === existingItem.id
           ? { ...item, quantity: item.quantity + 1 }
           : item
       ))
     } else {
-      setCart([...cart, { ...product, quantity: 1 }])
+      setCart([...cart, cartItem])
     }
+  }
+  
+  const handleProductClick = (product) => {
+    const llevaLeche = Boolean(
+      product.lleva_leche === true || 
+      product.lleva_leche === 1 ||
+      product.lleva_leche === "1"
+    )
+    
+    const llevaExtras = Boolean(
+      product.lleva_extras === true || 
+      product.lleva_extras === 1 ||
+      product.lleva_extras === "1"
+    )
+    
+    // Si no tiene opciones, agregar directamente al carrito
+    if (!llevaLeche && !llevaExtras) {
+      addToCart({
+        ...product,
+        id: product.id_producto,
+        name: product.nombre,
+        price: product.precio,
+      })
+      return
+    }
+    
+    // Si tiene opciones, expandir/colapsar el panel
+    const productId = product.id_producto
+    if (productoExpandido === productId) {
+      // Si ya está expandido, colapsar
+      setProductoExpandido(null)
+    } else {
+      // Expandir y inicializar opciones si no existen
+      setProductoExpandido(productId)
+      if (!opcionesProductos[productId]) {
+        setOpcionesProductos({
+          ...opcionesProductos,
+          [productId]: {
+            tipoLeche: 'entera',
+            extras: []
+          }
+        })
+      }
+    }
+  }
+  
+  const confirmarAgregarAlCarrito = (product) => {
+    const productId = product.id_producto
+    const opciones = opcionesProductos[productId] || { tipoLeche: 'entera', extras: [] }
+    
+    const llevaLeche = Boolean(
+      product.lleva_leche === true || 
+      product.lleva_leche === 1 ||
+      product.lleva_leche === "1"
+    )
+    
+    const llevaExtras = Boolean(
+      product.lleva_extras === true || 
+      product.lleva_extras === 1 ||
+      product.lleva_extras === "1"
+    )
+    
+    addToCart(
+      {
+        ...product,
+        id: product.id_producto,
+        name: product.nombre,
+        price: product.precio,
+      },
+      llevaLeche ? opciones.tipoLeche : null,
+      llevaExtras ? opciones.extras : []
+    )
+    
+    // Colapsar el panel y resetear opciones
+    setProductoExpandido(null)
+    setOpcionesProductos({
+      ...opcionesProductos,
+      [productId]: {
+        tipoLeche: 'entera',
+        extras: []
+      }
+    })
+  }
+  
+  const actualizarTipoLeche = (productId, tipoLeche) => {
+    setOpcionesProductos({
+      ...opcionesProductos,
+      [productId]: {
+        ...opcionesProductos[productId],
+        tipoLeche
+      }
+    })
+  }
+  
+  const toggleExtra = (productId, extraId) => {
+    const opciones = opcionesProductos[productId] || { tipoLeche: 'entera', extras: [] }
+    const extrasActuales = opciones.extras || []
+    
+    const nuevosExtras = extrasActuales.includes(extraId)
+      ? extrasActuales.filter(id => id !== extraId)
+      : [...extrasActuales, extraId]
+    
+    setOpcionesProductos({
+      ...opcionesProductos,
+      [productId]: {
+        ...opciones,
+        extras: nuevosExtras
+      }
+    })
   }
 
   const updateQuantity = (id, delta) => {
@@ -177,9 +331,22 @@ const PuntoVenta = () => {
     setProcesando(true)
     setMostrarModalFinalizar(false)
     try {
-      // Calcular total con extra de leche deslactosada o almendras (solo si hay productos con leche)
-      const extraLeche = tieneProductosConLeche && (tipoLeche === 'deslactosada' || tipoLeche === 'almendras') ? 15.00 : null
-      const totalConExtra = total + (extraLeche || 0)
+      // Calcular total con extras basado en los items del carrito
+      const extraLeche = cart.reduce((sum, item) => {
+        if (item.tipoLeche && (item.tipoLeche === 'deslactosada' || item.tipoLeche === 'almendras')) {
+          return sum + (15 * item.quantity)
+        }
+        return sum
+      }, 0)
+      
+      const extraExtras = cart.reduce((sum, item) => {
+        if (item.extras && item.extras.length > 0) {
+          return sum + (item.extras.length * 20 * item.quantity)
+        }
+        return sum
+      }, 0)
+      
+      const totalConExtra = total + extraLeche + extraExtras
 
       // Crear detalles de venta (NO incluir el extra de leche como producto)
       const detallesVenta = cart.map(item => ({
@@ -191,15 +358,17 @@ const PuntoVenta = () => {
       }))
 
       // Crear venta con los nuevos campos
+      // Nota: tipo_leche ya no se usa a nivel global, cada producto tiene su tipo en observaciones
+      // El extra_leche se calcula de los items individuales del carrito
       const ventaResponse = await crearVenta({
         id_cliente: idCliente,
         nombre_cliente: nombreCliente || null,
         total: totalConExtra,
         metodo_pago: metodoPago,
         tipo_servicio: tipoServicio,
-        tipo_leche: tieneProductosConLeche ? tipoLeche : null,
+        tipo_leche: null, // Ya no se usa tipo de leche global, cada producto tiene el suyo
         comentarios: comentarios || null,
-        extra_leche: extraLeche,
+        extra_leche: extraLeche > 0 ? extraLeche : null,
         detalles: detallesVenta,
       })
 
@@ -213,11 +382,22 @@ const PuntoVenta = () => {
       }))
 
       // Crear comanda (la información de tipo_servicio, tipo_leche, comentarios ya está en la venta)
-      await crearComanda({
+      const comandaResponse = await crearComanda({
         id_venta: idVenta,
         estado: 'pendiente',
         detalles: detallesComanda,
       })
+
+      // Emitir evento para notificación de comanda creada
+      if (comandaResponse?.id_comanda) {
+        window.dispatchEvent(new CustomEvent('comanda-creada', {
+          detail: {
+            id_comanda: comandaResponse.id_comanda,
+            id_venta: idVenta,
+            ticket_id: numeroTicket
+          }
+        }))
+      }
 
       // Limpiar carrito y resetear
       setCart([])
@@ -225,7 +405,6 @@ const PuntoVenta = () => {
       setIdCliente(null)
       setNombreCliente('')
       setTipoServicio('comer-aqui')
-      setTipoLeche('entera')
       setComentarios('')
       
       // Actualizar número de ticket después de crear la venta
@@ -325,6 +504,17 @@ const PuntoVenta = () => {
           id_comanda: resultado.id_comanda,
           estado_preorden: resultado.estado_preorden // Estado actualizado
         })
+
+        // Emitir evento para notificación de comanda creada (si hay id_comanda)
+        if (resultado.id_comanda) {
+          window.dispatchEvent(new CustomEvent('comanda-creada', {
+            detail: {
+              id_comanda: resultado.id_comanda,
+              id_venta: resultado.id_venta,
+              ticket_id: resultado.ticket_id || preordenSeleccionada.ticket_id || null
+            }
+          }))
+        }
 
         await Swal.fire({
           icon: 'success',
@@ -451,13 +641,8 @@ const PuntoVenta = () => {
       [producto.categoria]: true
     }))
     
-    // Agregar al carrito
-    addToCart({
-      ...producto,
-      id: producto.id_producto,
-      name: producto.nombre,
-      price: producto.precio,
-    })
+    // Manejar click en producto desde búsqueda
+    handleProductClick(producto)
     
     // Limpiar búsqueda
     setSearchTerm('')
@@ -573,26 +758,156 @@ const PuntoVenta = () => {
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pt-2">
                     {categoryProducts.map(product => {
                       const isHighlighted = highlightedProduct === product.id_producto
+                      const isExpanded = productoExpandido === product.id_producto
+                      const llevaLeche = Boolean(
+                        product.lleva_leche === true || 
+                        product.lleva_leche === 1 ||
+                        product.lleva_leche === "1"
+                      )
+                      const llevaExtras = Boolean(
+                        product.lleva_extras === true || 
+                        product.lleva_extras === 1 ||
+                        product.lleva_extras === "1"
+                      )
+                      const opciones = opcionesProductos[product.id_producto] || { tipoLeche: 'entera', extras: [] }
+                      
                       return (
-                        <button
+                        <div
                           key={product.id_producto}
-                          onClick={() => addToCart({
-                            ...product,
-                            id: product.id_producto,
-                            name: product.nombre,
-                            price: product.precio,
-                          })}
-                          className={`p-4 border-2 rounded-lg transition-all duration-200 text-left ${
+                          className={`border-2 rounded-lg transition-all duration-200 ${
                             isHighlighted
                               ? 'border-matcha-500 bg-matcha-100 shadow-lg scale-105'
+                              : isExpanded
+                              ? 'border-matcha-500 hover:border-matcha-500'
                               : 'border-gray-200 hover:border-matcha-500 hover:bg-matcha-50'
                           }`}
                         >
-                          <p className="font-medium text-gray-900">{product.nombre}</p>
-                          <p className="text-sm text-matcha-600 font-semibold mt-1">
-                            ${parseFloat(product.precio).toFixed(2)}
-                          </p>
-                        </button>
+                          <button
+                            onClick={() => handleProductClick(product)}
+                            className="w-full p-4 text-left"
+                          >
+                            <p className="font-medium text-gray-900">{product.nombre}</p>
+                            <p className="text-sm text-matcha-600 font-semibold mt-1">
+                              ${parseFloat(product.precio).toFixed(2)}
+                            </p>
+                          </button>
+                          
+                          {/* Panel de opciones expandido */}
+                          {isExpanded && (llevaLeche || llevaExtras) && (
+                            <div className="px-4 pb-4 space-y-4 border-t border-gray-200 mt-2 pt-4">
+                              {/* Tipo de Leche */}
+                              {llevaLeche && (
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-700 mb-2">
+                                    Tipo de Leche
+                                  </label>
+                                  <div className="grid grid-cols-3 gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => actualizarTipoLeche(product.id_producto, 'entera')}
+                                      className={`py-2 px-2 rounded border-2 transition-all text-xs ${
+                                        opciones.tipoLeche === 'entera'
+                                          ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
+                                          : 'border-gray-200 hover:border-gray-300'
+                                      }`}
+                                    >
+                                      Entera
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => actualizarTipoLeche(product.id_producto, 'deslactosada')}
+                                      className={`py-2 px-2 rounded border-2 transition-all text-xs ${
+                                        opciones.tipoLeche === 'deslactosada'
+                                          ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
+                                          : 'border-gray-200 hover:border-gray-300'
+                                      }`}
+                                    >
+                                      Deslac. (+$15)
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => actualizarTipoLeche(product.id_producto, 'almendras')}
+                                      className={`py-2 px-2 rounded border-2 transition-all text-xs ${
+                                        opciones.tipoLeche === 'almendras'
+                                          ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
+                                          : 'border-gray-200 hover:border-gray-300'
+                                      }`}
+                                    >
+                                      Almend. (+$15)
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Extras */}
+                              {llevaExtras && (
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-700 mb-2">
+                                    Extras (+$20 c/u)
+                                  </label>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {[
+                                      { id: 'tocino', nombre: 'Tocino' },
+                                      { id: 'huevo', nombre: 'Huevo' },
+                                      { id: 'jamon', nombre: 'Jamón' },
+                                      { id: 'chorizo', nombre: 'Chorizo' }
+                                    ].map(extra => (
+                                      <button
+                                        key={extra.id}
+                                        type="button"
+                                        onClick={() => toggleExtra(product.id_producto, extra.id)}
+                                        className={`py-2 px-2 rounded border-2 transition-all text-xs ${
+                                          opciones.extras?.includes(extra.id)
+                                            ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
+                                            : 'border-gray-200 hover:border-gray-300'
+                                        }`}
+                                      >
+                                        {extra.nombre}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Resumen y botón agregar */}
+                              <div className="border-t border-gray-200 pt-3 space-y-2">
+                                <div className="flex items-center justify-between text-xs text-gray-600">
+                                  <span>Subtotal:</span>
+                                  <span>${parseFloat(product.precio).toFixed(2)}</span>
+                                </div>
+                                {(opciones.tipoLeche === 'deslactosada' || opciones.tipoLeche === 'almendras') && (
+                                  <div className="flex items-center justify-between text-xs text-gray-600">
+                                    <span>Extra Leche:</span>
+                                    <span>+$15.00</span>
+                                  </div>
+                                )}
+                                {opciones.extras && opciones.extras.length > 0 && (
+                                  <div className="flex items-center justify-between text-xs text-gray-600">
+                                    <span>Extras ({opciones.extras.length}):</span>
+                                    <span>+${(opciones.extras.length * 20).toFixed(2)}</span>
+                                  </div>
+                                )}
+                                <div className="flex items-center justify-between text-sm font-bold text-gray-900 pt-2 border-t border-gray-200">
+                                  <span>Total:</span>
+                                  <span className="text-matcha-600">
+                                    ${(
+                                      parseFloat(product.precio) +
+                                      ((opciones.tipoLeche === 'deslactosada' || opciones.tipoLeche === 'almendras') ? 15 : 0) +
+                                      ((opciones.extras?.length || 0) * 20)
+                                    ).toFixed(2)}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => confirmarAgregarAlCarrito(product)}
+                                  className="w-full btn-primary py-2 mt-2 text-sm"
+                                >
+                                  Agregar al Carrito
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       )
                     })}
                   </div>
@@ -754,44 +1069,86 @@ const PuntoVenta = () => {
             ) : (
               <>
                 <div className="space-y-3 max-h-96 overflow-y-auto mb-4">
-                  {cart.map(item => (
-                    <div
-                      key={item.id}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                    >
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900 text-sm">
-                          {item.nombre || item.name}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          ${parseFloat(item.precio || item.price).toFixed(2)} c/u
-                        </p>
+                  {cart.map(item => {
+                    // Obtener nombres de extras
+                    const nombresExtras = {
+                      'tocino': 'Tocino',
+                      'huevo': 'Huevo',
+                      'jamon': 'Jamón',
+                      'chorizo': 'Chorizo'
+                    }
+                    const extrasNombres = item.extras?.map(id => nombresExtras[id] || id) || []
+                    
+                    // Obtener nombre del tipo de leche
+                    const getNombreTipoLeche = (tipo) => {
+                      if (tipo === 'deslactosada') return 'Deslactosada'
+                      if (tipo === 'almendras') return 'Almendras'
+                      return null
+                    }
+                    const tipoLecheNombre = getNombreTipoLeche(item.tipoLeche)
+                    
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex items-start justify-between p-3 bg-gray-50 rounded-lg"
+                      >
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900 text-sm">
+                            {item.nombre || item.name}
+                          </p>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {/* Etiqueta de tamaño si existe */}
+                            {item.size && (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-matcha-100 text-matcha-700 border border-matcha-300">
+                                {item.size}
+                              </span>
+                            )}
+                            {/* Etiqueta de tipo de leche */}
+                            {tipoLecheNombre && (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-300">
+                                Leche: {tipoLecheNombre}
+                              </span>
+                            )}
+                            {/* Etiquetas de extras */}
+                            {extrasNombres.map((nombre, index) => (
+                              <span 
+                                key={index}
+                                className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 border border-purple-300"
+                              >
+                                {nombre}
+                              </span>
+                            ))}
+                          </div>
+                          <p className="text-sm text-gray-500 mt-2">
+                            ${parseFloat(item.precio || item.price).toFixed(2)} c/u
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 ml-2">
+                          <button
+                            onClick={() => updateQuantity(item.id, -1)}
+                            className="p-1 rounded hover:bg-gray-200 transition-colors"
+                          >
+                            <Minus className="w-4 h-4 text-gray-600" />
+                          </button>
+                          <span className="w-8 text-center font-medium text-gray-900">
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() => updateQuantity(item.id, 1)}
+                            className="p-1 rounded hover:bg-gray-200 transition-colors"
+                          >
+                            <Plus className="w-4 h-4 text-gray-600" />
+                          </button>
+                          <button
+                            onClick={() => removeFromCart(item.id)}
+                            className="p-1 rounded hover:bg-red-100 transition-colors ml-2"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-600" />
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => updateQuantity(item.id, -1)}
-                          className="p-1 rounded hover:bg-gray-200 transition-colors"
-                        >
-                          <Minus className="w-4 h-4 text-gray-600" />
-                        </button>
-                        <span className="w-8 text-center font-medium text-gray-900">
-                          {item.quantity}
-                        </span>
-                        <button
-                          onClick={() => updateQuantity(item.id, 1)}
-                          className="p-1 rounded hover:bg-gray-200 transition-colors"
-                        >
-                          <Plus className="w-4 h-4 text-gray-600" />
-                        </button>
-                        <button
-                          onClick={() => removeFromCart(item.id)}
-                          className="p-1 rounded hover:bg-red-100 transition-colors ml-2"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-600" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
 
                 <div className="border-t border-gray-200 pt-4 space-y-3">
@@ -985,47 +1342,6 @@ const PuntoVenta = () => {
                 </div>
               </div>
 
-              {/* Tipo de Leche (solo si hay productos con leche) */}
-              {tieneProductosConLeche && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tipo de Leche
-                  </label>
-                  <div className="grid grid-cols-3 gap-3">
-                    <button
-                      onClick={() => setTipoLeche('entera')}
-                      className={`py-3 px-4 rounded-lg border-2 transition-all ${
-                        tipoLeche === 'entera'
-                          ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      Entera
-                    </button>
-                    <button
-                      onClick={() => setTipoLeche('deslactosada')}
-                      className={`py-3 px-4 rounded-lg border-2 transition-all ${
-                        tipoLeche === 'deslactosada'
-                          ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      Deslactosada (+$15)
-                    </button>
-                    <button
-                      onClick={() => setTipoLeche('almendras')}
-                      className={`py-3 px-4 rounded-lg border-2 transition-all ${
-                        tipoLeche === 'almendras'
-                          ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      Almendras (+$15)
-                    </button>
-                  </div>
-                </div>
-              )}
-
               {/* Comentarios */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1046,18 +1362,47 @@ const PuntoVenta = () => {
                   <span>Subtotal:</span>
                   <span>${total.toFixed(2)}</span>
                 </div>
-                {tieneProductosConLeche && (tipoLeche === 'deslactosada' || tipoLeche === 'almendras') && (
-                  <div className="flex items-center justify-between text-gray-600">
-                    <span>Extra Leche {tipoLeche === 'deslactosada' ? 'Deslactosada' : 'Almendras'}:</span>
-                    <span>+$15.00</span>
-                  </div>
-                )}
-                <div className="flex items-center justify-between text-lg font-bold text-gray-900 pt-2 border-t border-gray-200">
-                  <span>Total:</span>
-                  <span className="text-matcha-600">
-                    ${(total + (tieneProductosConLeche && (tipoLeche === 'deslactosada' || tipoLeche === 'almendras') ? 15 : 0)).toFixed(2)}
-                  </span>
-                </div>
+                {/* Calcular extra de leche basado en los items del carrito */}
+                {(() => {
+                  const extraLecheTotal = cart.reduce((sum, item) => {
+                    if (item.tipoLeche && (item.tipoLeche === 'deslactosada' || item.tipoLeche === 'almendras')) {
+                      return sum + (15 * item.quantity)
+                    }
+                    return sum
+                  }, 0)
+                  
+                  const extraExtrasTotal = cart.reduce((sum, item) => {
+                    if (item.extras && item.extras.length > 0) {
+                      return sum + (item.extras.length * 20 * item.quantity)
+                    }
+                    return sum
+                  }, 0)
+                  
+                  const totalConExtras = total + extraLecheTotal + extraExtrasTotal
+                  
+                  return (
+                    <>
+                      {extraLecheTotal > 0 && (
+                        <div className="flex items-center justify-between text-gray-600">
+                          <span>Extra Leche:</span>
+                          <span>+${extraLecheTotal.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {extraExtrasTotal > 0 && (
+                        <div className="flex items-center justify-between text-gray-600">
+                          <span>Extras:</span>
+                          <span>+${extraExtrasTotal.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between text-lg font-bold text-gray-900 pt-2 border-t border-gray-200">
+                        <span>Total:</span>
+                        <span className="text-matcha-600">
+                          ${totalConExtras.toFixed(2)}
+                        </span>
+                      </div>
+                    </>
+                  )
+                })()}
               </div>
             </div>
 

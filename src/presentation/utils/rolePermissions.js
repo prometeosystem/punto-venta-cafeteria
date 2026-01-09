@@ -18,6 +18,7 @@ const routePermissions = {
   '/empleados': ['administrador', 'superadministrador'],
   '/reportes': ['administrador', 'superadministrador'],
   '/configuracion': ['administrador', 'superadministrador'],
+  '/test-sonidos': ['administrador', 'superadministrador'], // Ruta de prueba para sonidos
 }
 
 /**
