@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react'
 import { inventarioService } from '../../application/services/inventarioService'
 import { preordenesService } from '../../application/services/preordenesService'
+import { useAuth } from './AuthContext'
 
 const NotificationContext = createContext()
 
@@ -13,6 +14,7 @@ export const useNotifications = () => {
 }
 
 export const NotificationProvider = ({ children }) => {
+  const { usuario } = useAuth() // Obtener usuario autenticado
   const [notifications, setNotifications] = useState([])
   const [toastNotifications, setToastNotifications] = useState([]) // Notificaciones toast temporales
   const preordenIdsNotificadasRef = useRef(new Set()) // Almacenar IDs de pre-órdenes ya notificadas
@@ -294,6 +296,11 @@ export const NotificationProvider = ({ children }) => {
 
   // Función para verificar insumos con stock bajo/crítico
   const verificarInsumosStock = useCallback(async () => {
+    // Solo verificar si hay un usuario autenticado
+    if (!usuario) {
+      return
+    }
+    
     try {
       const insumos = await inventarioService.obtenerInsumos()
       
@@ -372,9 +379,13 @@ export const NotificationProvider = ({ children }) => {
         return nuevasNotificaciones
       })
     } catch (error) {
-      console.error('Error al verificar insumos con stock bajo:', error)
+      // Solo mostrar error si no es un error de autenticación (401)
+      // Los errores 401 son esperados cuando el usuario no está autenticado
+      if (error.response?.status !== 401) {
+        console.error('Error al verificar insumos con stock bajo:', error)
+      }
     }
-  }, [playErrorSound])
+  }, [playErrorSound, usuario])
 
   // Escuchar eventos de creación de comandas
   useEffect(() => {
@@ -423,6 +434,11 @@ export const NotificationProvider = ({ children }) => {
 
   // Verificar insumos periódicamente (cada 2 minutos)
   useEffect(() => {
+    // Solo verificar si hay un usuario autenticado
+    if (!usuario) {
+      return
+    }
+    
     // Verificar inmediatamente al montar
     verificarInsumosStock()
     
@@ -434,11 +450,16 @@ export const NotificationProvider = ({ children }) => {
     return () => {
       clearInterval(intervalo)
     }
-  }, [verificarInsumosStock])
+  }, [verificarInsumosStock, usuario])
 
   // Detectar pre-órdenes nuevas desde la web (polling cada 10 segundos)
   useEffect(() => {
     const verificarPreordenesNuevas = async () => {
+      // Solo verificar si hay un usuario autenticado
+      if (!usuario) {
+        return
+      }
+      
       try {
         // Obtener pre-órdenes con origen='web' y estado='preorden'
         const todasPreordenes = await preordenesService.obtenerPreordenes()
@@ -508,23 +529,30 @@ export const NotificationProvider = ({ children }) => {
           return nuevasNotificaciones
         })
       } catch (error) {
-        console.error('Error al verificar pre-órdenes nuevas:', error)
+        // Solo mostrar error si no es un error de autenticación (401)
+        // Los errores 401 son esperados cuando el usuario no está autenticado
+        if (error.response?.status !== 401) {
+          console.error('Error al verificar pre-órdenes nuevas:', error)
+        }
       }
     }
     
-    // Verificar inmediatamente al montar
-    verificarPreordenesNuevas()
-    
-    // Configurar intervalo para verificar cada 10 segundos
-    const intervaloPreordenes = setInterval(() => {
+    // Solo verificar si hay un usuario autenticado
+    if (usuario) {
+      // Verificar inmediatamente al montar
       verificarPreordenesNuevas()
-    }, 10 * 1000) // 10 segundos
+      
+      // Configurar intervalo para verificar cada 10 segundos
+      const intervaloPreordenes = setInterval(() => {
+        verificarPreordenesNuevas()
+      }, 10 * 1000) // 10 segundos
 
-    return () => {
-      clearInterval(intervaloPreordenes)
+      return () => {
+        clearInterval(intervaloPreordenes)
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playPreordenSound])
+  }, [playPreordenSound, usuario])
 
   const value = {
     notifications,

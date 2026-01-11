@@ -95,6 +95,21 @@ export const usePreordenes = () => {
     }
   }
 
+  const cancelarPreorden = async (idPreorden, password) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const response = await preordenesService.cancelarPreorden(idPreorden, password)
+      return response
+    } catch (err) {
+      const errorMessage = err.response?.data?.error || err.response?.data?.detail || err.message || 'Error al cancelar pre-orden'
+      setError(errorMessage)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return {
     loading,
     error,
@@ -104,6 +119,7 @@ export const usePreordenes = () => {
     actualizarPreorden,
     marcarLista,
     marcarEntregada,
+    cancelarPreorden,
   }
 }
 
