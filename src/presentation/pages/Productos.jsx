@@ -20,6 +20,7 @@ const Productos = () => {
     activo: true,
     lleva_leche: false,
     lleva_extras: false,
+    lleva_proteina: false,
   })
   const [usandoCategoriaNueva, setUsandoCategoriaNueva] = useState(false)
   const [guardando, setGuardando] = useState(false)
@@ -77,13 +78,23 @@ const Productos = () => {
   // Los insumos ya se cargan automáticamente en useInventario
   // No necesitamos cargarlos nuevamente al abrir el modal
 
-  // Cargar recetas al editar producto
+  // Cargar recetas y datos completos al editar producto
   useEffect(() => {
     const cargarRecetas = async () => {
       if (productoEditando?.id_producto) {
         try {
           // El endpoint ver_producto ahora incluye las recetas directamente
           const productoCompleto = await obtenerProducto(productoEditando.id_producto)
+          
+          // Actualizar formData con los datos completos del producto (incluyendo lleva_proteina)
+          if (productoCompleto) {
+            setFormData(prev => ({
+              ...prev,
+              lleva_leche: productoCompleto.lleva_leche !== undefined ? productoCompleto.lleva_leche : prev.lleva_leche,
+              lleva_extras: productoCompleto.lleva_extras !== undefined ? productoCompleto.lleva_extras : prev.lleva_extras,
+              lleva_proteina: productoCompleto.lleva_proteina !== undefined ? productoCompleto.lleva_proteina : prev.lleva_proteina,
+            }))
+          }
           
           // Si el producto tiene recetas, mapearlas al formato del formulario
           if (productoCompleto?.recetas && Array.isArray(productoCompleto.recetas)) {
@@ -151,6 +162,7 @@ const Productos = () => {
       activo: true,
       lleva_leche: false,
       lleva_extras: false,
+      lleva_proteina: false,
     })
     setUsandoCategoriaNueva(false)
     setImagen(null)
@@ -176,6 +188,7 @@ const Productos = () => {
       activo: producto.activo !== undefined ? producto.activo : true,
       lleva_leche: producto.lleva_leche !== undefined ? producto.lleva_leche : false,
       lleva_extras: producto.lleva_extras !== undefined ? producto.lleva_extras : false,
+      lleva_proteina: producto.lleva_proteina !== undefined ? producto.lleva_proteina : false,
     })
     // Determinar si la categoría es nueva o existente
     setUsandoCategoriaNueva(categoria && !categoriasExistentes.includes(categoria))
@@ -226,6 +239,7 @@ const Productos = () => {
       formDataToSend.append('activo', formData.activo.toString())
       formDataToSend.append('lleva_leche', formData.lleva_leche.toString())
       formDataToSend.append('lleva_extras', formData.lleva_extras.toString())
+      formDataToSend.append('lleva_proteina', formData.lleva_proteina.toString())
 
       // ⚠️ CRÍTICO: SIEMPRE enviar recetas como string JSON
       // Convertir recetas del estado al formato del backend
@@ -834,6 +848,22 @@ const Productos = () => {
                       Marca esta opción si el producto permite agregar extras (Tocino, huevo, jamón, chorizo)
                     </p>
                   </div>
+
+                  {/* Lleva Proteína */}
+                  <div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.lleva_proteina}
+                        onChange={(e) => setFormData({ ...formData, lleva_proteina: e.target.checked })}
+                        className="w-4 h-4 text-matcha-600 rounded"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Lleva Proteína/Creatina</span>
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1 ml-6">
+                      Marca esta opción si el producto permite seleccionar proteína o creatina (para categoría runner_proteina)
+                    </p>
+                  </div>
                 </div>
 
                 {/* Columna Derecha */}
@@ -1091,11 +1121,14 @@ const Productos = () => {
                           className="input w-full"
                         >
                           <option value="">Selecciona un insumo</option>
-                          {insumos.filter(i => i.activo).map(insumo => (
-                            <option key={insumo.id_insumo} value={insumo.id_insumo}>
-                              {insumo.nombre} ({insumo.unidad_medida})
-                            </option>
-                          ))}
+                          {insumos
+                            .filter(i => i.activo)
+                            .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' }))
+                            .map(insumo => (
+                              <option key={insumo.id_insumo} value={insumo.id_insumo}>
+                                {insumo.nombre} ({insumo.unidad_medida})
+                              </option>
+                            ))}
                         </select>
                       </div>
                     )}
