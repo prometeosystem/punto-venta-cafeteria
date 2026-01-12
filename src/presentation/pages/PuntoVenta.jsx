@@ -58,8 +58,9 @@ const PuntoVenta = () => {
         const todasPreordenes = await obtenerPreordenes()
         
         // Opción 2: Filtro adicional en frontend como seguridad
+        // Incluir pre-órdenes con estado 'pagada' y origen 'sistema' para permitir edición
         const preordenesFiltradas = (todasPreordenes || []).filter(preorden => 
-          preorden.estado === 'preorden' || preorden.estado === 'en_caja'
+          preorden.estado === 'preorden' || preorden.estado === 'en_caja' || (preorden.estado === 'pagada' && preorden.origen === 'sistema')
         )
         
         setPreordenes(preordenesFiltradas)
@@ -462,7 +463,7 @@ const PuntoVenta = () => {
       // Recargar pre-órdenes (usando endpoint sin parámetros)
       const todasPreordenes = await obtenerPreordenes()
       const preordenesFiltradas = (todasPreordenes || []).filter(preorden => 
-        preorden.estado === 'preorden' || preorden.estado === 'en_caja'
+        preorden.estado === 'preorden' || preorden.estado === 'en_caja' || (preorden.estado === 'pagada' && preorden.origen === 'sistema')
       )
       setPreordenes(preordenesFiltradas)
     } catch (error) {
@@ -562,7 +563,7 @@ const PuntoVenta = () => {
       // Actualizar la lista de pre-órdenes
       const todasPreordenes = await obtenerPreordenes()
       const preordenesFiltradas = (todasPreordenes || []).filter(p => 
-        p.estado === 'preorden' || p.estado === 'en_caja'
+        p.estado === 'preorden' || p.estado === 'en_caja' || (p.estado === 'pagada' && p.origen === 'sistema')
       )
       setPreordenes(preordenesFiltradas)
       
@@ -684,7 +685,7 @@ const PuntoVenta = () => {
         // Refrescar pre-órdenes (la orden pagada desaparecerá automáticamente)
         const todasPreordenes = await obtenerPreordenes()
         const preordenesFiltradas = (todasPreordenes || []).filter(preorden => 
-          preorden.estado === 'preorden' || preorden.estado === 'en_caja'
+          preorden.estado === 'preorden' || preorden.estado === 'en_caja' || (preorden.estado === 'pagada' && preorden.origen === 'sistema')
         )
         setPreordenes(preordenesFiltradas)
       } else {
@@ -839,8 +840,9 @@ const PuntoVenta = () => {
 
   // Función para seleccionar pre-orden
   const seleccionarPreorden = async (preorden) => {
-    // Si la pre-orden está en estado "preorden", actualizarla a "en_caja"
-    if (preorden.estado === 'preorden') {
+    // Si la pre-orden está en estado "preorden" o "pagada" (con origen sistema), actualizarla a "en_caja"
+    // Esto permite editar órdenes creadas directamente en el sistema
+    if (preorden.estado === 'preorden' || (preorden.estado === 'pagada' && preorden.origen === 'sistema')) {
       try {
         // Actualizar el estado a "en_caja" en el backend
         const preordenActualizada = await actualizarPreorden(preorden.id_preorden, {
@@ -858,7 +860,7 @@ const PuntoVenta = () => {
         // Actualizar la lista de pre-órdenes para reflejar el cambio
         const todasPreordenes = await obtenerPreordenes()
         const preordenesFiltradas = (todasPreordenes || []).filter(p => 
-          p.estado === 'preorden' || p.estado === 'en_caja'
+          p.estado === 'preorden' || p.estado === 'en_caja' || (p.estado === 'pagada' && p.origen === 'sistema')
         )
         setPreordenes(preordenesFiltradas)
       } catch (error) {
@@ -942,7 +944,7 @@ const PuntoVenta = () => {
       // Refrescar pre-órdenes
       const todasPreordenes = await obtenerPreordenes()
       const preordenesFiltradas = (todasPreordenes || []).filter(preorden => 
-        preorden.estado === 'preorden' || preorden.estado === 'en_caja'
+        preorden.estado === 'preorden' || preorden.estado === 'en_caja' || (preorden.estado === 'pagada' && preorden.origen === 'sistema')
       )
       setPreordenes(preordenesFiltradas)
     } catch (error) {
@@ -1271,6 +1273,45 @@ const PuntoVenta = () => {
                                 </div>
                               )}
                               
+                              {/* Resumen visual de opciones seleccionadas */}
+                              {(opciones.tipoLeche && opciones.tipoLeche !== 'entera') || opciones.tipoProteina || (opciones.extras && opciones.extras.length > 0) ? (
+                                <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-200">
+                                  {/* Etiqueta de tipo de proteína */}
+                                  {opciones.tipoProteina && (
+                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 border border-yellow-300">
+                                      Scoop: {opciones.tipoProteina === 'proteina' ? 'Proteína' : 'Creatina'}
+                                    </span>
+                                  )}
+                                  {/* Etiqueta de tipo de leche */}
+                                  {opciones.tipoLeche && opciones.tipoLeche !== 'entera' && (
+                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-300">
+                                      Leche: {opciones.tipoLeche === 'deslactosada' ? 'Deslactosada' : 'Almendras'}
+                                    </span>
+                                  )}
+                                  {/* Etiquetas de extras */}
+                                  {opciones.extras && opciones.extras.length > 0 && (
+                                    <>
+                                      {opciones.extras.map((extraId, index) => {
+                                        const nombresExtras = {
+                                          'tocino': 'Tocino',
+                                          'huevo': 'Huevo',
+                                          'jamon': 'Jamón',
+                                          'chorizo': 'Chorizo'
+                                        }
+                                        return (
+                                          <span 
+                                            key={index}
+                                            className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 border border-purple-300"
+                                          >
+                                            {nombresExtras[extraId] || extraId}
+                                          </span>
+                                        )
+                                      })}
+                                    </>
+                                  )}
+                                </div>
+                              ) : null}
+                              
                               {/* Resumen y botón agregar */}
                               <div className="border-t border-gray-200 pt-3 space-y-2">
                                 <div className="flex items-center justify-between text-xs text-gray-600">
@@ -1281,6 +1322,12 @@ const PuntoVenta = () => {
                                   <div className="flex items-center justify-between text-xs text-gray-600">
                                     <span>Extra Leche:</span>
                                     <span>+$15.00</span>
+                                  </div>
+                                )}
+                                {opciones.tipoProteina && (
+                                  <div className="flex items-center justify-between text-xs text-gray-600">
+                                    <span>Scoop: {opciones.tipoProteina === 'proteina' ? 'Proteína' : 'Creatina'}</span>
+                                    <span className="text-gray-500">-</span>
                                   </div>
                                 )}
                                 {opciones.extras && opciones.extras.length > 0 && (
@@ -1802,11 +1849,11 @@ const PuntoVenta = () => {
                             </p>
                           </div>
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            preorden.estado === 'en_caja'
+                            preorden.estado === 'en_caja' || (preorden.estado === 'pagada' && preorden.origen === 'sistema')
                               ? 'bg-yellow-100 text-yellow-700'
                               : 'bg-blue-100 text-blue-700'
                           }`}>
-                            {preorden.estado === 'en_caja' ? 'En Caja' : 'Pre-orden'}
+                            {preorden.estado === 'en_caja' || (preorden.estado === 'pagada' && preorden.origen === 'sistema') ? 'En Caja' : 'Pre-orden'}
                           </span>
                         </div>
                         <div className="flex items-center justify-between mt-2">
@@ -1822,21 +1869,19 @@ const PuntoVenta = () => {
                           </div>
                         </div>
                       </button>
-                      {/* Botón cancelar solo para admin/superadmin */}
-                      {esAdmin && (
-                        <div className="mt-2 pt-2 border-t border-gray-200">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              abrirModalCancelar(preorden)
-                            }}
-                            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded transition-colors"
-                          >
-                            <Trash className="w-4 h-4" />
-                            Cancelar Pre-orden
-                          </button>
-                        </div>
-                      )}
+                      {/* Botón cancelar disponible para todos, pero requiere contraseña de admin/superadmin */}
+                      <div className="mt-2 pt-2 border-t border-gray-200">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            abrirModalCancelar(preorden)
+                          }}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded transition-colors"
+                        >
+                          <Trash className="w-4 h-4" />
+                          Cancelar Pre-orden
+                        </button>
+                      </div>
                     </div>
                   )
                 })}
@@ -2027,11 +2072,11 @@ const PuntoVenta = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Contraseña de Administrador <span className="text-red-500">*</span>
+                  Contraseña de Administrador o Superadministrador <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="password"
-                  placeholder="Ingresa tu contraseña"
+                  placeholder="Ingresa la contraseña de un administrador"
                   value={passwordCancelar}
                   onChange={(e) => setPasswordCancelar(e.target.value)}
                   onKeyPress={(e) => {
@@ -2043,7 +2088,7 @@ const PuntoVenta = () => {
                   autoFocus
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Solo administradores y superadministradores pueden cancelar pre-órdenes
+                  Se requiere la contraseña de un administrador o superadministrador para confirmar la cancelación
                 </p>
               </div>
             </div>
