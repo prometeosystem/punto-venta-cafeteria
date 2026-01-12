@@ -110,10 +110,26 @@ export const usePreordenes = () => {
     }
   }
 
+  const obtenerPreorden = async (idPreorden) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const response = await preordenesService.obtenerPreorden(idPreorden)
+      return response
+    } catch (err) {
+      const errorMessage = err.response?.data?.detail || err.message || 'Error al obtener pre-orden'
+      setError(errorMessage)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return {
     loading,
     error,
     obtenerPreordenes,
+    obtenerPreorden,
     crearPreorden,
     procesarPago,
     actualizarPreorden,

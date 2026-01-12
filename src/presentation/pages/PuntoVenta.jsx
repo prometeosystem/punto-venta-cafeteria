@@ -19,6 +19,7 @@ const PuntoVenta = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [highlightedProduct, setHighlightedProduct] = useState(null)
   const [mostrarModalFinalizar, setMostrarModalFinalizar] = useState(false)
+  const [mostrarModalGuardarPreorden, setMostrarModalGuardarPreorden] = useState(false)
   const [nombreCliente, setNombreCliente] = useState('')
   const [tipoServicio, setTipoServicio] = useState('comer-aqui')
   const [comentarios, setComentarios] = useState('')
@@ -30,7 +31,7 @@ const PuntoVenta = () => {
   const { productos, loading: productosLoading } = useProductos()
   const { crearVenta, obtenerInfoTicketActual, loading: ventaLoading } = useVentas()
   const { crearComanda, loading: comandaLoading } = useComandas()
-  const { obtenerPreordenes, procesarPago, actualizarPreorden, cancelarPreorden, loading: preordenesLoading } = usePreordenes()
+  const { obtenerPreordenes, procesarPago, actualizarPreorden, cancelarPreorden, crearPreorden, obtenerPreorden, loading: preordenesLoading } = usePreordenes()
   const { usuario } = useAuth()
   const [numeroTicket, setNumeroTicket] = useState(null)
   const [mostrarModalCancelar, setMostrarModalCancelar] = useState(false)
@@ -487,6 +488,158 @@ const PuntoVenta = () => {
     }
   }
 
+  // Función para abrir modal de guardar como pre-orden
+  const abrirModalGuardarPreorden = () => {
+    if (cart.length === 0) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Carrito vacío',
+        text: 'No puedes guardar una pre-orden sin productos',
+        confirmButtonColor: '#10b981',
+      })
+      return
+    }
+    setMostrarModalGuardarPreorden(true)
+  }
+
+  // Función para guardar orden normal como pre-orden
+  const guardarComoPreorden = async () => {
+    if (cart.length === 0) {
+      await Swal.fire({
+        icon: 'warning',
+        title: 'Carrito vacío',
+        text: 'No puedes guardar una pre-orden sin productos',
+        confirmButtonColor: '#10b981',
+      })
+      return
+    }
+
+    if (!nombreCliente || nombreCliente.trim() === '') {
+      await Swal.fire({
+        icon: 'warning',
+        title: 'Nombre requerido',
+        text: 'Por favor ingresa el nombre del cliente para crear la pre-orden',
+        confirmButtonColor: '#10b981',
+      })
+      return
+    }
+
+    setMostrarModalGuardarPreorden(false)
+    setProcesando(true)
+    try {
+      // Calcular total con extras
+      const extraLeche = cart.reduce((sum, item) => {
+        if (item.tipoLeche && (item.tipoLeche === 'deslactosada' || item.tipoLeche === 'almendras')) {
+          return sum + (15 * item.quantity)
+        }
+        return sum
+      }, 0)
+      
+      const extraExtras = cart.reduce((sum, item) => {
+        if (item.extras && item.extras.length > 0) {
+          return sum + (item.extras.length * 20 * item.quantity)
+        }
+        return sum
+      }, 0)
+      
+      // Crear detalles de la pre-orden desde el carrito
+      const detalles = cart.map(item => {
+        const observaciones = []
+        if (item.tipoLeche && item.tipoLeche !== 'entera') {
+          if (item.tipoLeche === 'deslactosada') {
+            observaciones.push('Leche deslactosada')
+          } else if (item.tipoLeche === 'almendras') {
+            observaciones.push('Leche de almendras')
+          }
+        }
+        if (item.extras && item.extras.length > 0) {
+          const nombresExtras = {
+            'tocino': 'Tocino',
+            'huevo': 'Huevo',
+            'jamon': 'Jamón',
+            'chorizo': 'Chorizo'
+          }
+          const extrasNombres = item.extras.map(id => nombresExtras[id] || id)
+          observaciones.push(`Extras: ${extrasNombres.join(', ')}`)
+        }
+        if (item.tipoProteina) {
+          observaciones.push(`Scoop: ${item.tipoProteina === 'proteina' ? 'Proteína' : 'Creatina'}`)
+        }
+        
+        return {
+          id_producto: item.id_producto || item.originalId || item.id,
+          cantidad: item.quantity,
+          observaciones: observaciones.length > 0 ? observaciones.join(' - ') : null,
+          tipo_preparacion: item.tipoPreparacion || null
+        }
+      })
+      
+      // Crear la pre-orden (se crea con estado 'preorden' por defecto)
+      const preordenCreada = await crearPreorden({
+        nombre_cliente: nombreCliente.trim(),
+        tipo_servicio: tipoServicio,
+        comentarios: comentarios || null,
+        detalles: detalles,
+        extra_leche: extraLeche > 0 ? extraLeche : null,
+        extra_extras: extraExtras > 0 ? extraExtras : null
+      })
+      
+      if (preordenCreada?.error) {
+        throw new Error(preordenCreada.error)
+      }
+      
+      // Obtener la pre-orden completa con detalles
+      let preordenCompleta = await obtenerPreorden(preordenCreada.id_preorden)
+      
+      // Actualizar el estado a 'en_caja' para que esté lista para editar/procesar
+      const preordenActualizada = await actualizarPreorden(preordenCompleta.id_preorden, {
+        estado: 'en_caja'
+      })
+      
+      if (preordenActualizada?.error) {
+        // Si falla la actualización, usar la pre-orden sin actualizar
+        console.warn('No se pudo actualizar el estado a en_caja:', preordenActualizada.error)
+      } else {
+        // Usar la pre-orden actualizada
+        preordenCompleta = preordenActualizada
+      }
+      
+      // Seleccionar la pre-orden recién creada
+      await seleccionarPreorden(preordenCompleta)
+      
+      // Actualizar la lista de pre-órdenes
+      const todasPreordenes = await obtenerPreordenes()
+      const preordenesFiltradas = (todasPreordenes || []).filter(p => 
+        p.estado === 'preorden' || p.estado === 'en_caja' || (p.estado === 'pagada' && p.origen === 'sistema')
+      )
+      setPreordenes(preordenesFiltradas)
+      
+      // Limpiar campos después de guardar
+      setNombreCliente('')
+      setTipoServicio('comer-aqui')
+      setComentarios('')
+      
+      await Swal.fire({
+        icon: 'success',
+        title: 'Pre-orden creada',
+        text: 'La orden se ha guardado como pre-orden correctamente',
+        confirmButtonColor: '#10b981',
+        timer: 2000,
+      })
+    } catch (error) {
+      console.error('Error al guardar como pre-orden:', error)
+      const errorMsg = extraerMensajeError(error, 'Error al guardar la pre-orden')
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: errorMsg,
+        confirmButtonColor: '#10b981',
+      })
+    } finally {
+      setProcesando(false)
+    }
+  }
+
   // Función para guardar cambios en la pre-orden
   const guardarCambiosPreorden = async () => {
     if (!preordenSeleccionada) return
@@ -550,15 +703,28 @@ const PuntoVenta = () => {
         }
       })
       
-      // Actualizar la pre-orden
-      const preordenActualizada = await actualizarPreorden(preordenSeleccionada.id_preorden, {
+      // Si es una orden del sistema (pagada con origen sistema), convertirla en pre-orden
+      // cambiando el estado a 'en_caja' y el origen a 'web'
+      const esOrdenDelSistema = preordenSeleccionada.estado === 'pagada' && preordenSeleccionada.origen === 'sistema'
+      
+      // Preparar datos de actualización
+      const datosActualizacion = {
         nombre_cliente: nombreCliente || preordenSeleccionada.nombre_cliente,
         tipo_servicio: tipoServicio,
         comentarios: comentarios,
         detalles: detalles,
         extra_leche: extraLeche > 0 ? extraLeche : null,
         extra_extras: extraExtras > 0 ? extraExtras : null
-      })
+      }
+      
+      // Si es orden del sistema, convertirla en pre-orden
+      if (esOrdenDelSistema) {
+        datosActualizacion.estado = 'en_caja'
+        datosActualizacion.origen = 'web'
+      }
+      
+      // Actualizar la pre-orden
+      const preordenActualizada = await actualizarPreorden(preordenSeleccionada.id_preorden, datosActualizacion)
       
       if (preordenActualizada?.error) {
         throw new Error(preordenActualizada.error)
@@ -608,11 +774,6 @@ const PuntoVenta = () => {
       return
     }
 
-    // Primero guardar los cambios si hay productos en el carrito
-    if (cart.length > 0) {
-      await guardarCambiosPreorden()
-    }
-
     setProcesando(true)
     try {
       // Verificar que la pre-orden esté en estado "en_caja"
@@ -636,6 +797,7 @@ const PuntoVenta = () => {
             text: `Error al actualizar estado: ${errorMsg}`,
             confirmButtonColor: '#10b981',
           })
+          setProcesando(false)
           return
         }
       }
@@ -1862,6 +2024,19 @@ const PuntoVenta = () => {
                       ${total.toFixed(2)}
                     </span>
                   </div>
+
+                  {/* Botón Guardar como Pre-orden */}
+                  <button
+                    onClick={abrirModalGuardarPreorden}
+                    disabled={procesando || preordenesLoading}
+                    className="btn-outline w-full py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {(procesando || preordenesLoading) && (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    )}
+                    Guardar como Pre-orden
+                  </button>
+
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={() => setMetodoPago('efectivo')}
@@ -1898,6 +2073,9 @@ const PuntoVenta = () => {
                     onClick={() => {
                       setCart([])
                       setMetodoPago(null)
+                      setNombreCliente('')
+                      setTipoServicio('comer-aqui')
+                      setComentarios('')
                       setPropinaPorcentaje(null)
                       setMontoPropina(0)
                     }}
@@ -2150,6 +2328,20 @@ const PuntoVenta = () => {
         </div>
       )}
 
+      {/* Modal Guardar como Pre-orden */}
+      {mostrarModalGuardarPreorden && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-2xl font-bold text-gray-900">Guardar como Pre-orden</h2>
+              <button
+                onClick={() => {
+                  setMostrarModalGuardarPreorden(false)
+                  setNombreCliente('')
+                  setTipoServicio('comer-aqui')
+                  setComentarios('')
+                }}
       {/* Modal Propina */}
       {mostrarModalPropina && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
@@ -2166,6 +2358,114 @@ const PuntoVenta = () => {
             </div>
 
             {/* Contenido */}
+            <div className="p-6 space-y-6">
+              {/* Nombre del Cliente */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nombre del Cliente <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej: Juan Pérez"
+                  value={nombreCliente}
+                  onChange={(e) => setNombreCliente(e.target.value)}
+                  className="input w-full"
+                  autoFocus
+                />
+              </div>
+
+              {/* Tipo de Servicio */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tipo de Servicio
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setTipoServicio('comer-aqui')}
+                    className={`py-3 px-4 rounded-lg border-2 transition-all ${
+                      tipoServicio === 'comer-aqui'
+                        ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    Comer Aquí
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTipoServicio('para-llevar')}
+                    className={`py-3 px-4 rounded-lg border-2 transition-all ${
+                      tipoServicio === 'para-llevar'
+                        ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    Para Llevar
+                  </button>
+                </div>
+              </div>
+
+              {/* Comentarios */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Comentarios <span className="text-gray-400">(Opcional)</span>
+                </label>
+                <textarea
+                  placeholder="Instrucciones especiales, sin azúcar, etc."
+                  value={comentarios}
+                  onChange={(e) => setComentarios(e.target.value)}
+                  rows={3}
+                  className="input w-full resize-none"
+                />
+              </div>
+
+              {/* Totales */}
+              <div className="border-t border-gray-200 pt-4 space-y-2">
+                <div className="flex items-center justify-between text-gray-600">
+                  <span>Subtotal:</span>
+                  <span>${total.toFixed(2)}</span>
+                </div>
+                {/* Calcular extra de leche basado en los items del carrito */}
+                {(() => {
+                  const extraLecheTotal = cart.reduce((sum, item) => {
+                    if (item.tipoLeche && (item.tipoLeche === 'deslactosada' || item.tipoLeche === 'almendras')) {
+                      return sum + (15 * item.quantity)
+                    }
+                    return sum
+                  }, 0)
+                  
+                  const extraExtrasTotal = cart.reduce((sum, item) => {
+                    if (item.extras && item.extras.length > 0) {
+                      return sum + (item.extras.length * 20 * item.quantity)
+                    }
+                    return sum
+                  }, 0)
+                  
+                  const totalConExtras = total + extraLecheTotal + extraExtrasTotal
+                  
+                  return (
+                    <>
+                      {extraLecheTotal > 0 && (
+                        <div className="flex items-center justify-between text-gray-600">
+                          <span>Extra Leche:</span>
+                          <span>+${extraLecheTotal.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {extraExtrasTotal > 0 && (
+                        <div className="flex items-center justify-between text-gray-600">
+                          <span>Extras:</span>
+                          <span>+${extraExtrasTotal.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between text-lg font-bold text-gray-900 pt-2 border-t border-gray-200">
+                        <span>Total:</span>
+                        <span className="text-matcha-600">
+                          ${totalConExtras.toFixed(2)}
+                        </span>
+                      </div>
+                    </>
+                  )
+                })()}
             <div className="p-6 space-y-4">
               <p className="text-sm text-gray-600 mb-4">
                 Selecciona el porcentaje de propina que deseas agregar
@@ -2203,6 +2503,28 @@ const PuntoVenta = () => {
             </div>
 
             {/* Footer */}
+            <div className="p-6 border-t border-gray-200 flex gap-3">
+              <button
+                onClick={() => {
+                  setMostrarModalGuardarPreorden(false)
+                  setNombreCliente('')
+                  setTipoServicio('comer-aqui')
+                  setComentarios('')
+                }}
+                className="btn-outline flex-1"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={guardarComoPreorden}
+                disabled={procesando || preordenesLoading || !nombreCliente || nombreCliente.trim() === ''}
+                className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {(procesando || preordenesLoading) && (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                )}
+                Guardar Pre-orden
+              </button>
             <div className="p-6 border-t border-gray-200">
               <button
                 onClick={() => setMostrarModalPropina(false)}
