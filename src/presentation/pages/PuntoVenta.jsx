@@ -377,8 +377,10 @@ const PuntoVenta = () => {
     try {
       // Calcular total con extras basado en los items del carrito
       const extraLeche = cart.reduce((sum, item) => {
-        if (item.tipoLeche && (item.tipoLeche === 'deslactosada' || item.tipoLeche === 'almendras')) {
+        if (item.tipoLeche === 'deslactosada') {
           return sum + (15 * item.quantity)
+        } else if (item.tipoLeche === 'almendras') {
+          return sum + (20 * item.quantity)
         }
         return sum
       }, 0)
@@ -546,8 +548,10 @@ const PuntoVenta = () => {
     try {
       // Calcular total con extras
       const extraLeche = cart.reduce((sum, item) => {
-        if (item.tipoLeche && (item.tipoLeche === 'deslactosada' || item.tipoLeche === 'almendras')) {
+        if (item.tipoLeche === 'deslactosada') {
           return sum + (15 * item.quantity)
+        } else if (item.tipoLeche === 'almendras') {
+          return sum + (20 * item.quantity)
         }
         return sum
       }, 0)
@@ -675,8 +679,10 @@ const PuntoVenta = () => {
     try {
       // Calcular total con extras
       const extraLeche = cart.reduce((sum, item) => {
-        if (item.tipoLeche && (item.tipoLeche === 'deslactosada' || item.tipoLeche === 'almendras')) {
+        if (item.tipoLeche === 'deslactosada') {
           return sum + (15 * item.quantity)
+        } else if (item.tipoLeche === 'almendras') {
+          return sum + (20 * item.quantity)
         }
         return sum
       }, 0)
@@ -903,8 +909,10 @@ const PuntoVenta = () => {
   const calcularSubtotalConExtras = () => {
     const subtotal = cart.reduce((sum, item) => sum + (parseFloat(item.precio) * item.quantity), 0)
     const extraLeche = cart.reduce((sum, item) => {
-      if (item.tipoLeche && (item.tipoLeche === 'deslactosada' || item.tipoLeche === 'almendras')) {
+      if (item.tipoLeche === 'deslactosada') {
         return sum + (15 * item.quantity)
+      } else if (item.tipoLeche === 'almendras') {
+        return sum + (20 * item.quantity)
       }
       return sum
     }, 0)
@@ -931,8 +939,10 @@ const PuntoVenta = () => {
     if (propinaPorcentaje) {
       const subtotal = cart.reduce((sum, item) => sum + (parseFloat(item.precio) * item.quantity), 0)
       const extraLeche = cart.reduce((sum, item) => {
-        if (item.tipoLeche && (item.tipoLeche === 'deslactosada' || item.tipoLeche === 'almendras')) {
+        if (item.tipoLeche === 'deslactosada') {
           return sum + (15 * item.quantity)
+        } else if (item.tipoLeche === 'almendras') {
+          return sum + (20 * item.quantity)
         }
         return sum
       }, 0)
@@ -1459,7 +1469,7 @@ const PuntoVenta = () => {
                                           : 'border-gray-200 hover:border-gray-300'
                                       }`}
                                     >
-                                      Almend. (+$15)
+                                      Almend. (+$20)
                                     </button>
                                   </div>
                                 </div>
@@ -1573,10 +1583,16 @@ const PuntoVenta = () => {
                                   <span>Subtotal:</span>
                                   <span>${parseFloat(product.precio).toFixed(2)}</span>
                                 </div>
-                                {(opciones.tipoLeche === 'deslactosada' || opciones.tipoLeche === 'almendras') && (
+                                {opciones.tipoLeche === 'deslactosada' && (
                                   <div className="flex items-center justify-between text-xs text-gray-600">
                                     <span>Extra Leche:</span>
                                     <span>+$15.00</span>
+                                  </div>
+                                )}
+                                {opciones.tipoLeche === 'almendras' && (
+                                  <div className="flex items-center justify-between text-xs text-gray-600">
+                                    <span>Extra Leche:</span>
+                                    <span>+$20.00</span>
                                   </div>
                                 )}
                                 {opciones.tipoProteina && (
@@ -1596,7 +1612,7 @@ const PuntoVenta = () => {
                                   <span className="text-matcha-600">
                                     ${(
                                       parseFloat(product.precio) +
-                                      ((opciones.tipoLeche === 'deslactosada' || opciones.tipoLeche === 'almendras') ? 15 : 0) +
+                                      (opciones.tipoLeche === 'deslactosada' ? 15 : opciones.tipoLeche === 'almendras' ? 20 : 0) +
                                       ((opciones.extras?.length || 0) * 20)
                                     ).toFixed(2)}
                                   </span>
@@ -1803,8 +1819,10 @@ const PuntoVenta = () => {
                       {(() => {
                         const subtotal = cart.reduce((sum, item) => sum + (parseFloat(item.precio) * item.quantity), 0)
                         const extraLeche = cart.reduce((sum, item) => {
-                          if (item.tipoLeche && (item.tipoLeche === 'deslactosada' || item.tipoLeche === 'almendras')) {
+                          if (item.tipoLeche === 'deslactosada') {
                             return sum + (15 * item.quantity)
+                          } else if (item.tipoLeche === 'almendras') {
+                            return sum + (20 * item.quantity)
                           }
                           return sum
                         }, 0)
