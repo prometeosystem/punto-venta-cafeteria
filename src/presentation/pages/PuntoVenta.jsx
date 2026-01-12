@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Minus, Trash2, ShoppingCart, ChevronDown, ChevronUp, Loader2, Package, Clock, User, CreditCard, X, Search, Trash } from 'lucide-react'
+import { Plus, Minus, Trash2, ShoppingCart, ChevronDown, ChevronUp, Loader2, Package, Clock, User, CreditCard, X, Search, Trash, Coins } from 'lucide-react'
 import { useProductos } from '../hooks/useProductos'
 import { useVentas } from '../hooks/useVentas'
 import { useComandas } from '../hooks/useComandas'
@@ -37,6 +37,11 @@ const PuntoVenta = () => {
   const [mostrarModalCancelar, setMostrarModalCancelar] = useState(false)
   const [passwordCancelar, setPasswordCancelar] = useState('')
   const [preordenACancelar, setPreordenACancelar] = useState(null)
+  
+  // Estados para propina
+  const [mostrarModalPropina, setMostrarModalPropina] = useState(false)
+  const [propinaPorcentaje, setPropinaPorcentaje] = useState(null) // 10, 15, 20
+  const [montoPropina, setMontoPropina] = useState(0)
 
   // Cargar número de ticket actual
   const cargarNumeroTicket = async () => {
@@ -446,6 +451,8 @@ const PuntoVenta = () => {
       setNombreCliente('')
       setTipoServicio('comer-aqui')
       setComentarios('')
+      setPropinaPorcentaje(null)
+      setMontoPropina(0)
       
       // Actualizar número de ticket después de crear la venta
       await cargarNumeroTicket()
@@ -803,6 +810,12 @@ const PuntoVenta = () => {
         pagoData.id_cliente = Number(idCliente)
       }
       
+      // Agregar datos de propina si existe
+      if (propinaPorcentaje && montoPropina > 0) {
+        pagoData.propina_porcentaje = propinaPorcentaje
+        pagoData.propina_monto = montoPropina
+      }
+      
       const resultado = await procesarPago(preordenSeleccionada.id_preorden, pagoData)
 
       // Verificar respuesta exitosa
@@ -843,6 +856,8 @@ const PuntoVenta = () => {
         setNombreCliente('')
         setTipoServicio('comer-aqui')
         setComentarios('')
+        setPropinaPorcentaje(null)
+        setMontoPropina(0)
         
         // Refrescar pre-órdenes (la orden pagada desaparecerá automáticamente)
         const todasPreordenes = await obtenerPreordenes()
@@ -865,6 +880,61 @@ const PuntoVenta = () => {
     } finally {
       setProcesando(false)
     }
+  }
+
+  // Función para calcular subtotal con extras (sin propina)
+  const calcularSubtotalConExtras = () => {
+    const subtotal = cart.reduce((sum, item) => sum + (parseFloat(item.precio) * item.quantity), 0)
+    const extraLeche = cart.reduce((sum, item) => {
+      if (item.tipoLeche && (item.tipoLeche === 'deslactosada' || item.tipoLeche === 'almendras')) {
+        return sum + (15 * item.quantity)
+      }
+      return sum
+    }, 0)
+    const extraExtras = cart.reduce((sum, item) => {
+      if (item.extras && item.extras.length > 0) {
+        return sum + (item.extras.length * 20 * item.quantity)
+      }
+      return sum
+    }, 0)
+    return subtotal + extraLeche + extraExtras
+  }
+
+  // Función para manejar selección de propina
+  const seleccionarPropina = (porcentaje) => {
+    const subtotal = calcularSubtotalConExtras()
+    const monto = (subtotal * porcentaje) / 100
+    setPropinaPorcentaje(porcentaje)
+    setMontoPropina(monto)
+    setMostrarModalPropina(false)
+  }
+
+  // Actualizar monto de propina cuando cambia el carrito o el porcentaje
+  useEffect(() => {
+    if (propinaPorcentaje) {
+      const subtotal = cart.reduce((sum, item) => sum + (parseFloat(item.precio) * item.quantity), 0)
+      const extraLeche = cart.reduce((sum, item) => {
+        if (item.tipoLeche && (item.tipoLeche === 'deslactosada' || item.tipoLeche === 'almendras')) {
+          return sum + (15 * item.quantity)
+        }
+        return sum
+      }, 0)
+      const extraExtras = cart.reduce((sum, item) => {
+        if (item.extras && item.extras.length > 0) {
+          return sum + (item.extras.length * 20 * item.quantity)
+        }
+        return sum
+      }, 0)
+      const totalConExtras = subtotal + extraLeche + extraExtras
+      const monto = (totalConExtras * propinaPorcentaje) / 100
+      setMontoPropina(monto)
+    }
+  }, [cart, propinaPorcentaje])
+
+  // Función para remover propina
+  const removerPropina = () => {
+    setPropinaPorcentaje(null)
+    setMontoPropina(0)
   }
 
   // Función para parsear observaciones y extraer tipo de leche, extras y tipo de proteína
@@ -1050,6 +1120,10 @@ const PuntoVenta = () => {
     setTipoServicio(preorden.tipo_servicio || 'comer-aqui')
     setComentarios(preorden.comentarios || '')
     
+    // Limpiar propina al seleccionar nueva pre-orden
+    setPropinaPorcentaje(null)
+    setMontoPropina(0)
+    
     // Guardar referencia a la preorden seleccionada
     setPreordenSeleccionada(preorden)
   }
@@ -1101,6 +1175,8 @@ const PuntoVenta = () => {
         setPreordenSeleccionada(null)
         setCart([])
         setMetodoPago(null)
+        setPropinaPorcentaje(null)
+        setMontoPropina(0)
       }
       
       // Refrescar pre-órdenes
@@ -1542,6 +1618,29 @@ const PuntoVenta = () => {
                       <h2 className="text-lg font-semibold text-gray-900">
                         Pre-orden #{preordenSeleccionada.id_preorden}
                       </h2>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setMostrarModalPropina(true)}
+                          className={`p-2 rounded-lg hover:bg-gray-100 transition-colors ${
+                            propinaPorcentaje ? 'text-matcha-600 bg-matcha-50' : 'text-gray-600'
+                          }`}
+                          title={propinaPorcentaje ? `Propina ${propinaPorcentaje}%` : 'Agregar propina'}
+                        >
+                          <Coins className="w-6 h-6" />
+                        </button>
+                        {propinaPorcentaje && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              removerPropina()
+                            }}
+                            className="p-1.5 rounded-lg hover:bg-red-100 transition-colors text-red-600"
+                            title="Quitar propina"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <button
                       onClick={() => {
@@ -1551,6 +1650,8 @@ const PuntoVenta = () => {
                         setNombreCliente('')
                         setTipoServicio('comer-aqui')
                         setComentarios('')
+                        setPropinaPorcentaje(null)
+                        setMontoPropina(0)
                       }}
                       className="p-1 rounded hover:bg-gray-100 transition-colors"
                     >
@@ -1681,7 +1782,7 @@ const PuntoVenta = () => {
                     </div>
 
                     <div className="border-t border-gray-200 pt-4 space-y-3">
-                      {/* Calcular total con extras */}
+                      {/* Calcular total con extras y propina */}
                       {(() => {
                         const subtotal = cart.reduce((sum, item) => sum + (parseFloat(item.precio) * item.quantity), 0)
                         const extraLeche = cart.reduce((sum, item) => {
@@ -1697,6 +1798,9 @@ const PuntoVenta = () => {
                           return sum
                         }, 0)
                         const totalConExtras = subtotal + extraLeche + extraExtras
+                        // Calcular monto de propina actualizado si hay porcentaje
+                        const montoPropinaActual = propinaPorcentaje ? (totalConExtras * propinaPorcentaje) / 100 : 0
+                        const totalFinal = totalConExtras + montoPropinaActual
                         
                         return (
                           <>
@@ -1716,10 +1820,16 @@ const PuntoVenta = () => {
                                 <span>+${extraExtras.toFixed(2)}</span>
                               </div>
                             )}
+                            {montoPropinaActual > 0 && (
+                              <div className="flex items-center justify-between text-gray-600">
+                                <span>Propina ({propinaPorcentaje}%):</span>
+                                <span>+${montoPropinaActual.toFixed(2)}</span>
+                              </div>
+                            )}
                             <div className="flex items-center justify-between text-lg font-bold text-gray-900 pt-2 border-t border-gray-200">
                               <span>Total:</span>
                               <span className="text-matcha-600">
-                                ${totalConExtras.toFixed(2)}
+                                ${totalFinal.toFixed(2)}
                               </span>
                             </div>
                           </>
@@ -1966,6 +2076,8 @@ const PuntoVenta = () => {
                       setNombreCliente('')
                       setTipoServicio('comer-aqui')
                       setComentarios('')
+                      setPropinaPorcentaje(null)
+                      setMontoPropina(0)
                     }}
                     className="btn-outline w-full py-2"
                   >
@@ -2230,6 +2342,15 @@ const PuntoVenta = () => {
                   setTipoServicio('comer-aqui')
                   setComentarios('')
                 }}
+      {/* Modal Propina */}
+      {mostrarModalPropina && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-2xl font-bold text-gray-900">Seleccionar Propina</h2>
+              <button
+                onClick={() => setMostrarModalPropina(false)}
                 className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
               >
                 <X className="w-5 h-5 text-gray-600" />
@@ -2345,6 +2466,39 @@ const PuntoVenta = () => {
                     </>
                   )
                 })()}
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-600 mb-4">
+                Selecciona el porcentaje de propina que deseas agregar
+              </p>
+              
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  onClick={() => seleccionarPropina(10)}
+                  className="py-4 px-4 rounded-lg border-2 border-gray-200 hover:border-matcha-500 hover:bg-matcha-50 transition-all text-center"
+                >
+                  <div className="text-2xl font-bold text-gray-900">10%</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    ${((calcularSubtotalConExtras() * 10) / 100).toFixed(2)}
+                  </div>
+                </button>
+                <button
+                  onClick={() => seleccionarPropina(15)}
+                  className="py-4 px-4 rounded-lg border-2 border-gray-200 hover:border-matcha-500 hover:bg-matcha-50 transition-all text-center"
+                >
+                  <div className="text-2xl font-bold text-gray-900">15%</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    ${((calcularSubtotalConExtras() * 15) / 100).toFixed(2)}
+                  </div>
+                </button>
+                <button
+                  onClick={() => seleccionarPropina(20)}
+                  className="py-4 px-4 rounded-lg border-2 border-gray-200 hover:border-matcha-500 hover:bg-matcha-50 transition-all text-center"
+                >
+                  <div className="text-2xl font-bold text-gray-900">20%</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    ${((calcularSubtotalConExtras() * 20) / 100).toFixed(2)}
+                  </div>
+                </button>
               </div>
             </div>
 
@@ -2370,6 +2524,13 @@ const PuntoVenta = () => {
                   <Loader2 className="w-5 h-5 animate-spin" />
                 )}
                 Guardar Pre-orden
+              </button>
+            <div className="p-6 border-t border-gray-200">
+              <button
+                onClick={() => setMostrarModalPropina(false)}
+                className="btn-outline w-full"
+              >
+                Cancelar
               </button>
             </div>
           </div>
