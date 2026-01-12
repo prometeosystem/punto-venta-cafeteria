@@ -492,6 +492,7 @@ const Barista = () => {
                     const observaciones = detalle.observaciones ? detalle.observaciones.split(' - ') : []
                     const tipoLecheObs = observaciones.find(obs => obs.includes('Leche'))
                     const extrasObs = observaciones.find(obs => obs.includes('Extras:'))
+                    const tipoProteinaObs = observaciones.find(obs => obs.includes('Scoop:'))
                     const tipoPreparacion = detalle.tipo_preparacion // Obtener tipo de preparación del detalle
                     
                     return (
@@ -507,7 +508,7 @@ const Barista = () => {
                             x{detalle.cantidad}
                           </p>
                         </div>
-                        {(tipoPreparacion || tipoLecheObs || extrasObs) && (
+                        {(tipoPreparacion || tipoLecheObs || extrasObs || tipoProteinaObs) && (
                           <div className="mt-2 space-y-1 flex flex-wrap gap-1">
                             {/* Etiqueta de tipo de preparación (frío/frapeada) */}
                             {tipoPreparacion && (
@@ -526,6 +527,13 @@ const Barista = () => {
                                 </span>
                               </div>
                             )}
+                            {tipoProteinaObs && (
+                              <div className="flex items-center gap-1">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 border border-yellow-300">
+                                  {tipoProteinaObs}
+                                </span>
+                              </div>
+                            )}
                             {extrasObs && (
                               <div className="flex items-center gap-1 flex-wrap">
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 border border-purple-300">
@@ -533,8 +541,8 @@ const Barista = () => {
                                 </span>
                               </div>
                             )}
-                            {/* Mostrar otras observaciones que no sean tipo de leche o extras */}
-                            {observaciones.filter(obs => !obs.includes('Leche') && !obs.includes('Extras:') && !obs.includes('Preparación:')).map((obs, obsIndex) => (
+                            {/* Mostrar otras observaciones que no sean tipo de leche, extras o proteína */}
+                            {observaciones.filter(obs => !obs.includes('Leche') && !obs.includes('Extras:') && !obs.includes('Preparación:') && !obs.includes('Scoop:')).map((obs, obsIndex) => (
                               <div key={obsIndex} className="flex items-center gap-1">
                                 <span className="text-xs text-gray-600 italic">{obs}</span>
                               </div>
