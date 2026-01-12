@@ -433,6 +433,23 @@ const PuntoVenta = () => {
         detalles: detallesComanda,
       })
 
+      // Registrar propina si existe
+      if (propinaPorcentaje && montoPropina > 0 && comandaResponse?.id_comanda && usuario?.id_usuario) {
+        try {
+          const { propinasService } = await import('../../application/services/propinasService')
+          await propinasService.registrarPropina({
+            id_comanda: comandaResponse.id_comanda,
+            monto_porcentaje: propinaPorcentaje,
+            monto_dinero: montoPropina,
+            metodo_pago: metodoPago,
+            id_usuario: usuario.id_usuario
+          })
+        } catch (error) {
+          console.error('Error al registrar propina:', error)
+          // No bloquear el flujo si falla el registro de propina
+        }
+      }
+
       // Emitir evento para notificación de comanda creada
       if (comandaResponse?.id_comanda) {
         window.dispatchEvent(new CustomEvent('comanda-creada', {
@@ -1892,14 +1909,39 @@ const PuntoVenta = () => {
               <>
                 {/* Vista de Carrito Normal */}
                 <div className="mb-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <ShoppingCart className="w-5 h-5 text-matcha-600" />
-                    <h2 className="text-lg font-semibold text-gray-900">Orden Actual</h2>
-                    {cart.length > 0 && (
-                      <span className="bg-matcha-100 text-matcha-700 text-xs font-medium px-2 py-1 rounded-full">
-                        {cart.reduce((sum, item) => sum + item.quantity, 0)}
-                      </span>
-                    )}
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <ShoppingCart className="w-5 h-5 text-matcha-600" />
+                      <h2 className="text-lg font-semibold text-gray-900">Orden Actual</h2>
+                      {cart.length > 0 && (
+                        <span className="bg-matcha-100 text-matcha-700 text-xs font-medium px-2 py-1 rounded-full">
+                          {cart.reduce((sum, item) => sum + item.quantity, 0)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setMostrarModalPropina(true)}
+                        className={`p-2 rounded-lg hover:bg-gray-100 transition-colors ${
+                          propinaPorcentaje ? 'text-matcha-600 bg-matcha-50' : 'text-gray-600'
+                        }`}
+                        title={propinaPorcentaje ? `Propina ${propinaPorcentaje}%` : 'Agregar propina'}
+                      >
+                        <Coins className="w-6 h-6" />
+                      </button>
+                      {propinaPorcentaje && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            removerPropina()
+                          }}
+                          className="p-1.5 rounded-lg hover:bg-red-100 transition-colors text-red-600"
+                          title="Quitar propina"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                   {numeroTicket !== null && (
                     <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -2016,14 +2058,62 @@ const PuntoVenta = () => {
                 </div>
 
                 <div className="border-t border-gray-200 pt-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-lg font-semibold text-gray-900">
-                      Total:
-                    </span>
-                    <span className="text-2xl font-bold text-matcha-600">
-                      ${total.toFixed(2)}
-                    </span>
-                  </div>
+                  {/* Calcular total con extras y propina */}
+                  {(() => {
+                    const subtotal = cart.reduce((sum, item) => sum + (parseFloat(item.precio) * item.quantity), 0)
+                    const extraLeche = cart.reduce((sum, item) => {
+                      if (item.tipoLeche && (item.tipoLeche === 'deslactosada' || item.tipoLeche === 'almendras')) {
+                        return sum + (15 * item.quantity)
+                      }
+                      return sum
+                    }, 0)
+                    const extraExtras = cart.reduce((sum, item) => {
+                      if (item.extras && item.extras.length > 0) {
+                        return sum + (item.extras.length * 20 * item.quantity)
+                      }
+                      return sum
+                    }, 0)
+                    const totalConExtras = subtotal + extraLeche + extraExtras
+                    const montoPropinaActual = propinaPorcentaje ? (totalConExtras * propinaPorcentaje) / 100 : 0
+                    const totalFinal = totalConExtras + montoPropinaActual
+                    
+                    return (
+                      <>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm text-gray-600">
+                            <span>Subtotal:</span>
+                            <span>${subtotal.toFixed(2)}</span>
+                          </div>
+                          {extraLeche > 0 && (
+                            <div className="flex items-center justify-between text-sm text-gray-600">
+                              <span>Extra Leche:</span>
+                              <span>+${extraLeche.toFixed(2)}</span>
+                            </div>
+                          )}
+                          {extraExtras > 0 && (
+                            <div className="flex items-center justify-between text-sm text-gray-600">
+                              <span>Extras:</span>
+                              <span>+${extraExtras.toFixed(2)}</span>
+                            </div>
+                          )}
+                          {montoPropinaActual > 0 && (
+                            <div className="flex items-center justify-between text-sm text-gray-600">
+                              <span>Propina ({propinaPorcentaje}%):</span>
+                              <span>+${montoPropinaActual.toFixed(2)}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+                            <span className="text-lg font-semibold text-gray-900">
+                              Total:
+                            </span>
+                            <span className="text-2xl font-bold text-matcha-600">
+                              ${totalFinal.toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      </>
+                    )
+                  })()}
 
                   {/* Botón Guardar como Pre-orden */}
                   <button
@@ -2342,15 +2432,6 @@ const PuntoVenta = () => {
                   setTipoServicio('comer-aqui')
                   setComentarios('')
                 }}
-      {/* Modal Propina */}
-      {mostrarModalPropina && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-900">Seleccionar Propina</h2>
-              <button
-                onClick={() => setMostrarModalPropina(false)}
                 className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
               >
                 <X className="w-5 h-5 text-gray-600" />
@@ -2381,7 +2462,6 @@ const PuntoVenta = () => {
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   <button
-                    type="button"
                     onClick={() => setTipoServicio('comer-aqui')}
                     className={`py-3 px-4 rounded-lg border-2 transition-all ${
                       tipoServicio === 'comer-aqui'
@@ -2392,7 +2472,6 @@ const PuntoVenta = () => {
                     Comer Aquí
                   </button>
                   <button
-                    type="button"
                     onClick={() => setTipoServicio('para-llevar')}
                     className={`py-3 px-4 rounded-lg border-2 transition-all ${
                       tipoServicio === 'para-llevar'
@@ -2425,7 +2504,6 @@ const PuntoVenta = () => {
                   <span>Subtotal:</span>
                   <span>${total.toFixed(2)}</span>
                 </div>
-                {/* Calcular extra de leche basado en los items del carrito */}
                 {(() => {
                   const extraLecheTotal = cart.reduce((sum, item) => {
                     if (item.tipoLeche && (item.tipoLeche === 'deslactosada' || item.tipoLeche === 'almendras')) {
@@ -2466,39 +2544,6 @@ const PuntoVenta = () => {
                     </>
                   )
                 })()}
-            <div className="p-6 space-y-4">
-              <p className="text-sm text-gray-600 mb-4">
-                Selecciona el porcentaje de propina que deseas agregar
-              </p>
-              
-              <div className="grid grid-cols-3 gap-3">
-                <button
-                  onClick={() => seleccionarPropina(10)}
-                  className="py-4 px-4 rounded-lg border-2 border-gray-200 hover:border-matcha-500 hover:bg-matcha-50 transition-all text-center"
-                >
-                  <div className="text-2xl font-bold text-gray-900">10%</div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    ${((calcularSubtotalConExtras() * 10) / 100).toFixed(2)}
-                  </div>
-                </button>
-                <button
-                  onClick={() => seleccionarPropina(15)}
-                  className="py-4 px-4 rounded-lg border-2 border-gray-200 hover:border-matcha-500 hover:bg-matcha-50 transition-all text-center"
-                >
-                  <div className="text-2xl font-bold text-gray-900">15%</div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    ${((calcularSubtotalConExtras() * 15) / 100).toFixed(2)}
-                  </div>
-                </button>
-                <button
-                  onClick={() => seleccionarPropina(20)}
-                  className="py-4 px-4 rounded-lg border-2 border-gray-200 hover:border-matcha-500 hover:bg-matcha-50 transition-all text-center"
-                >
-                  <div className="text-2xl font-bold text-gray-900">20%</div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    ${((calcularSubtotalConExtras() * 20) / 100).toFixed(2)}
-                  </div>
-                </button>
               </div>
             </div>
 
@@ -2517,14 +2562,84 @@ const PuntoVenta = () => {
               </button>
               <button
                 onClick={guardarComoPreorden}
-                disabled={procesando || preordenesLoading || !nombreCliente || nombreCliente.trim() === ''}
+                disabled={procesando}
                 className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                {(procesando || preordenesLoading) && (
+                {procesando && (
                   <Loader2 className="w-5 h-5 animate-spin" />
                 )}
                 Guardar Pre-orden
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Propina */}
+      {mostrarModalPropina && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-2xl font-bold text-gray-900">Seleccionar Propina</h2>
+              <button
+                onClick={() => setMostrarModalPropina(false)}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+
+            {/* Contenido */}
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-600 mb-4">
+                Selecciona el porcentaje de propina que deseas agregar
+              </p>
+              
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  onClick={() => seleccionarPropina(10)}
+                  className={`py-4 px-4 rounded-lg border-2 transition-all text-center ${
+                    propinaPorcentaje === 10
+                      ? 'border-matcha-500 bg-matcha-50'
+                      : 'border-gray-200 hover:border-matcha-500 hover:bg-matcha-50'
+                  }`}
+                >
+                  <div className="text-2xl font-bold text-gray-900">10%</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    ${((calcularSubtotalConExtras() * 10) / 100).toFixed(2)}
+                  </div>
+                </button>
+                <button
+                  onClick={() => seleccionarPropina(15)}
+                  className={`py-4 px-4 rounded-lg border-2 transition-all text-center ${
+                    propinaPorcentaje === 15
+                      ? 'border-matcha-500 bg-matcha-50'
+                      : 'border-gray-200 hover:border-matcha-500 hover:bg-matcha-50'
+                  }`}
+                >
+                  <div className="text-2xl font-bold text-gray-900">15%</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    ${((calcularSubtotalConExtras() * 15) / 100).toFixed(2)}
+                  </div>
+                </button>
+                <button
+                  onClick={() => seleccionarPropina(20)}
+                  className={`py-4 px-4 rounded-lg border-2 transition-all text-center ${
+                    propinaPorcentaje === 20
+                      ? 'border-matcha-500 bg-matcha-50'
+                      : 'border-gray-200 hover:border-matcha-500 hover:bg-matcha-50'
+                  }`}
+                >
+                  <div className="text-2xl font-bold text-gray-900">20%</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    ${((calcularSubtotalConExtras() * 20) / 100).toFixed(2)}
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Footer */}
             <div className="p-6 border-t border-gray-200">
               <button
                 onClick={() => setMostrarModalPropina(false)}
