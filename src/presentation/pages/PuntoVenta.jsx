@@ -118,7 +118,8 @@ const PuntoVenta = () => {
       observaciones.push(`Extras: ${extrasNombres.join(', ')}`)
     }
     if (tipoProteinaSeleccionado) {
-      observaciones.push(`Scoop: ${tipoProteinaSeleccionado === 'proteina' ? 'Proteína' : 'Creatina'}`)
+      const nombreProteina = tipoProteinaSeleccionado === 'isolatada' ? 'Proteína Isolatada' : 'Proteína Normal'
+      observaciones.push(`Proteína: ${nombreProteina}`)
     }
     
     const cartItem = {
@@ -243,7 +244,8 @@ const PuntoVenta = () => {
       ...opcionesProductos,
       [productId]: {
         tipoLeche: 'entera',
-        extras: []
+        extras: [],
+        tipoProteina: null
       }
     })
   }
@@ -392,7 +394,17 @@ const PuntoVenta = () => {
         return sum
       }, 0)
       
-      const totalConExtra = total + extraLeche + extraExtras
+      // Calcular total de proteína
+      const extraProteina = cart.reduce((sum, item) => {
+        if (item.tipoProteina === 'normal') {
+          return sum + (30 * item.quantity)
+        } else if (item.tipoProteina === 'isolatada') {
+          return sum + (35 * item.quantity)
+        }
+        return sum
+      }, 0)
+      
+      const totalConExtra = total + extraLeche + extraExtras + extraProteina
 
       // Crear detalles de venta (NO incluir el extra de leche como producto)
       const detallesVenta = cart.map(item => ({
@@ -562,6 +574,15 @@ const PuntoVenta = () => {
         }
         return sum
       }, 0)
+
+      const extraProteina = cart.reduce((sum, item) => {
+        if (item.tipoProteina === 'normal') {
+          return sum + (30 * item.quantity)
+        } else if (item.tipoProteina === 'isolatada') {
+          return sum + (35 * item.quantity)
+        }
+        return sum
+      }, 0)
       
       // Crear detalles de la pre-orden desde el carrito
       const detalles = cart.map(item => {
@@ -584,7 +605,8 @@ const PuntoVenta = () => {
           observaciones.push(`Extras: ${extrasNombres.join(', ')}`)
         }
         if (item.tipoProteina) {
-          observaciones.push(`Scoop: ${item.tipoProteina === 'proteina' ? 'Proteína' : 'Creatina'}`)
+          const nombreProteina = item.tipoProteina === 'isolatada' ? 'Proteína Isolatada' : 'Proteína Normal'
+          observaciones.push(`Scoop: ${nombreProteina}`)
         }
         
         return {
@@ -602,7 +624,7 @@ const PuntoVenta = () => {
         comentarios: comentarios || null,
         detalles: detalles,
         extra_leche: extraLeche > 0 ? extraLeche : null,
-        extra_extras: extraExtras > 0 ? extraExtras : null
+        extra_extras: (extraExtras + extraProteina) > 0 ? (extraExtras + extraProteina) : null
       })
       
       if (preordenCreada?.error) {
@@ -693,6 +715,15 @@ const PuntoVenta = () => {
         }
         return sum
       }, 0)
+
+      const extraProteina = cart.reduce((sum, item) => {
+        if (item.tipoProteina === 'normal') {
+          return sum + (30 * item.quantity)
+        } else if (item.tipoProteina === 'isolatada') {
+          return sum + (35 * item.quantity)
+        }
+        return sum
+      }, 0)
       
       // Crear detalles de la pre-orden desde el carrito
       const detalles = cart.map(item => {
@@ -715,7 +746,8 @@ const PuntoVenta = () => {
           observaciones.push(`Extras: ${extrasNombres.join(', ')}`)
         }
         if (item.tipoProteina) {
-          observaciones.push(`Scoop: ${item.tipoProteina === 'proteina' ? 'Proteína' : 'Creatina'}`)
+          const nombreProteina = item.tipoProteina === 'isolatada' ? 'Proteína Isolatada' : 'Proteína Normal'
+          observaciones.push(`Scoop: ${nombreProteina}`)
         }
         
         return {
@@ -737,7 +769,7 @@ const PuntoVenta = () => {
         comentarios: comentarios,
         detalles: detalles,
         extra_leche: extraLeche > 0 ? extraLeche : null,
-        extra_extras: extraExtras > 0 ? extraExtras : null
+        extra_extras: (extraExtras + extraProteina) > 0 ? (extraExtras + extraProteina) : null
       }
       
       // Si es orden del sistema, convertirla en pre-orden
@@ -922,7 +954,15 @@ const PuntoVenta = () => {
       }
       return sum
     }, 0)
-    return subtotal + extraLeche + extraExtras
+    const extraProteina = cart.reduce((sum, item) => {
+      if (item.tipoProteina === 'normal') {
+        return sum + (30 * item.quantity)
+      } else if (item.tipoProteina === 'isolatada') {
+        return sum + (35 * item.quantity)
+      }
+      return sum
+    }, 0)
+    return subtotal + extraLeche + extraExtras + extraProteina
   }
 
   // Función para manejar selección de propina
@@ -952,7 +992,15 @@ const PuntoVenta = () => {
         }
         return sum
       }, 0)
-      const totalConExtras = subtotal + extraLeche + extraExtras
+      const extraProteina = cart.reduce((sum, item) => {
+        if (item.tipoProteina === 'normal') {
+          return sum + (30 * item.quantity)
+        } else if (item.tipoProteina === 'isolatada') {
+          return sum + (35 * item.quantity)
+        }
+        return sum
+      }, 0)
+      const totalConExtras = subtotal + extraLeche + extraExtras + extraProteina
       const monto = (totalConExtras * propinaPorcentaje) / 100
       setMontoPropina(monto)
     }
@@ -1005,11 +1053,11 @@ const PuntoVenta = () => {
     if (observaciones.includes('Extras:')) {
       const extrasPart = observaciones.split('Extras:')[1]
       if (extrasPart) {
-        // Separar por coma o por guión (para manejar "Extras: Tocino - Scoop: Proteína")
+        // Separar por coma o por guión (para manejar "Extras: Tocino - Proteína: Proteína Normal")
         const extrasList = extrasPart.split(/[,-]/).map(e => e.trim())
         extrasList.forEach(extra => {
-          // Si contiene "Scoop:", no es un extra, es tipo de proteína
-          if (extra.includes('Scoop:')) return
+          // Si contiene "Proteína:", no es un extra, es tipo de proteína
+          if (extra.includes('Proteína:') || extra.includes('Proteina:') || extra.includes('Scoop:')) return
           const extraId = nombresExtras[extra]
           if (extraId && !extras.includes(extraId)) {
             extras.push(extraId)
@@ -1019,14 +1067,19 @@ const PuntoVenta = () => {
     }
     
     // Buscar tipo de proteína
-    if (observaciones.includes('Scoop:')) {
-      const scoopPart = observaciones.split('Scoop:')[1]
+    if (observaciones.includes('Proteína:') || observaciones.includes('Proteina:') || observaciones.includes('Scoop:')) {
+      const scoopPart = observaciones.includes('Proteína:') 
+        ? observaciones.split('Proteína:')[1] 
+        : observaciones.includes('Proteina:')
+          ? observaciones.split('Proteina:')[1]
+          : observaciones.split('Scoop:')[1]
+          
       if (scoopPart) {
         const scoopType = scoopPart.split(/[-]/)[0].trim()
-        if (scoopType.includes('Proteína') || scoopType.includes('Proteina')) {
-          tipoProteina = 'proteina'
-        } else if (scoopType.includes('Creatina')) {
-          tipoProteina = 'creatina'
+        if (scoopType.includes('Isolatada')) {
+          tipoProteina = 'isolatada'
+        } else if (scoopType.includes('Normal') || scoopType.includes('Proteína') || scoopType.includes('Proteina')) {
+          tipoProteina = 'normal'
         }
       }
     }
@@ -1073,7 +1126,8 @@ const PuntoVenta = () => {
         observaciones.push(`Extras: ${extrasNombres.join(', ')}`)
       }
       if (tipoProteina) {
-        observaciones.push(`Scoop: ${tipoProteina === 'proteina' ? 'Proteína' : 'Creatina'}`)
+        const nombreProteina = tipoProteina === 'isolatada' ? 'Proteína Isolatada' : 'Proteína Normal'
+        observaciones.push(`Scoop: ${nombreProteina}`)
       }
       
       // Crear item del carrito
@@ -1509,30 +1563,30 @@ const PuntoVenta = () => {
                               {llevaProteina && (
                                 <div>
                                   <label className="block text-xs font-medium text-gray-700 mb-2">
-                                    Scoop
+                                    Proteína
                                   </label>
                                   <div className="grid grid-cols-2 gap-2">
                                     <button
                                       type="button"
-                                      onClick={() => actualizarTipoProteina(product.id_producto, 'proteina')}
+                                      onClick={() => actualizarTipoProteina(product.id_producto, 'normal')}
                                       className={`py-2 px-2 rounded border-2 transition-all text-xs ${
-                                        opciones.tipoProteina === 'proteina'
+                                        opciones.tipoProteina === 'normal'
                                           ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
                                           : 'border-gray-200 hover:border-gray-300'
                                       }`}
                                     >
-                                      Proteína
+                                      Normal (+$30)
                                     </button>
                                     <button
                                       type="button"
-                                      onClick={() => actualizarTipoProteina(product.id_producto, 'creatina')}
+                                      onClick={() => actualizarTipoProteina(product.id_producto, 'isolatada')}
                                       className={`py-2 px-2 rounded border-2 transition-all text-xs ${
-                                        opciones.tipoProteina === 'creatina'
+                                        opciones.tipoProteina === 'isolatada'
                                           ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
                                           : 'border-gray-200 hover:border-gray-300'
                                       }`}
                                     >
-                                      Creatina
+                                      Isolatada (+$35)
                                     </button>
                                   </div>
                                 </div>
@@ -1544,7 +1598,7 @@ const PuntoVenta = () => {
                                   {/* Etiqueta de tipo de proteína */}
                                   {opciones.tipoProteina && (
                                     <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 border border-yellow-300">
-                                      Scoop: {opciones.tipoProteina === 'proteina' ? 'Proteína' : 'Creatina'}
+                                      Proteína: {opciones.tipoProteina === 'isolatada' ? 'Proteína Isolatada' : 'Proteína Normal'}
                                     </span>
                                   )}
                                   {/* Etiqueta de tipo de leche */}
@@ -1597,8 +1651,8 @@ const PuntoVenta = () => {
                                 )}
                                 {opciones.tipoProteina && (
                                   <div className="flex items-center justify-between text-xs text-gray-600">
-                                    <span>Scoop: {opciones.tipoProteina === 'proteina' ? 'Proteína' : 'Creatina'}</span>
-                                    <span className="text-gray-500">-</span>
+                                    <span>Proteína: {opciones.tipoProteina === 'isolatada' ? 'Proteína Isolatada' : 'Proteína Normal'}</span>
+                                    <span>+${opciones.tipoProteina === 'isolatada' ? '35.00' : '30.00'}</span>
                                   </div>
                                 )}
                                 {opciones.extras && opciones.extras.length > 0 && (
@@ -1613,7 +1667,8 @@ const PuntoVenta = () => {
                                     ${(
                                       parseFloat(product.precio) +
                                       (opciones.tipoLeche === 'deslactosada' ? 15 : opciones.tipoLeche === 'almendras' ? 20 : 0) +
-                                      ((opciones.extras?.length || 0) * 20)
+                                      ((opciones.extras?.length || 0) * 20) +
+                                      (opciones.tipoProteina === 'normal' ? 30 : opciones.tipoProteina === 'isolatada' ? 35 : 0)
                                     ).toFixed(2)}
                                   </span>
                                 </div>
@@ -1765,7 +1820,7 @@ const PuntoVenta = () => {
                                 )}
                                 {item.tipoProteina && (
                                   <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 border border-yellow-300">
-                                    Scoop: {item.tipoProteina === 'proteina' ? 'Proteína' : 'Creatina'}
+                                    Scoop: {item.tipoProteina === 'isolatada' ? 'Proteína Isolatada' : 'Proteína Normal'}
                                   </span>
                                 )}
                                 {tipoLecheNombre && (
@@ -1832,7 +1887,15 @@ const PuntoVenta = () => {
                           }
                           return sum
                         }, 0)
-                        const totalConExtras = subtotal + extraLeche + extraExtras
+                        const extraProteina = cart.reduce((sum, item) => {
+                          if (item.tipoProteina === 'normal') {
+                            return sum + (30 * item.quantity)
+                          } else if (item.tipoProteina === 'isolatada') {
+                            return sum + (35 * item.quantity)
+                          }
+                          return sum
+                        }, 0)
+                        const totalConExtras = subtotal + extraLeche + extraExtras + extraProteina
                         // Calcular monto de propina actualizado si hay porcentaje
                         const montoPropinaActual = propinaPorcentaje ? (totalConExtras * propinaPorcentaje) / 100 : 0
                         const totalFinal = totalConExtras + montoPropinaActual
@@ -1929,13 +1992,13 @@ const PuntoVenta = () => {
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <ShoppingCart className="w-5 h-5 text-matcha-600" />
-                      <h2 className="text-lg font-semibold text-gray-900">Orden Actual</h2>
-                      {cart.length > 0 && (
-                        <span className="bg-matcha-100 text-matcha-700 text-xs font-medium px-2 py-1 rounded-full">
-                          {cart.reduce((sum, item) => sum + item.quantity, 0)}
-                        </span>
-                      )}
+                    <ShoppingCart className="w-5 h-5 text-matcha-600" />
+                    <h2 className="text-lg font-semibold text-gray-900">Orden Actual</h2>
+                    {cart.length > 0 && (
+                      <span className="bg-matcha-100 text-matcha-700 text-xs font-medium px-2 py-1 rounded-full">
+                        {cart.reduce((sum, item) => sum + item.quantity, 0)}
+                      </span>
+                    )}
                     </div>
                     <div className="flex items-center gap-1">
                       <button
@@ -2024,7 +2087,7 @@ const PuntoVenta = () => {
                             {/* Etiqueta de tipo de proteína */}
                             {item.tipoProteina && (
                               <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 border border-yellow-300">
-                                Scoop: {item.tipoProteina === 'proteina' ? 'Proteína' : 'Creatina'}
+                                Proteína: {item.tipoProteina === 'isolatada' ? 'Proteína Isolatada' : 'Proteína Normal'}
                               </span>
                             )}
                             {/* Etiqueta de tipo de leche */}
@@ -2091,7 +2154,15 @@ const PuntoVenta = () => {
                       }
                       return sum
                     }, 0)
-                    const totalConExtras = subtotal + extraLeche + extraExtras
+                    const extraProteina = cart.reduce((sum, item) => {
+                      if (item.tipoProteina === 'normal') {
+                        return sum + (30 * item.quantity)
+                      } else if (item.tipoProteina === 'isolatada') {
+                        return sum + (35 * item.quantity)
+                      }
+                      return sum
+                    }, 0)
+                    const totalConExtras = subtotal + extraLeche + extraExtras + extraProteina
                     const montoPropinaActual = propinaPorcentaje ? (totalConExtras * propinaPorcentaje) / 100 : 0
                     const totalFinal = totalConExtras + montoPropinaActual
                     
@@ -2114,6 +2185,12 @@ const PuntoVenta = () => {
                               <span>+${extraExtras.toFixed(2)}</span>
                             </div>
                           )}
+                          {extraProteina > 0 && (
+                            <div className="flex items-center justify-between text-sm text-gray-600">
+                              <span>Proteína:</span>
+                              <span>+${extraProteina.toFixed(2)}</span>
+                            </div>
+                          )}
                           {montoPropinaActual > 0 && (
                             <div className="flex items-center justify-between text-sm text-gray-600">
                               <span>Propina ({propinaPorcentaje}%):</span>
@@ -2121,13 +2198,13 @@ const PuntoVenta = () => {
                             </div>
                           )}
                           <div className="flex items-center justify-between pt-2 border-t border-gray-200">
-                            <span className="text-lg font-semibold text-gray-900">
-                              Total:
-                            </span>
-                            <span className="text-2xl font-bold text-matcha-600">
+                    <span className="text-lg font-semibold text-gray-900">
+                      Total:
+                    </span>
+                    <span className="text-2xl font-bold text-matcha-600">
                               ${totalFinal.toFixed(2)}
-                            </span>
-                          </div>
+                    </span>
+                  </div>
                         </div>
                       </>
                     )
@@ -2268,18 +2345,18 @@ const PuntoVenta = () => {
                         </div>
                       </button>
                       {/* Botón cancelar disponible para todos, pero requiere contraseña de admin/superadmin */}
-                      <div className="mt-2 pt-2 border-t border-gray-200">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            abrirModalCancelar(preorden)
-                          }}
-                          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded transition-colors"
-                        >
-                          <Trash className="w-4 h-4" />
-                          Cancelar Pre-orden
-                        </button>
-                      </div>
+                        <div className="mt-2 pt-2 border-t border-gray-200">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              abrirModalCancelar(preorden)
+                            }}
+                            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded transition-colors"
+                          >
+                            <Trash className="w-4 h-4" />
+                            Cancelar Pre-orden
+                          </button>
+                        </div>
                     </div>
                   )
                 })}
@@ -2384,8 +2461,17 @@ const PuntoVenta = () => {
                     }
                     return sum
                   }, 0)
+
+                  const extraProteinaTotal = cart.reduce((sum, item) => {
+                    if (item.tipoProteina === 'normal') {
+                      return sum + (30 * item.quantity)
+                    } else if (item.tipoProteina === 'isolatada') {
+                      return sum + (35 * item.quantity)
+                    }
+                    return sum
+                  }, 0)
                   
-                  const totalConExtras = total + extraLecheTotal + extraExtrasTotal
+                  const totalConExtras = total + extraLecheTotal + extraExtrasTotal + extraProteinaTotal
                   
                   return (
                     <>
@@ -2399,6 +2485,12 @@ const PuntoVenta = () => {
                         <div className="flex items-center justify-between text-gray-600">
                           <span>Extras:</span>
                           <span>+${extraExtrasTotal.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {extraProteinaTotal > 0 && (
+                        <div className="flex items-center justify-between text-gray-600">
+                          <span>Proteína:</span>
+                          <span>+${extraProteinaTotal.toFixed(2)}</span>
                         </div>
                       )}
                       <div className="flex items-center justify-between text-lg font-bold text-gray-900 pt-2 border-t border-gray-200">
@@ -2536,8 +2628,17 @@ const PuntoVenta = () => {
                     }
                     return sum
                   }, 0)
+
+                  const extraProteinaTotal = cart.reduce((sum, item) => {
+                    if (item.tipoProteina === 'normal') {
+                      return sum + (30 * item.quantity)
+                    } else if (item.tipoProteina === 'isolatada') {
+                      return sum + (35 * item.quantity)
+                    }
+                    return sum
+                  }, 0)
                   
-                  const totalConExtras = total + extraLecheTotal + extraExtrasTotal
+                  const totalConExtras = total + extraLecheTotal + extraExtrasTotal + extraProteinaTotal
                   
                   return (
                     <>
@@ -2551,6 +2652,12 @@ const PuntoVenta = () => {
                         <div className="flex items-center justify-between text-gray-600">
                           <span>Extras:</span>
                           <span>+${extraExtrasTotal.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {extraProteinaTotal > 0 && (
+                        <div className="flex items-center justify-between text-gray-600">
+                          <span>Proteína:</span>
+                          <span>+${extraProteinaTotal.toFixed(2)}</span>
                         </div>
                       )}
                       <div className="flex items-center justify-between text-lg font-bold text-gray-900 pt-2 border-t border-gray-200">
