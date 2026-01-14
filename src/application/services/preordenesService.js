@@ -49,6 +49,14 @@ export const preordenesService = {
     const response = await api.put(`/api/preordenes/marcar_entregada/${idPreorden}`)
     return response.data
   },
+
+  // Cancelar pre-orden (solo admin/superadmin con contraseña)
+  cancelarPreorden: async (idPreorden, password) => {
+    const response = await api.delete(`/api/preordenes/cancelar_preorden/${idPreorden}`, {
+      data: { password }
+    })
+    return response.data
+  },
 }
 
 
