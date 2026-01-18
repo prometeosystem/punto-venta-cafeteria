@@ -614,12 +614,29 @@ const PuntoVenta = () => {
           const nombreProteina = item.tipoProteina === 'isolatada' ? 'Proteína Isolatada' : 'Proteína Normal'
           observaciones.push(`Scoop: ${nombreProteina}`)
         }
-        
-        return {
-          id_producto: item.id_producto || item.originalId || item.id,
-          cantidad: item.quantity,
-          observaciones: observaciones.length > 0 ? observaciones.join(' - ') : null,
-          tipo_preparacion: item.tipoPreparacion || null
+
+        // Si es un producto personalizado, usar la nueva estructura
+        if (item.personalizado) {
+          return {
+            id_producto: null, // null para productos personalizados
+            cantidad: item.quantity,
+            observaciones: observaciones.length > 0 ? observaciones.join(' - ') : null,
+            tipo_preparacion: item.tipoPreparacion || null,
+            nombre_personalizado: item.nombre,
+            precio_personalizado: item.precio,
+            es_personalizado: true
+          }
+        } else {
+          // Producto normal
+          return {
+            id_producto: item.id_producto || item.originalId || item.id,
+            cantidad: item.quantity,
+            observaciones: observaciones.length > 0 ? observaciones.join(' - ') : null,
+            tipo_preparacion: item.tipoPreparacion || null,
+            nombre_personalizado: null,
+            precio_personalizado: null,
+            es_personalizado: false
+          }
         }
       })
       
@@ -755,12 +772,29 @@ const PuntoVenta = () => {
           const nombreProteina = item.tipoProteina === 'isolatada' ? 'Proteína Isolatada' : 'Proteína Normal'
           observaciones.push(`Scoop: ${nombreProteina}`)
         }
-        
-        return {
-          id_producto: item.id_producto || item.originalId || item.id,
-          cantidad: item.quantity,
-          observaciones: observaciones.length > 0 ? observaciones.join(' - ') : null,
-          tipo_preparacion: item.tipoPreparacion || null // Incluir tipo de preparación del item
+
+        // Si es un producto personalizado, usar la nueva estructura
+        if (item.personalizado) {
+          return {
+            id_producto: null, // null para productos personalizados
+            cantidad: item.quantity,
+            observaciones: observaciones.length > 0 ? observaciones.join(' - ') : null,
+            tipo_preparacion: item.tipoPreparacion || null,
+            nombre_personalizado: item.nombre,
+            precio_personalizado: item.precio,
+            es_personalizado: true
+          }
+        } else {
+          // Producto normal
+          return {
+            id_producto: item.id_producto || item.originalId || item.id,
+            cantidad: item.quantity,
+            observaciones: observaciones.length > 0 ? observaciones.join(' - ') : null,
+            tipo_preparacion: item.tipoPreparacion || null,
+            nombre_personalizado: null,
+            precio_personalizado: null,
+            es_personalizado: false
+          }
         }
       })
       
@@ -1192,21 +1226,37 @@ const PuntoVenta = () => {
   // Función para convertir detalles de preorden a items del carrito
   const convertirDetallesACarrito = (detalles) => {
     const itemsCarrito = []
-    
+
     detalles.forEach((detalle) => {
-      const producto = productos.find(p => p.id_producto === detalle.id_producto)
-      if (!producto) return
+      let producto
+
+      // Si es un producto personalizado (ID reservado 999999)
+      if (detalle.id_producto === 999999) {
+        producto = {
+          id_producto: 999999,
+          nombre: detalle.producto_nombre || 'Producto personalizado',
+          precio: parseFloat(detalle.precio) || 0,
+          personalizado: true
+        }
+      } else {
+        // Producto normal
+        producto = productos.find(p => p.id_producto === detalle.id_producto)
+        if (!producto) return
+      }
       
       // Parsear observaciones para extraer tipo de leche, extras, tipo de proteína y tipo de preparación
       const { tipoLeche, extras, tipoProteina, tipoPreparacion } = parsearObservaciones(detalle.observaciones)
       
       // Crear ID único (incluyendo tipoProteina)
       const tipoLecheHash = tipoLeche || 'none'
-      const extrasHash = extras && extras.length > 0 
-        ? extras.sort().join(',') 
+      const extrasHash = extras && extras.length > 0
+        ? extras.sort().join(',')
         : 'none'
       const tipoProteinaHash = tipoProteina || 'none'
-      const uniqueId = `${producto.id_producto}-${tipoLecheHash}-${extrasHash}-${tipoProteinaHash}`
+
+      // Para productos personalizados, usar el nombre como base del ID único
+      const baseId = producto.personalizado ? `personalizado-${producto.nombre}` : producto.id_producto
+      const uniqueId = `${baseId}-${tipoLecheHash}-${extrasHash}-${tipoProteinaHash}`
       
       // Construir observaciones
       const observaciones = []
@@ -1249,7 +1299,7 @@ const PuntoVenta = () => {
       
       itemsCarrito.push(cartItem)
     })
-    
+
     return itemsCarrito
   }
 
