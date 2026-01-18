@@ -40,8 +40,14 @@ const PuntoVenta = () => {
   
   // Estados para propina
   const [mostrarModalPropina, setMostrarModalPropina] = useState(false)
-  const [propinaPorcentaje, setPropinaPorcentaje] = useState(null) // 10, 15, 20
+  const [propinaPorcentaje, setPropinaPorcentaje] = useState(null) // 10, 15, 20, 'personalizado'
   const [montoPropina, setMontoPropina] = useState(0)
+  const [propinaPersonalizada, setPropinaPersonalizada] = useState('') // Para propina personalizada (monto o porcentaje)
+  const [tipoPropinaPersonalizada, setTipoPropinaPersonalizada] = useState('porcentaje') // 'porcentaje' o 'monto'
+
+  // Estados para producto personalizado
+  const [nombreProductoPersonalizado, setNombreProductoPersonalizado] = useState('')
+  const [precioProductoPersonalizado, setPrecioProductoPersonalizado] = useState('')
 
   // Cargar número de ticket actual
   const cargarNumeroTicket = async () => {
@@ -967,11 +973,107 @@ const PuntoVenta = () => {
 
   // Función para manejar selección de propina
   const seleccionarPropina = (porcentaje) => {
+    if (porcentaje === 'personalizado') {
+      setPropinaPorcentaje('personalizado')
+      // No cerramos el modal aquí, esperamos que el usuario ingrese el valor personalizado
+      return
+    }
+
     const subtotal = calcularSubtotalConExtras()
     const monto = (subtotal * porcentaje) / 100
     setPropinaPorcentaje(porcentaje)
     setMontoPropina(monto)
     setMostrarModalPropina(false)
+  }
+
+  // Función para calcular el monto de propina personalizada (para vista previa)
+  const calcularMontoPropinaPersonalizada = () => {
+    const subtotal = calcularSubtotalConExtras()
+    const valor = parseFloat(propinaPersonalizada) || 0
+
+    if (tipoPropinaPersonalizada === 'porcentaje') {
+      return (subtotal * valor) / 100
+    } else {
+      return valor
+    }
+  }
+
+  // Función para aplicar propina personalizada
+  const aplicarPropinaPersonalizada = () => {
+    const subtotal = calcularSubtotalConExtras()
+    const valor = parseFloat(propinaPersonalizada)
+
+    if (isNaN(valor) || valor < 0) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Valor inválido',
+        text: 'Por favor ingresa un valor válido',
+        confirmButtonColor: '#10b981',
+      })
+      return
+    }
+
+    let monto = 0
+    if (tipoPropinaPersonalizada === 'porcentaje') {
+      if (valor > 100) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Porcentaje inválido',
+          text: 'El porcentaje no puede ser mayor a 100%',
+          confirmButtonColor: '#10b981',
+        })
+        return
+      }
+      monto = (subtotal * valor) / 100
+    } else {
+      monto = valor
+    }
+
+    setMontoPropina(monto)
+    setPropinaPorcentaje('personalizado')
+    setMostrarModalPropina(false)
+  }
+
+  // Función para agregar producto personalizado al carrito
+  const agregarProductoPersonalizado = () => {
+    const nombre = nombreProductoPersonalizado.trim()
+    const precio = parseFloat(precioProductoPersonalizado)
+
+    if (!nombre) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Nombre requerido',
+        text: 'Por favor ingresa un nombre para el producto',
+        confirmButtonColor: '#10b981',
+      })
+      return
+    }
+
+    if (isNaN(precio) || precio <= 0) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Precio inválido',
+        text: 'Por favor ingresa un precio válido mayor a 0',
+        confirmButtonColor: '#10b981',
+      })
+      return
+    }
+
+    // Crear producto personalizado
+    const productoPersonalizado = {
+      id: `personalizado-${Date.now()}`, // ID único temporal
+      id_producto: `personalizado-${Date.now()}`, // ID único temporal
+      nombre: nombre,
+      precio: precio,
+      personalizado: true // Marca para identificar productos personalizados
+    }
+
+    // Agregar al carrito
+    addToCart(productoPersonalizado)
+
+    // Limpiar campos
+    setNombreProductoPersonalizado('')
+    setPrecioProductoPersonalizado('')
   }
 
   // Actualizar monto de propina cuando cambia el carrito o el porcentaje
@@ -1407,6 +1509,52 @@ const PuntoVenta = () => {
                 <p className="text-sm">No se encontraron productos</p>
               </div>
             )}
+          </div>
+
+          {/* Producto Personalizado */}
+          <div className="card">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              Agregar Producto Personalizado
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <input
+                  type="text"
+                  value={nombreProductoPersonalizado}
+                  onChange={(e) => setNombreProductoPersonalizado(e.target.value)}
+                  placeholder="Nombre del producto"
+                  className="input w-full"
+                  maxLength="100"
+                />
+              </div>
+
+              <div>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                  <input
+                    type="number"
+                    value={precioProductoPersonalizado}
+                    onChange={(e) => setPrecioProductoPersonalizado(e.target.value)}
+                    placeholder="Precio"
+                    className="input w-full pl-8"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-end">
+                <button
+                  onClick={agregarProductoPersonalizado}
+                  disabled={!nombreProductoPersonalizado.trim() || !precioProductoPersonalizado}
+                  className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                >
+                  <Plus className="w-4 h-4 mr-2 flex-shrink-0" />
+                  Agregar a Orden
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Lista de categorías (solo mostrar si no hay búsqueda activa o si hay búsqueda pero no hay resultados) */}
@@ -2705,7 +2853,7 @@ const PuntoVenta = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
               <h2 className="text-2xl font-bold text-gray-900">Seleccionar Propina</h2>
               <button
                 onClick={() => setMostrarModalPropina(false)}
@@ -2721,7 +2869,8 @@ const PuntoVenta = () => {
                 Selecciona el porcentaje de propina que deseas agregar
               </p>
               
-              <div className="grid grid-cols-3 gap-3">
+              {/* Opciones de propina predefinidas */}
+              <div className="grid grid-cols-3 gap-3 mb-4">
                 <button
                   onClick={() => seleccionarPropina(10)}
                   className={`py-4 px-4 rounded-lg border-2 transition-all text-center ${
@@ -2761,6 +2910,67 @@ const PuntoVenta = () => {
                     ${((calcularSubtotalConExtras() * 20) / 100).toFixed(2)}
                   </div>
                 </button>
+              </div>
+
+              {/* Opción de propina personalizada */}
+              <div className="border-t border-gray-200 pt-4">
+                <p className="text-sm text-gray-600 mb-3">
+                  O especifica una propina personalizada:
+                </p>
+
+                <div className="space-y-3">
+                  {/* Selector de tipo */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setTipoPropinaPersonalizada('porcentaje')}
+                      className={`flex-1 py-2 px-3 rounded-lg border-2 transition-all text-sm ${
+                        tipoPropinaPersonalizada === 'porcentaje'
+                          ? 'border-matcha-500 bg-matcha-50 text-matcha-700'
+                          : 'border-gray-200 hover:border-matcha-500'
+                      }`}
+                    >
+                      Porcentaje (%)
+                    </button>
+                    <button
+                      onClick={() => setTipoPropinaPersonalizada('monto')}
+                      className={`flex-1 py-2 px-3 rounded-lg border-2 transition-all text-sm ${
+                        tipoPropinaPersonalizada === 'monto'
+                          ? 'border-matcha-500 bg-matcha-50 text-matcha-700'
+                          : 'border-gray-200 hover:border-matcha-500'
+                      }`}
+                    >
+                      Monto fijo ($)
+                    </button>
+                  </div>
+
+                  {/* Input para valor personalizado */}
+                  <div className="flex gap-2">
+                    <div className="flex-1 relative">
+                      <input
+                        type="number"
+                        value={propinaPersonalizada}
+                        onChange={(e) => setPropinaPersonalizada(e.target.value)}
+                        placeholder={tipoPropinaPersonalizada === 'porcentaje' ? 'Ej: 12' : 'Ej: 25.00'}
+                        className="input w-full pr-12"
+                        min="0"
+                        step={tipoPropinaPersonalizada === 'porcentaje' ? '1' : '0.01'}
+                        max={tipoPropinaPersonalizada === 'porcentaje' ? '100' : undefined}
+                      />
+                      <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">
+                        {tipoPropinaPersonalizada === 'porcentaje' ? '%' : '$'}
+                      </span>
+                    </div>
+                    <button
+                      onClick={aplicarPropinaPersonalizada}
+                      disabled={!propinaPersonalizada || propinaPersonalizada === '0'}
+                      className="btn-primary px-4 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Aplicar
+                    </button>
+                  </div>
+
+                  
+                </div>
               </div>
             </div>
 

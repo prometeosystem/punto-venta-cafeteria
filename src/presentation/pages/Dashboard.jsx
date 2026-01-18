@@ -175,7 +175,7 @@ const Dashboard = () => {
       value: productosVendidosDelDia.toString(),
       change: 'Hoy',
       icon: Package,
-      color: 'matcha',
+      color: 'coffee',
     },
   ]
 
@@ -330,10 +330,10 @@ const Dashboard = () => {
                   <p className="text-xs text-gray-400">{tiempoTexto}</p>
                   <button
                     onClick={() => abrirModalDetalles(venta.id_venta)}
-                    className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-600 hover:text-matcha-600"
+                    className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-matcha-600  border border-matcha-200 rounded-lg hover:bg-matcha-100 hover:border-matcha-300 transition-all duration-200"
                     title="Ver detalles"
                   >
-                    <Eye className="w-4 h-4" />
+                    Ver más detalles
                   </button>
                 </div>
               </div>
