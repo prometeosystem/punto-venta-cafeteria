@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Menu, Bell, Package, X, LogOut, AlertTriangle } from 'lucide-react'
+import { Menu, Bell, Package, X, LogOut, AlertTriangle, DollarSign } from 'lucide-react'
 import { useLayout } from '../context/LayoutContext'
 import { useAuth } from '../context/AuthContext'
 import { useNotifications } from '../context/NotificationContext'
@@ -167,6 +167,7 @@ const Header = () => {
                               notification.tipo === 'comanda' ? 'bg-matcha-100' : 
                               notification.tipo === 'inventario' ? (notification.estado === 'critical' ? 'bg-red-100' : 'bg-yellow-100') :
                               notification.tipo === 'preorden' ? 'bg-blue-100' :
+                              notification.tipo === 'comanda-lista-cobrar' ? 'bg-amber-100' :
                               'bg-gray-100'
                             }`}>
                               {notification.icono === 'package' ? (
@@ -179,6 +180,8 @@ const Header = () => {
                                     (notification.estado === 'critical' ? 'text-red-600' : 'text-yellow-600') :
                                     'text-gray-600'
                                 }`} />
+                              ) : notification.icono === 'dollar-sign' ? (
+                                <DollarSign className="w-6 h-6 text-amber-600" />
                               ) : (
                                 <Bell className={`w-6 h-6 ${
                                   notification.tipo === 'comanda' ? 'text-matcha-600' : 

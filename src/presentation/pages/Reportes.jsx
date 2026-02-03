@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { TrendingUp, DollarSign, Package, Calendar, Loader2, ShoppingCart, AlertCircle, CheckCircle2, Download } from 'lucide-react'
+import { TrendingUp, DollarSign, Package, Calendar, Loader2, ShoppingCart, AlertCircle, CheckCircle2, Download, Coins, Percent } from 'lucide-react'
 import { useVentas } from '../hooks/useVentas'
 import { useReportes } from '../hooks/useReportes'
 import { useAuth } from '../context/AuthContext'
-import jsPDF from 'jspdf'
+import { formatPrecio, formatCantidad, formatNumber } from '../utils/numberFormatter'
+import jsPDF from 'jspdf' 
 import autoTable from 'jspdf-autotable'
 
 // Importar Recharts
@@ -31,11 +32,13 @@ const Reportes = () => {
   const [ventasPorDia, setVentasPorDia] = useState([])
   const [productosMasVendidos, setProductosMasVendidos] = useState([])
   const [comprasRecomendadas, setComprasRecomendadas] = useState(null)
+  const [totalPropinas, setTotalPropinas] = useState(0)
+  const [totalDescuentos, setTotalDescuentos] = useState(0)
   const [loading, setLoading] = useState(false)
   const [loadingGraficos, setLoadingGraficos] = useState(false)
   const [loadingRecomendaciones, setLoadingRecomendaciones] = useState(false)
   const { obtenerVentas } = useVentas()
-  const { obtenerVentasPorDia, obtenerProductosMasVendidos, obtenerComprasRecomendadas } = useReportes()
+  const { obtenerVentasPorDia, obtenerProductosMasVendidos, obtenerComprasRecomendadas, obtenerPropinasPorFecha, obtenerDescuentosPorFecha } = useReportes()
   const { usuario } = useAuth()
 
   // Establecer fechas por defecto (mes actual)
@@ -64,17 +67,19 @@ const Reportes = () => {
     setLoading(true)
     setLoadingGraficos(true)
     try {
-      // Cargar ventas
       const dataVentas = await obtenerVentas(fechaInicio, fechaFin)
       setVentas(dataVentas || [])
 
-      // Cargar datos para gráficos
-      const [ventasDia, productos] = await Promise.all([
+      const [ventasDia, productos, propinasData, descuentosData] = await Promise.all([
         obtenerVentasPorDia(fechaInicio, fechaFin),
-        obtenerProductosMasVendidos(fechaInicio, fechaFin, 10)
+        obtenerProductosMasVendidos(fechaInicio, fechaFin, 10),
+        obtenerPropinasPorFecha(fechaInicio, fechaFin),
+        obtenerDescuentosPorFecha(fechaInicio, fechaFin)
       ])
       setVentasPorDia(ventasDia || [])
       setProductosMasVendidos(productos || [])
+      setTotalPropinas(propinasData?.total_propinas ?? 0)
+      setTotalDescuentos(descuentosData?.total_descuentos ?? 0)
     } catch (error) {
       console.error('Error al cargar datos:', error)
     } finally {
@@ -103,9 +108,12 @@ const Reportes = () => {
     return sum + (v.detalles?.reduce((dSum, d) => dSum + d.cantidad, 0) || 0)
   }, 0)
 
-  // Formatear fecha para gráficos
+  // Formatear fecha para gráficos (tratar YYYY-MM-DD como fecha local para evitar desfase de un día)
   const formatearFecha = (fechaStr) => {
-    const fecha = new Date(fechaStr)
+    if (!fechaStr) return ''
+    const parts = String(fechaStr).split('T')[0].split('-')
+    if (parts.length !== 3) return fechaStr
+    const fecha = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
     return fecha.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })
   }
 
@@ -205,7 +213,7 @@ const Reportes = () => {
     const resumen = comprasRecomendadas.resumen
     doc.text(`Total de insumos recomendados: ${resumen.total_insumos_recomendados}`, 15, yPos + 15)
     doc.text(`Insumos urgentes: ${resumen.insumos_urgentes}`, 15, yPos + 21)
-    doc.text(`Costo estimado total: $${resumen.total_costo_estimado.toFixed(2)}`, pageWidth - 15, yPos + 15, { align: 'right' })
+    doc.text(`Costo estimado total: $${formatPrecio(resumen.total_costo_estimado)}`, pageWidth - 15, yPos + 15, { align: 'right' }) 
     doc.text(`Período analizado: ${resumen.periodo_analisis_dias} días`, pageWidth - 15, yPos + 21, { align: 'right' })
     
     yPos = 115
@@ -215,8 +223,8 @@ const Reportes = () => {
       rec.nombre,
       `${rec.stock_actual} ${rec.unidad_medida}`,
       `${rec.stock_minimo} ${rec.unidad_medida}`,
-      `${rec.cantidad_recomendada.toFixed(2)} ${rec.unidad_medida}`,
-      `$${rec.costo_estimado.toFixed(2)}`,
+      `${formatNumber(rec.cantidad_recomendada, true)} ${rec.unidad_medida}`,
+      `$${formatPrecio(rec.costo_estimado)}`, 
       rec.urgencia.toUpperCase()
     ])
 
@@ -335,13 +343,43 @@ const Reportes = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Ventas Totales</p>
-                <p className="text-2xl font-bold text-gray-900">${ventasTotales.toFixed(2)}</p>
+                <p className="text-2xl font-bold text-gray-900">${formatPrecio(ventasTotales)}</p> 
                 <p className="text-xs text-gray-500 mt-1">
                   Período seleccionado
                 </p>
               </div>
               <div className="p-3 bg-matcha-100 rounded-lg">
                 <DollarSign className="w-6 h-6 text-matcha-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Total Descuentos</p>
+                <p className="text-2xl font-bold text-amber-600">${formatPrecio(totalDescuentos)}</p> 
+                <p className="text-xs text-gray-500 mt-1">
+                  Período seleccionado
+                </p>
+              </div>
+              <div className="p-3 bg-amber-100 rounded-lg">
+                <Percent className="w-6 h-6 text-amber-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Total Propinas Recibidas</p>
+                <p className="text-2xl font-bold text-matcha-600">${formatPrecio(totalPropinas)}</p> 
+                <p className="text-xs text-gray-500 mt-1">
+                  Período seleccionado
+                </p>
+              </div>
+              <div className="p-3 bg-matcha-100 rounded-lg">
+                <Coins className="w-6 h-6 text-matcha-600" />
               </div>
             </div>
           </div>
@@ -365,7 +403,7 @@ const Reportes = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Ticket Promedio</p>
-                <p className="text-2xl font-bold text-gray-900">${ticketPromedio.toFixed(2)}</p>
+                <p className="text-2xl font-bold text-gray-900">${formatPrecio(ticketPromedio)}</p> 
                 <p className="text-xs text-gray-500 mt-1">
                   Por venta
                 </p>
@@ -428,7 +466,7 @@ const Reportes = () => {
                 />
                 <YAxis stroke="#6b7280" />
                 <Tooltip 
-                  formatter={(value) => `$${value.toFixed(2)}`}
+                  formatter={(value) => `$${formatPrecio(value)}` } 
                   labelFormatter={(label) => formatearFecha(label)}
                   contentStyle={{ backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px' }}
                 />
@@ -562,7 +600,7 @@ const Reportes = () => {
               <div className="bg-green-50 p-4 rounded-lg border border-green-200">
                 <p className="text-sm text-green-600 mb-1">Costo Estimado</p>
                 <p className="text-2xl font-bold text-green-900">
-                  ${comprasRecomendadas.resumen.total_costo_estimado.toFixed(2)}
+                  ${formatPrecio(comprasRecomendadas.resumen.total_costo_estimado)}
                 </p>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
@@ -614,21 +652,21 @@ const Reportes = () => {
                           {rec.stock_minimo} {rec.unidad_medida}
                         </td>
                         <td className="py-3 px-4 text-gray-600">
-                          {rec.consumo_promedio_diario.toFixed(2)} {rec.unidad_medida}
+                          {formatNumber(rec.consumo_promedio_diario, true)} {rec.unidad_medida}
                         </td>
                         <td className="py-3 px-4 text-gray-600">
-                          {rec.consumo_proyectado_mes.toFixed(2)} {rec.unidad_medida}
+                          {formatNumber(rec.consumo_proyectado_mes, true)} {rec.unidad_medida}
                         </td>
                         <td className="py-3 px-4">
                           <span className="font-semibold text-matcha-600">
-                            {rec.cantidad_recomendada.toFixed(2)} {rec.unidad_medida}
+                            {formatNumber(rec.cantidad_recomendada, true)} {rec.unidad_medida}
                           </span>
                         </td>
                         <td className="py-3 px-4">
                           <span className="font-semibold text-green-600">
-                            ${rec.costo_estimado.toFixed(2)}
+                            ${formatPrecio(rec.costo_estimado)}
                           </span>
-                        </td>
+                        </td> 
                         <td className="py-3 px-4">
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${getUrgenciaColor(rec.urgencia)}`}>
                             {rec.urgencia.toUpperCase()}
@@ -696,11 +734,11 @@ const Reportes = () => {
                     >
                       <td className="py-3 px-4 text-gray-900">{fechaFormateada}</td>
                       <td className="py-3 px-4 font-semibold text-matcha-600">
-                        ${parseFloat(venta.total).toFixed(2)}
+                        ${formatPrecio(venta.total)}
                       </td>
                       <td className="py-3 px-4 text-gray-600">{productosEnVenta}</td>
                       <td className="py-3 px-4 text-gray-600">
-                        ${parseFloat(venta.total).toFixed(2)}
+                        ${formatPrecio(venta.total)}
                       </td>
                     </tr>
                   )

@@ -160,10 +160,24 @@ const Barista = () => {
     return errores
       .filter(error => error.includes('stock insuficiente'))
       .map(error => {
-        // Formato: "Insumo ID {id}: stock insuficiente (tiene {cantidad} {unidad}, necesita {cantidad} {unidad})"
-        const match = error.match(/Insumo ID (\d+): stock insuficiente \(tiene ([\d.]+) (\w+), necesita ([\d.]+) (\w+)\)/)
-        if (match) {
-          const [, idInsumo, cantidadActual, unidadActual, cantidadNecesaria, unidadNecesaria] = match
+        // Formato nuevo (backend con nombre): "Nombre del insumo: stock insuficiente (tiene X unidad, necesita Y unidad)"
+        const matchNuevo = error.match(/^(.+?): stock insuficiente \(tiene ([-\d.]+) (\w+), necesita ([\d.]+) (\w+)\)$/)
+        if (matchNuevo) {
+          const [, nombre, cantidadActual, unidadActual, cantidadNecesaria, unidadNecesaria] = matchNuevo
+          return {
+            idInsumo: null,
+            nombre: nombre.trim(),
+            cantidadActual: parseFloat(cantidadActual),
+            unidadActual,
+            cantidadNecesaria: parseFloat(cantidadNecesaria),
+            unidadNecesaria,
+            mensajeCompleto: error
+          }
+        }
+        // Formato legacy: "Insumo ID {id}: stock insuficiente (tiene X unidad, necesita Y unidad)"
+        const matchLegacy = error.match(/Insumo ID (\d+): stock insuficiente \(tiene ([-\d.]+) (\w+), necesita ([\d.]+) (\w+)\)/)
+        if (matchLegacy) {
+          const [, idInsumo, cantidadActual, unidadActual, cantidadNecesaria, unidadNecesaria] = matchLegacy
           return {
             idInsumo: parseInt(idInsumo),
             nombre: obtenerNombreInsumo(parseInt(idInsumo)),
@@ -205,37 +219,70 @@ const Barista = () => {
             if (erroresStock.length > 0) {
               // Construir HTML para mostrar los insumos con problemas
               let htmlContent = '<div style="text-align: left;">'
-              htmlContent += '<p style="margin-bottom: 15px; font-weight: 600; color: #dc2626;">No se puede terminar la comanda porque los siguientes insumos tienen stock insuficiente:</p>'
               htmlContent += '<ul style="list-style: none; padding: 0; margin: 0;">'
               
-              erroresStock.forEach((error, index) => {
-                if (error.idInsumo) {
+              erroresStock.forEach((error) => {
+                if (error.nombre && (error.cantidadActual != null || error.cantidadNecesaria != null)) {
                   htmlContent += `<li style="padding: 10px; margin-bottom: 8px; background-color: #fef2f2; border-left: 4px solid #dc2626; border-radius: 4px;">`
                   htmlContent += `<strong style="color: #991b1b;">${error.nombre}</strong><br/>`
-                  htmlContent += `<span style="color: #7f1d1d; font-size: 0.9em;">`
-                  htmlContent += `Stock actual: <strong>${error.cantidadActual} ${error.unidadActual}</strong><br/>`
-                  htmlContent += `Stock necesario: <strong>${error.cantidadNecesaria} ${error.unidadNecesaria}</strong>`
-                  htmlContent += `</span></li>`
+                
                 } else {
                   htmlContent += `<li style="padding: 10px; margin-bottom: 8px; background-color: #fef2f2; border-left: 4px solid #dc2626; border-radius: 4px;">`
                   htmlContent += `<span style="color: #7f1d1d;">${error.mensajeCompleto}</span></li>`
                 }
               })
               
-              htmlContent += '</ul>'
-              htmlContent += '<p style="margin-top: 15px; color: #6b7280; font-size: 0.9em;">Por favor, actualiza el inventario antes de terminar esta comanda.</p>'
-              htmlContent += '</div>'
               
-              await Swal.fire({
-                icon: 'error',
+              
+              const resultStock = await Swal.fire({
+                icon: 'warning',
                 title: 'Stock Insuficiente',
                 html: htmlContent,
-                confirmButtonColor: '#dc2626',
-                confirmButtonText: 'Entendido',
+                showCancelButton: true,
+                showDenyButton: true,
+                showConfirmButton: false,
+                cancelButtonText: 'Cancelar',
+                denyButtonText: 'Continuar de todos modos',
+                denyButtonColor: '#7f1d1d',
+                cancelButtonColor: '#6b7280',
                 width: '600px'
               })
               
-              // Refrescar comandas para asegurar que el estado se mantiene
+              if (resultStock.isDenied) {
+                // Usuario eligió "Continuar de todos modos" - llamar API con permitir stock negativo
+                const respuestaContinuar = await actualizarEstado(idComanda, 'terminada', true)
+                if (respuestaContinuar?.error && !respuestaContinuar?.estado) {
+                  await Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: respuestaContinuar.error,
+                    confirmButtonColor: '#10b981',
+                  })
+                  await cargarComandas(true)
+                  return
+                }
+                // Éxito - continuar con flujo normal de comanda terminada
+                await cargarComandas(true)
+                window.dispatchEvent(new CustomEvent('comanda-actualizada'))
+                window.dispatchEvent(new CustomEvent('comanda-terminada', { detail: { id_comanda: idComanda } }))
+                if (respuestaContinuar?.venta_sin_pagar) {
+                  window.dispatchEvent(new CustomEvent('comanda-lista-para-cobrar', {
+                    detail: {
+                      id_comanda: idComanda,
+                      id_venta: respuestaContinuar.id_venta,
+                      numero_dia: respuestaContinuar.numero_dia,
+                      nombre_cliente: respuestaContinuar.nombre_cliente
+                    }
+                  }))
+                }
+                await Swal.fire({
+                  icon: 'success',
+                  title: '¡Comanda terminada!',
+                  text: 'La comanda está lista para entregar. Recuerda actualizar el inventario para corregir las cantidades negativas.',
+                  confirmButtonColor: '#10b981',
+                  timer: 3000,
+                })
+              }
               await cargarComandas(true)
               return
             }
@@ -251,6 +298,17 @@ const Barista = () => {
           window.dispatchEvent(new CustomEvent('comanda-terminada', {
             detail: { id_comanda: idComanda }
           }))
+          // Si la venta estaba sin pagar, notificar al Punto de Venta para cobrar
+          if (respuesta?.venta_sin_pagar) {
+            window.dispatchEvent(new CustomEvent('comanda-lista-para-cobrar', {
+              detail: {
+                id_comanda: idComanda,
+                id_venta: respuesta.id_venta,
+                numero_dia: respuesta.numero_dia,
+                nombre_cliente: respuesta.nombre_cliente
+              }
+            }))
+          }
           
           // Mostrar información detallada si hay insumos restados
           let mensaje = 'La comanda está lista para entregar.'
@@ -282,33 +340,73 @@ const Barista = () => {
               htmlContent += '<ul style="list-style: none; padding: 0; margin: 0;">'
               
               erroresStock.forEach((error) => {
-                if (error.idInsumo) {
+                if (error.nombre && (error.cantidadActual != null || error.cantidadNecesaria != null)) {
                   htmlContent += `<li style="padding: 10px; margin-bottom: 8px; background-color: #fef2f2; border-left: 4px solid #dc2626; border-radius: 4px;">`
                   htmlContent += `<strong style="color: #991b1b;">${error.nombre}</strong><br/>`
-                  htmlContent += `<span style="color: #7f1d1d; font-size: 0.9em;">`
-                  htmlContent += `Stock actual: <strong>${error.cantidadActual} ${error.unidadActual}</strong><br/>`
-                  htmlContent += `Stock necesario: <strong>${error.cantidadNecesaria} ${error.unidadNecesaria}</strong>`
-                  htmlContent += `</span></li>`
+                  
                 } else {
                   htmlContent += `<li style="padding: 10px; margin-bottom: 8px; background-color: #fef2f2; border-left: 4px solid #dc2626; border-radius: 4px;">`
                   htmlContent += `<span style="color: #7f1d1d;">${error.mensajeCompleto}</span></li>`
                 }
               })
               
-              htmlContent += '</ul>'
-              htmlContent += '<p style="margin-top: 15px; color: #6b7280; font-size: 0.9em;">Por favor, actualiza el inventario antes de terminar esta comanda.</p>'
-              htmlContent += '</div>'
               
-              await Swal.fire({
-                icon: 'error',
+              
+              const resultStockCatch = await Swal.fire({
+                icon: 'warning',
                 title: 'Stock Insuficiente',
                 html: htmlContent,
-                confirmButtonColor: '#dc2626',
-                confirmButtonText: 'Entendido',
+                showCancelButton: true,
+                showDenyButton: true,
+                showConfirmButton: false,
+                cancelButtonText: 'Entendido',
+                denyButtonText: 'Continuar de todos modos',
+                denyButtonColor: '#10b981',
+                cancelButtonColor: '#6b7280',
                 width: '600px'
               })
               
-              // Refrescar comandas para asegurar que el estado se mantiene
+              if (resultStockCatch.isDenied) {
+                try {
+                  const respuestaContinuar = await actualizarEstado(idComanda, 'terminada', true)
+                  if (respuestaContinuar?.error && !respuestaContinuar?.estado) {
+                    await Swal.fire({
+                      icon: 'error',
+                      title: 'Error',
+                      text: respuestaContinuar.error,
+                      confirmButtonColor: '#10b981',
+                    })
+                  } else {
+                    await cargarComandas(true)
+                    window.dispatchEvent(new CustomEvent('comanda-actualizada'))
+                    window.dispatchEvent(new CustomEvent('comanda-terminada', { detail: { id_comanda: idComanda } }))
+                    if (respuestaContinuar?.venta_sin_pagar) {
+                      window.dispatchEvent(new CustomEvent('comanda-lista-para-cobrar', {
+                        detail: {
+                          id_comanda: idComanda,
+                          id_venta: respuestaContinuar.id_venta,
+                          numero_dia: respuestaContinuar.numero_dia,
+                          nombre_cliente: respuestaContinuar.nombre_cliente
+                        }
+                      }))
+                    }
+                    await Swal.fire({
+                      icon: 'success',
+                      title: '¡Comanda terminada!',
+                      text: 'La comanda está lista para entregar. Recuerda actualizar el inventario para corregir las cantidades negativas.',
+                      confirmButtonColor: '#10b981',
+                      timer: 3000,
+                    })
+                  }
+                } catch (errContinuar) {
+                  await Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: errContinuar.response?.data?.detail || errContinuar.message || 'Error al terminar la comanda',
+                    confirmButtonColor: '#10b981',
+                  })
+                }
+              }
               await cargarComandas(true)
               return
             }
@@ -376,7 +474,7 @@ const Barista = () => {
           <Coffee className="w-8 h-8 text-matcha-600" />
           Barista
         </h1>
-        <p className="text-gray-600 mt-1">Gestiona las comandas pagadas y prepáralas para entregar</p>
+        <p className="text-gray-600 mt-1">Gestiona las comandas y prepáralas para entregar</p>
       </div>
 
       {cargando && comandas.length === 0 ? (
@@ -402,29 +500,47 @@ const Barista = () => {
               >
                 {/* Header de la comanda */}
                 <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
-                  <div className="flex items-center gap-2">
-                    <Package className="w-5 h-5 text-matcha-600" />
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      Comanda #{comanda.id_comanda}
-                    </h3>
+                  <div className="flex items-center justify-start gap-2">
+                    <div className="flex items-center gap-2">
+                      <h1 className="text-xl bg-matcha-50 rounded-full p-2 w-10 h-10 flex items-center justify-center text-dark font-semibold">
+                        {comanda.numero_dia ?? comanda.id_comanda}
+                      </h1>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <User className="w-5 h-5 text-matcha-600" />
+                      <span className="text-base font-semibold text-gray-900">
+                        {comanda.preorden?.nombre_cliente || comanda.venta?.nombre_cliente || ''}
+                      </span>
+                    </div>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getEstadoColor(comanda.estado)}`}>
-                    {getEstadoLabel(comanda.estado)}
-                  </span>
-                </div>
-
-                {/* Nombre del cliente - Siempre visible y destacado */}
-                <div className="mb-4 pb-3 border-b border-gray-200">
-                  <div className="flex items-center gap-2">
-                    <User className="w-5 h-5 text-matcha-600" />
-                    <span className="text-base font-semibold text-gray-900">
-                      {comanda.preorden?.nombre_cliente || comanda.venta?.nombre_cliente || 'Cliente no especificado'}
+                  
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getEstadoColor(comanda.estado)}`}>
+                      {getEstadoLabel(comanda.estado)}
                     </span>
+                    {(comanda.venta_pagada === 0 || comanda.venta_pagada === false) && (
+                      <span className="px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-900 border border-red-400">
+                        Sin pagar
+                      </span>
+                    )}
                   </div>
                 </div>
 
+                {/* Venta y fecha */}
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-600">Venta #</span>
+                      <span className="text-xs font-medium text-gray-900">{comanda.id_venta}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <Clock className="w-3 h-3" />
+                      <span>{formatFecha(comanda.fecha_creacion || comanda.fecha_venta)}</span>
+                    </div>
+                  </div>
+
+                
                 {/* Información del cliente y venta */}
-                <div className="mb-4 pb-4 border-b border-gray-200 space-y-2">
+                <div className="mb-4 pt-1 pb-4 border-b border-gray-200 space-y-2">
                   {/* Tipo de servicio (de pre-orden o venta) */}
                   {(comanda.preorden?.tipo_servicio || comanda.venta?.tipo_servicio) && (
                     <div className="flex items-center gap-2">
@@ -438,6 +554,8 @@ const Barista = () => {
                       </span>
                     </div>
                   )}
+
+                  
                   
                   {/* Información de leche global - Solo mostrar si NO hay items con observaciones individuales */}
                   {((comanda.preorden?.tipo_leche || comanda.venta?.tipo_leche) || 
@@ -471,17 +589,7 @@ const Barista = () => {
                     </div>
                   )}
                   
-                  {/* Venta y fecha */}
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-600">Venta #</span>
-                      <span className="text-xs font-medium text-gray-900">{comanda.id_venta}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      <Clock className="w-3 h-3" />
-                      <span>{formatFecha(comanda.fecha_creacion || comanda.fecha_venta)}</span>
-                    </div>
-                  </div>
+                  
                 </div>
 
                 {/* Items de la comanda */}

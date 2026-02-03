@@ -28,6 +28,8 @@ const Inventario = () => {
     cantidad_actual: '',
     cantidad_minima: '',
     precio_compra: '',
+    unidad_compra_referencia: '',
+    cantidad_compra_referencia: '',
     activo: true,
   })
 
@@ -98,6 +100,8 @@ const Inventario = () => {
       cantidad_actual: '',
       cantidad_minima: '',
       precio_compra: '',
+      unidad_compra_referencia: '',
+      cantidad_compra_referencia: '',
       activo: true,
     })
     setMostrarModalInsumo(true)
@@ -110,9 +114,11 @@ const Inventario = () => {
       nombre: insumo.nombre || '',
       descripcion: insumo.descripcion || '',
       unidad_medida: insumo.unidad_medida || '',
-      cantidad_actual: insumo.cantidad_actual || '',
-      cantidad_minima: insumo.cantidad_minima || '',
-      precio_compra: insumo.precio_compra || '',
+      cantidad_actual: insumo.cantidad_actual != null ? String(insumo.cantidad_actual) : '',
+      cantidad_minima: insumo.cantidad_minima != null ? String(insumo.cantidad_minima) : '',
+      precio_compra: insumo.precio_compra != null ? String(insumo.precio_compra) : '',
+      unidad_compra_referencia: insumo.unidad_compra_referencia || '',
+      cantidad_compra_referencia: insumo.cantidad_compra_referencia != null ? String(insumo.cantidad_compra_referencia) : '',
       activo: insumo.activo !== undefined ? insumo.activo : true,
     })
     setMostrarModalInsumo(true)
@@ -162,6 +168,35 @@ const Inventario = () => {
         return
       }
 
+      const unidadCompraRef = formData.unidad_compra_referencia?.trim()
+      const rawCant = formData.cantidad_compra_referencia
+      const cantidadCompraRef = rawCant !== '' && rawCant != null && !Number.isNaN(Number(rawCant)) ? Number(rawCant) : null
+
+      // Solo requerir referencia de precio para productos nuevos o cuando precio_compra > 0
+      const requiereRefPrecio = !insumoEditando || precioCompra > 0
+      if (requiereRefPrecio) {
+        if (!unidadCompraRef) {
+          await Swal.fire({
+            icon: 'error',
+            title: 'Error de validación',
+            text: 'Debes seleccionar la unidad del precio (ej. kilogramos, litros)',
+            confirmButtonColor: '#10b981',
+          })
+          setGuardando(false)
+          return
+        }
+        if (cantidadCompraRef == null || cantidadCompraRef <= 0) {
+          await Swal.fire({
+            icon: 'error',
+            title: 'Error de validación',
+            text: 'La cantidad que cuesta el precio debe ser un número mayor a 0 (ej. 1)',
+            confirmButtonColor: '#10b981',
+          })
+          setGuardando(false)
+          return
+        }
+      }
+
       const insumoData = {
         nombre: formData.nombre.trim(),
         descripcion: formData.descripcion.trim() || null,
@@ -170,6 +205,10 @@ const Inventario = () => {
         cantidad_minima: cantidadMinima,
         precio_compra: precioCompra,
         activo: formData.activo,
+      }
+      if (unidadCompraRef && cantidadCompraRef != null && cantidadCompraRef > 0) {
+        insumoData.unidad_compra_referencia = unidadCompraRef
+        insumoData.cantidad_compra_referencia = cantidadCompraRef
       }
 
       if (insumoEditando) {
@@ -200,7 +239,8 @@ const Inventario = () => {
       setInsumoEditando(null)
     } catch (error) {
       console.error('Error al guardar insumo:', error)
-      const errorMsg = error.detail || error.message || 'Error al guardar el insumo'
+      const errData = error?.response?.data || error
+      const errorMsg = typeof errData === 'string' ? errData : (errData?.detail || errData?.error || errData?.message || error?.message || 'Error al guardar el insumo')
       await Swal.fire({
         icon: 'error',
         title: 'Error',
@@ -378,12 +418,12 @@ const Inventario = () => {
                         </td>
                         <td className="py-3 px-4">
                           <span className="font-semibold text-gray-900">
-                            {parseFloat(item.cantidad_actual || 0).toFixed(2)}
+                            {parseFloat(item.cantidad_actual ?? 0).toFixed(4).replace(/\.?0+$/, '')}
                           </span>
                         </td>
                         <td className="py-3 px-4">
                           <span className="text-sm text-gray-600">
-                            {parseFloat(item.cantidad_minima || 0).toFixed(2)}
+                            {parseFloat(item.cantidad_minima ?? 0).toFixed(4).replace(/\.?0+$/, '')}
                           </span>
                         </td>
                         <td className="py-3 px-4">
@@ -490,11 +530,11 @@ const Inventario = () => {
                       type="number"
                       required
                       min="0"
-                      step="0.01"
+                      step="0.0001"
                       value={formData.cantidad_actual}
                       onChange={(e) => setFormData({ ...formData, cantidad_actual: e.target.value })}
                       className="input w-full"
-                      placeholder="0.00"
+                      placeholder="0.0000"
                     />
                   </div>
 
@@ -507,11 +547,11 @@ const Inventario = () => {
                       type="number"
                       required
                       min="0"
-                      step="0.01"
+                      step="0.0001"
                       value={formData.cantidad_minima}
                       onChange={(e) => setFormData({ ...formData, cantidad_minima: e.target.value })}
                       className="input w-full"
-                      placeholder="0.00"
+                      placeholder="0.0000"
                     />
                   </div>
                 </div>
@@ -548,6 +588,43 @@ const Inventario = () => {
                         onChange={(e) => setFormData({ ...formData, precio_compra: e.target.value })}
                         className="input w-full pl-8"
                         placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Referencia del precio: "Este precio corresponde a..." */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Unidad <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        required
+                        value={formData.unidad_compra_referencia}
+                        onChange={(e) => setFormData({ ...formData, unidad_compra_referencia: e.target.value })}
+                        className="input w-full"
+                      >
+                        <option value="">Selecciona unidad del precio</option>
+                        {unidadesMedida.map(unidad => (
+                          <option key={unidad} value={unidad}>
+                            {unidad.charAt(0).toUpperCase() + unidad.slice(1).replace('_', ' ')}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Cantidad <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        required
+                        min="0.0001"
+                        step="0.0001"
+                        value={formData.cantidad_compra_referencia}
+                        onChange={(e) => setFormData({ ...formData, cantidad_compra_referencia: e.target.value })}
+                        className="input w-full"
+                        placeholder="1"
                       />
                     </div>
                   </div>

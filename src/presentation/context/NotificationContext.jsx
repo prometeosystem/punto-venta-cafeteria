@@ -390,13 +390,16 @@ export const NotificationProvider = ({ children }) => {
   // Escuchar eventos de creación de comandas
   useEffect(() => {
     const handleComandaCreada = (event) => {
-      const { id_comanda, id_venta, ticket_id } = event.detail || {}
+      const { id_comanda, id_venta, ticket_id, numero_pedido_dia } = event.detail || {}
       
       if (id_comanda) {
+        const mensaje = numero_pedido_dia != null && numero_pedido_dia !== ''
+          ? `Venta #${id_venta} · Pedido del día #${numero_pedido_dia}`
+          : `Venta #${id_venta}`
         addNotification({
           tipo: 'comanda',
           titulo: 'Nueva Comanda',
-          mensaje: `Comanda #${id_comanda} creada${ticket_id ? ` (Ticket: ${ticket_id})` : ''}`,
+          mensaje,
           accion: {
             tipo: 'navegar',
             ruta: '/barista',
@@ -412,6 +415,34 @@ export const NotificationProvider = ({ children }) => {
 
     return () => {
       window.removeEventListener('comanda-creada', handleComandaCreada)
+    }
+  }, [addNotification])
+
+  // Escuchar cuando una comanda sin pagar se termina → notificar al Punto de Venta para cobrar
+  useEffect(() => {
+    const handleComandaListaParaCobrar = (event) => {
+      const { id_comanda, id_venta, numero_dia, nombre_cliente } = event.detail || {}
+      if (id_comanda != null || id_venta != null) {
+        const mensaje = numero_dia != null && numero_dia !== ''
+          ? `Pedido del día #${numero_dia}${nombre_cliente ? ` · ${nombre_cliente}` : ''} listo para cobrar`
+          : nombre_cliente
+            ? `${nombre_cliente} — listo para cobrar`
+            : 'Comanda lista para cobrar en Punto de Venta'
+        addNotification({
+          tipo: 'comanda-lista-cobrar',
+          titulo: 'Lista para cobrar',
+          mensaje,
+          accion: {
+            tipo: 'navegar',
+            ruta: '/punto-venta'
+          },
+          icono: 'dollar-sign'
+        })
+      }
+    }
+    window.addEventListener('comanda-lista-para-cobrar', handleComandaListaParaCobrar)
+    return () => {
+      window.removeEventListener('comanda-lista-para-cobrar', handleComandaListaParaCobrar)
     }
   }, [addNotification])
 

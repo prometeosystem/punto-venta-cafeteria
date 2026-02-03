@@ -28,5 +28,11 @@ export const ventasService = {
     const response = await api.get('/api/ventas/info_ticket_actual')
     return response.data
   },
+
+  // Procesar pago de venta (para comandas terminadas sin pagar). Opcional: tipo_servicio, propina, descuento.
+  procesarPagoVenta: async (idVenta, body) => {
+    const response = await api.post(`/api/ventas/procesar_pago/${idVenta}`, body)
+    return response.data
+  },
 }
 

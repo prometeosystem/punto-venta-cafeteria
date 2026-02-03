@@ -20,11 +20,20 @@ export const comandasService = {
     return response.data
   },
 
+  // Obtener comandas terminadas sin pagar (para PuntoVenta)
+  obtenerComandasTerminadasSinPagar: async () => {
+    const response = await api.get('/api/comandas/terminadas_sin_pagar')
+    return response.data
+  },
+
   // Actualizar estado de comanda
-  actualizarEstadoComanda: async (idComanda, estado) => {
-    const response = await api.put(
-      `/api/comandas/actualizar_estado_comanda/${idComanda}?estado=${estado}`
-    )
+  // permitirStockNegativo: si true, permite terminar comanda aunque haya stock insuficiente (inventario puede quedar negativo)
+  actualizarEstadoComanda: async (idComanda, estado, permitirStockNegativo = false) => {
+    let url = `/api/comandas/actualizar_estado_comanda/${idComanda}?estado=${estado}`
+    if (permitirStockNegativo) {
+      url += '&permitir_stock_negativo=true'
+    }
+    const response = await api.put(url)
     return response.data
   },
 }

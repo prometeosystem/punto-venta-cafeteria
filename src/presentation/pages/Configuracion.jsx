@@ -123,21 +123,20 @@ const Configuracion = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Configuración</h1>
-        <p className="text-gray-600 mt-1">Información y estadísticas del sistema</p>
       </div>
 
-      {/* Información de la Cafetería */}
+      {/* Información del negocio */}
       <div className="card">
         <div className="flex items-center gap-3 mb-4">
           <Store className="w-5 h-5 text-matcha-600" />
           <h2 className="text-lg font-semibold text-gray-900">
-            Información de la Cafetería
+            Información del Negocio
           </h2>
         </div>
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nombre de la Cafetería
+              Nombre del Negocio
             </label>
             <input
               type="text"
@@ -237,80 +236,8 @@ const Configuracion = () => {
           </label>
         </div>
       </div>
-
-      {/* Usuarios */}
-      <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <Users className="w-5 h-5 text-matcha-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Usuarios del Sistema</h2>
-          </div>
-          <span className="px-3 py-1 bg-matcha-100 text-matcha-700 text-sm font-medium rounded">
-            {estadisticas.usuariosActivos} activos
-          </span>
-        </div>
-        <div className="space-y-3">
-          {usuariosLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-matcha-600" />
-            </div>
-          ) : usuarios.length === 0 ? (
-            <p className="text-sm text-gray-500 py-4 text-center">No hay usuarios registrados</p>
-          ) : (
-            usuarios.slice(0, 10).map((user) => {
-              const nombreCompleto = user.nombre_completo || 
-                `${user.nombre || ''} ${user.apellido_paterno || ''} ${user.apellido_materno || ''}`.trim()
-              return (
-                <div
-                  key={user.id_usuario}
-                  className={`flex items-center justify-between p-3 border rounded-lg ${
-                    user.activo === 1 || user.activo === true
-                      ? 'border-gray-200 bg-white'
-                      : 'border-gray-300 bg-gray-50 opacity-60'
-                  }`}
-                >
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900">{nombreCompleto || 'Sin nombre'}</p>
-                    <p className="text-sm text-gray-500">{user.correo || 'Sin correo'}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`px-2 py-1 text-xs font-medium rounded ${
-                      user.rol === 'vendedor' ? 'bg-green-100 text-green-700' :
-                      user.rol === 'cocina' ? 'bg-orange-100 text-orange-700' :
-                      user.rol === 'administrador' ? 'bg-purple-100 text-purple-700' :
-                      user.rol === 'superadministrador' ? 'bg-blue-100 text-blue-700' :
-                      'bg-gray-100 text-gray-700'
-                    }`}>
-                      {getRolLabel(user.rol)}
-                    </span>
-                    <span className={`px-2 py-1 text-xs font-medium rounded ${
-                      user.activo === 1 || user.activo === true
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-red-100 text-red-700'
-                    }`}>
-                      {user.activo === 1 || user.activo === true ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </div>
-                </div>
-              )
-            })
-          )}
-          {usuarios.length > 10 && (
-            <p className="text-xs text-gray-500 text-center pt-2">
-              Mostrando 10 de {usuarios.length} usuarios. Ver todos en la sección de Empleados.
-            </p>
-          )}
-        </div>
-      </div>
     </div>
   )
 }
 
 export default Configuracion
-
-
-
-
-
-
-

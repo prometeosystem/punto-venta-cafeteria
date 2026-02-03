@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Minus, Trash2, ShoppingCart, ChevronDown, ChevronUp, Loader2, Package, Clock, User, CreditCard, X, Search, Trash, Coins } from 'lucide-react'
+import { Plus, Minus, Trash2, ShoppingCart, ChevronDown, ChevronUp, Loader2, Package, Clock, User, CreditCard, X, Search, Trash, Coins, Percent, CheckCircle } from 'lucide-react'
 import { useProductos } from '../hooks/useProductos'
 import { useVentas } from '../hooks/useVentas'
 import { useComandas } from '../hooks/useComandas'
@@ -29,8 +29,8 @@ const PuntoVenta = () => {
   const [opcionesProductos, setOpcionesProductos] = useState({}) // { productId: { tipoLeche: 'entera', extras: [], tipoProteina: null } }
 
   const { productos, loading: productosLoading } = useProductos()
-  const { crearVenta, obtenerInfoTicketActual, loading: ventaLoading } = useVentas()
-  const { crearComanda, loading: comandaLoading } = useComandas()
+  const { crearVenta, obtenerInfoTicketActual, procesarPagoVenta, loading: ventaLoading } = useVentas()
+  const { crearComanda, obtenerComandasTerminadasSinPagar, loading: comandaLoading } = useComandas()
   const { obtenerPreordenes, procesarPago, actualizarPreorden, cancelarPreorden, crearPreorden, obtenerPreorden, loading: preordenesLoading } = usePreordenes()
   const { usuario } = useAuth()
   const [numeroTicket, setNumeroTicket] = useState(null)
@@ -44,6 +44,21 @@ const PuntoVenta = () => {
   const [montoPropina, setMontoPropina] = useState(0)
   const [propinaPersonalizada, setPropinaPersonalizada] = useState('') // Para propina personalizada (monto o porcentaje)
   const [tipoPropinaPersonalizada, setTipoPropinaPersonalizada] = useState('porcentaje') // 'porcentaje' o 'monto'
+
+  // Estados para descuento
+  const [mostrarModalDescuento, setMostrarModalDescuento] = useState(false)
+  const [descuentoTipo, setDescuentoTipo] = useState(null) // 'porcentaje' o 'monto'
+  const [descuentoValor, setDescuentoValor] = useState(null) // número: % o monto $
+  const [totalDescuento, setTotalDescuento] = useState(0) // monto en pesos a restar
+  const [descuentoPersonalizado, setDescuentoPersonalizado] = useState('')
+  const [tipoDescuentoPersonalizado, setTipoDescuentoPersonalizado] = useState('porcentaje')
+
+  // Estado para enviar ticket por WhatsApp
+  const [numeroWhatsApp, setNumeroWhatsApp] = useState('')
+
+  // Comandas terminadas sin pagar (para cobrar después)
+  const [comandasTerminadasSinPagar, setComandasTerminadasSinPagar] = useState([])
+  const [comandaTerminadaSeleccionada, setComandaTerminadaSeleccionada] = useState(null)
 
   // Estados para producto personalizado
   const [nombreProductoPersonalizado, setNombreProductoPersonalizado] = useState('')
@@ -86,6 +101,28 @@ const PuntoVenta = () => {
     // Refrescar cada 10 segundos
     const interval = setInterval(cargarPreordenes, 10000)
     return () => clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Cargar comandas terminadas sin pagar
+  const cargarComandasTerminadasSinPagar = async () => {
+    try {
+      const data = await obtenerComandasTerminadasSinPagar()
+      setComandasTerminadasSinPagar(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error('Error al cargar comandas terminadas sin pagar:', error)
+      setComandasTerminadasSinPagar([])
+    }
+  }
+  useEffect(() => {
+    cargarComandasTerminadasSinPagar()
+    const interval = setInterval(cargarComandasTerminadasSinPagar, 5000)
+    const handleComandaActualizada = () => cargarComandasTerminadasSinPagar()
+    window.addEventListener('comanda-actualizada', handleComandaActualizada)
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('comanda-actualizada', handleComandaActualizada)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -322,8 +359,12 @@ const PuntoVenta = () => {
         if (typeof detail === 'string') {
           return detail
         } else if (Array.isArray(detail)) {
-          // Si es un array de errores de validación
-          return detail.map(err => err.msg || JSON.stringify(err)).join(', ')
+          // Si es un array de errores de validación (FastAPI: loc, msg, type)
+          return detail.map(err => {
+            const field = Array.isArray(err.loc) ? err.loc.filter(l => l !== 'body').join('.') : ''
+            const msg = err.msg || JSON.stringify(err)
+            return field ? `${msg} (campo: ${field})` : msg
+          }).join(', ')
         } else {
           return JSON.stringify(detail)
         }
@@ -344,6 +385,93 @@ const PuntoVenta = () => {
       return error.message
     }
     return mensajeDefault
+  }
+
+  // Generar texto del ticket para WhatsApp
+  const generarTextoTicket = () => {
+    const extraLecheTotal = cart.reduce((sum, item) => {
+      if (item.tipoLeche === 'deslactosada') return sum + (15 * item.quantity)
+      if (item.tipoLeche === 'almendras') return sum + (20 * item.quantity)
+      return sum
+    }, 0)
+    const extraExtrasTotal = cart.reduce((sum, item) => {
+      if (item.extras && item.extras.length > 0) return sum + (item.extras.length * 20 * item.quantity)
+      return sum
+    }, 0)
+    const extraProteinaTotal = cart.reduce((sum, item) => {
+      if (item.tipoProteina === 'normal') return sum + (30 * item.quantity)
+      if (item.tipoProteina === 'isolatada') return sum + (35 * item.quantity)
+      return sum
+    }, 0)
+    const totalConExtras = total + extraLecheTotal + extraExtrasTotal + extraProteinaTotal
+    const totalDespuesDescuento = Math.max(0, totalConExtras - totalDescuento)
+    const montoPropinaTicket = (propinaPorcentaje != null && typeof propinaPorcentaje === 'number')
+      ? (totalDespuesDescuento * propinaPorcentaje) / 100
+      : (propinaPorcentaje === 'personalizado' ? (montoPropina || 0) : 0)
+    const totalFinal = totalDespuesDescuento + montoPropinaTicket
+
+    let texto = '*Zona 2* - Ticket\n'
+    texto += '━━━━━━━━━━━━━━━━\n\n'
+    if (nombreCliente) texto += `Cliente: ${nombreCliente}\n\n`
+
+    cart.forEach(item => {
+      const nombre = item.nombre || item.name || item.nombre_producto || 'Producto'
+      const cantidad = item.quantity || 1
+      const precio = parseFloat(item.precio || item.price || 0)
+      const subtotalItem = precio * cantidad
+      texto += `${cantidad}x ${nombre}\n`
+      texto += `   $${precio.toFixed(2)} c/u = $${subtotalItem.toFixed(2)}\n`
+    })
+
+    texto += '\n━━━━━━━━━━━━━━━━\n'
+    texto += `Subtotal: $${total.toFixed(2)}\n`
+    if (extraLecheTotal > 0) texto += `Extra Leche: +$${extraLecheTotal.toFixed(2)}\n`
+    if (extraExtrasTotal > 0) texto += `Extras: +$${extraExtrasTotal.toFixed(2)}\n`
+    if (extraProteinaTotal > 0) texto += `Proteína: +$${extraProteinaTotal.toFixed(2)}\n`
+    if (totalDescuento > 0) {
+      const descLabel = descuentoTipo === 'porcentaje' ? `Descuento (${descuentoValor}%)` : 'Descuento'
+      texto += `${descLabel}: -$${totalDescuento.toFixed(2)}\n`
+    }
+    if (montoPropinaTicket > 0) {
+      const propLabel = propinaPorcentaje === 'personalizado' ? 'Propina' : `Propina (${propinaPorcentaje}%)`
+      texto += `${propLabel}: +$${Number(montoPropinaTicket).toFixed(2)}\n`
+    }
+    texto += `*Total: $${Number(totalFinal).toFixed(2)}*\n`
+    texto += '\n━━━━━━━━━━━━━━━━\nGracias por tu compra'
+
+    return texto
+  }
+
+  // Enviar ticket por WhatsApp
+  const enviarTicketWhatsApp = () => {
+    const numero = numeroWhatsApp.trim().replace(/\D/g, '')
+    if (!numero || numero.length < 10) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Número requerido',
+        text: 'Por favor ingresa un número de WhatsApp válido (10 dígitos mínimo)',
+        confirmButtonColor: '#10b981',
+      })
+      return
+    }
+    let numeroFormato = numero
+    if (numero.length === 10 && !numero.startsWith('52')) {
+      numeroFormato = '52' + numero
+    } else if (numero.length === 12 && numero.startsWith('52')) {
+      numeroFormato = numero
+    } else if (numero.length > 10) {
+      numeroFormato = numero.startsWith('+') ? numero.replace('+', '') : numero
+    }
+    const texto = generarTextoTicket()
+    const url = `https://wa.me/${numeroFormato}?text=${encodeURIComponent(texto)}`
+    window.open(url, '_blank')
+    Swal.fire({
+      icon: 'success',
+      title: '¡Enviar ticket!',
+      text: 'Se abrirá WhatsApp con el ticket. Completa el envío desde allí.',
+      confirmButtonColor: '#10b981',
+      timer: 2000,
+    })
   }
 
   // Función para abrir modal de finalizar pedido
@@ -378,11 +506,43 @@ const PuntoVenta = () => {
     return producto?.lleva_leche === true
   })
 
-  // Función para procesar venta completa
+  // Función para procesar venta completa (o pago de comanda terminada si hay una seleccionada)
   const procesarVenta = async () => {
     setProcesando(true)
     setMostrarModalFinalizar(false)
     try {
+      // Si es comanda lista para cobrar, solo procesar pago (no crear nueva venta) con propina, descuento y tipo servicio
+      if (comandaTerminadaSeleccionada) {
+        const bodyPago = {
+          metodo_pago: metodoPago,
+          tipo_servicio: tipoServicio || undefined,
+          descuento_tipo: totalDescuento > 0 ? descuentoTipo : undefined,
+          descuento_valor: totalDescuento > 0 ? descuentoValor : undefined,
+          total_descuento: totalDescuento > 0 ? totalDescuento : undefined,
+          propina_porcentaje: montoPropina > 0 && propinaPorcentaje != null ? propinaPorcentaje : undefined,
+          propina_monto: montoPropina > 0 ? montoPropina : undefined,
+        }
+        const resultado = await procesarPagoVenta(comandaTerminadaSeleccionada.id_venta, bodyPago)
+        if (resultado?.error) throw new Error(resultado.error)
+        await Swal.fire({
+          icon: 'success',
+          title: '¡Pago procesado!',
+          text: 'La orden ha sido cobrada correctamente',
+          confirmButtonColor: '#10b981',
+          timer: 2000,
+        })
+        setComandaTerminadaSeleccionada(null)
+        setCart([])
+        setNombreCliente('')
+        setTipoServicio('comer-aqui')
+        setMetodoPago(null)
+        setPropinaPorcentaje(null)
+        setMontoPropina(0)
+        removerDescuento()
+        await cargarComandasTerminadasSinPagar()
+        return
+      }
+
       // Calcular total con extras basado en los items del carrito
       const extraLeche = cart.reduce((sum, item) => {
         if (item.tipoLeche === 'deslactosada') {
@@ -411,15 +571,24 @@ const PuntoVenta = () => {
       }, 0)
       
       const totalConExtra = total + extraLeche + extraExtras + extraProteina
+      const totalFinalVenta = Math.max(0, totalConExtra - totalDescuento)
 
       // Crear detalles de venta (NO incluir el extra de leche como producto)
-      const detallesVenta = cart.map(item => ({
-        id_producto: item.id_producto || item.id,
-        cantidad: item.quantity,
-        precio_unitario: parseFloat(item.precio),
-        subtotal: parseFloat(item.precio) * item.quantity,
-        observaciones: item.observaciones || null, // Observaciones del producto
-      }))
+      const detallesVenta = cart.map(item => {
+        // Sanitizar id_producto: debe ser entero o null (para personalizados)
+        const rawId = item.id_producto ?? item.id
+        const idProducto = rawId != null && String(rawId).match(/^\d+$/) ? Number(rawId) : null
+        const cantidad = Number(item.quantity) || 0
+        const precioUnitario = parseFloat(String(item.precio).replace(/,/g, '')) || 0
+        return {
+          id_producto: idProducto,
+          cantidad,
+          precio_unitario: precioUnitario,
+          subtotal: precioUnitario * cantidad,
+          nombre_producto: item.personalizado ? (item.nombre || item.nombre_producto) : (item.nombre || null),
+          observaciones: item.observaciones || null, // Observaciones del producto
+        }
+      })
 
       // Crear venta con los nuevos campos
       // Nota: tipo_leche ya no se usa a nivel global, cada producto tiene su tipo en observaciones
@@ -427,24 +596,38 @@ const PuntoVenta = () => {
       const ventaResponse = await crearVenta({
         id_cliente: idCliente,
         nombre_cliente: nombreCliente || null,
-        total: totalConExtra,
+        total: totalFinalVenta,
         metodo_pago: metodoPago,
         tipo_servicio: tipoServicio,
-        tipo_leche: null, // Ya no se usa tipo de leche global, cada producto tiene el suyo
+        tipo_leche: null,
         comentarios: comentarios || null,
         extra_leche: extraLeche > 0 ? extraLeche : null,
         detalles: detallesVenta,
+        descuento_tipo: totalDescuento > 0 ? descuentoTipo : null,
+        descuento_valor: totalDescuento > 0 ? descuentoValor : null,
+        total_descuento: totalDescuento > 0 ? totalDescuento : null,
       })
-
-      const idVenta = ventaResponse.id_venta
+      if (ventaResponse?.error) {
+        throw new Error(ventaResponse.error || 'Error al crear la venta')
+      }
+      const idVenta = ventaResponse.id_venta ?? ventaResponse.idVenta
+      if (idVenta == null || idVenta === '') {
+        throw new Error('No se recibió el ID de la venta. Reintenta o contacta soporte.')
+      }
 
       // Crear detalles de comanda con observaciones y tipo de preparación
-      const detallesComanda = cart.map(item => ({
-        id_producto: item.id_producto || item.id,
-        cantidad: item.quantity,
-        observaciones: item.observaciones || null,
-        tipo_preparacion: item.tipoPreparacion || null, // Incluir tipo de preparación
-      }))
+      const detallesComanda = cart.map(item => {
+        const rawId = item.id_producto ?? item.id
+        const idProducto = rawId != null && String(rawId).match(/^\d+$/) ? Number(rawId) : null
+        const cantidad = Number(item.quantity) || 0
+        return {
+          id_producto: idProducto,
+          cantidad,
+          nombre_producto: item.personalizado ? (item.nombre || item.nombre_producto) : null,
+          observaciones: item.observaciones || null,
+          tipo_preparacion: item.tipoPreparacion || null, // Incluir tipo de preparación
+        }
+      })
 
       // Crear comanda (la información de tipo_servicio, tipo_leche, comentarios ya está en la venta)
       const comandaResponse = await crearComanda({
@@ -472,11 +655,13 @@ const PuntoVenta = () => {
 
       // Emitir evento para notificación de comanda creada
       if (comandaResponse?.id_comanda) {
+        const numeroPedidoDia = ventaResponse?.numero_pedido_dia ?? ventaResponse?.numeroPedidoDia
         window.dispatchEvent(new CustomEvent('comanda-creada', {
           detail: {
             id_comanda: comandaResponse.id_comanda,
             id_venta: idVenta,
-            ticket_id: numeroTicket
+            ticket_id: numeroTicket,
+            numero_pedido_dia: numeroPedidoDia ?? null,
           }
         }))
       }
@@ -490,6 +675,7 @@ const PuntoVenta = () => {
       setComentarios('')
       setPropinaPorcentaje(null)
       setMontoPropina(0)
+      removerDescuento()
       
       // Actualizar número de ticket después de crear la venta
       await cargarNumeroTicket()
@@ -514,6 +700,198 @@ const PuntoVenta = () => {
     } catch (error) {
       console.error('Error al procesar venta:', error)
       const errorMsg = extraerMensajeError(error, 'Error al procesar la venta')
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: errorMsg,
+        confirmButtonColor: '#10b981',
+      })
+    } finally {
+      setProcesando(false)
+    }
+  }
+
+  // Enviar orden a comandas sin pagar (para preparar primero, cobrar después)
+  const enviarSinPagar = async () => {
+    if (cart.length === 0) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Carrito vacío',
+        text: 'No hay productos para enviar',
+        confirmButtonColor: '#10b981',
+      })
+      return
+    }
+    let nombreParaEnviar = (nombreCliente || '').trim()
+    if (!nombreParaEnviar) {
+      const { value } = await Swal.fire({
+        icon: 'info',
+        title: 'Nombre del cliente',
+        input: 'text',
+        inputPlaceholder: 'Nombre del cliente',
+        showCancelButton: true,
+        cancelButtonText: 'Cancelar',
+        confirmButtonText: 'Enviar',
+        confirmButtonColor: '#10b981',
+        inputValidator: (value) => {
+          if (!(value || '').trim()) return 'El nombre es requerido'
+          return null
+        },
+      })
+      if (value == null) return
+      nombreParaEnviar = String(value).trim()
+      setNombreCliente(nombreParaEnviar)
+    }
+    setProcesando(true)
+    setMostrarModalFinalizar(false)
+    try {
+      const extraLeche = cart.reduce((sum, item) => {
+        if (item.tipoLeche === 'deslactosada') return sum + (15 * item.quantity)
+        if (item.tipoLeche === 'almendras') return sum + (20 * item.quantity)
+        return sum
+      }, 0)
+      const extraExtras = cart.reduce((sum, item) => {
+        if (item.extras?.length > 0) return sum + (item.extras.length * 20 * item.quantity)
+        return sum
+      }, 0)
+      const extraProteina = cart.reduce((sum, item) => {
+        if (item.tipoProteina === 'normal') return sum + (30 * item.quantity)
+        if (item.tipoProteina === 'isolatada') return sum + (35 * item.quantity)
+        return sum
+      }, 0)
+      const totalConExtra = total + extraLeche + extraExtras + extraProteina
+      const totalFinalVenta = Math.max(0, totalConExtra - totalDescuento)
+
+      const detallesVenta = cart.map(item => {
+        const rawId = item.id_producto ?? item.id
+        const idProducto = rawId != null && String(rawId).match(/^\d+$/) ? Number(rawId) : null
+        const cantidad = Number(item.quantity) || 0
+        const precioUnitario = parseFloat(String(item.precio).replace(/,/g, '')) || 0
+        return {
+          id_producto: idProducto,
+          cantidad,
+          precio_unitario: precioUnitario,
+          subtotal: precioUnitario * cantidad,
+          nombre_producto: item.personalizado ? (item.nombre || item.nombre_producto) : (item.nombre || null),
+          observaciones: item.observaciones || null,
+        }
+      })
+
+      const ventaResponse = await crearVenta({
+        id_cliente: idCliente,
+        nombre_cliente: nombreParaEnviar || nombreCliente || null,
+        total: totalFinalVenta,
+        metodo_pago: 'pendiente',
+        tipo_servicio: tipoServicio,
+        tipo_leche: null,
+        comentarios: comentarios || null,
+        extra_leche: extraLeche > 0 ? extraLeche : null,
+        detalles: detallesVenta,
+        descuento_tipo: totalDescuento > 0 ? descuentoTipo : null,
+        descuento_valor: totalDescuento > 0 ? descuentoValor : null,
+        total_descuento: totalDescuento > 0 ? totalDescuento : null,
+        pagada: false,
+      })
+      if (ventaResponse?.error) {
+        throw new Error(ventaResponse.error || 'Error al crear la venta')
+      }
+      const idVenta = ventaResponse.id_venta ?? ventaResponse.idVenta
+      if (idVenta == null || idVenta === '') {
+        throw new Error('No se recibió el ID de la venta. Reintenta o contacta soporte.')
+      }
+
+      const detallesComanda = cart.map(item => {
+        const rawId = item.id_producto ?? item.id
+        const idProducto = rawId != null && String(rawId).match(/^\d+$/) ? Number(rawId) : null
+        const cantidad = Number(item.quantity) || 0
+        return {
+          id_producto: idProducto,
+          cantidad,
+          nombre_producto: item.personalizado ? (item.nombre || item.nombre_producto) : null,
+          observaciones: item.observaciones || null,
+          tipo_preparacion: item.tipoPreparacion || null,
+        }
+      })
+
+      const comandaResponse = await crearComanda({
+        id_venta: idVenta,
+        estado: 'pendiente',
+        detalles: detallesComanda,
+      })
+
+      window.dispatchEvent(new CustomEvent('comanda-actualizada'))
+      if (comandaResponse?.id_comanda) {
+        const numeroPedidoDia = ventaResponse?.numero_pedido_dia ?? ventaResponse?.numeroPedidoDia
+        window.dispatchEvent(new CustomEvent('comanda-creada', {
+          detail: {
+            id_comanda: comandaResponse.id_comanda,
+            id_venta: idVenta,
+            ticket_id: numeroTicket ?? null,
+            numero_pedido_dia: numeroPedidoDia ?? null,
+          },
+        }))
+      }
+      setCart([])
+      setNombreCliente('')
+      setComentarios('')
+      removerDescuento()
+      await cargarComandasTerminadasSinPagar()
+
+      await Swal.fire({
+        icon: 'success',
+        title: '¡Enviado a comandas!',
+        text: 'La orden se envió sin pagar. Se preparará primero y podrás cobrar cuando esté lista.',
+        confirmButtonColor: '#10b981',
+        timer: 3000,
+      })
+    } catch (error) {
+      console.error('Error al enviar sin pagar:', error)
+      const errorMsg = extraerMensajeError(error, 'Error al enviar a comandas')
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: errorMsg,
+        confirmButtonColor: '#10b981',
+      })
+    } finally {
+      setProcesando(false)
+    }
+  }
+
+  // Procesar pago de comanda terminada sin pagar (con propina, descuento y tipo servicio si se indicaron)
+  const procesarPagoComandaTerminada = async () => {
+    if (!comandaTerminadaSeleccionada || !metodoPago) return
+    setProcesando(true)
+    try {
+      const bodyPago = {
+        metodo_pago: metodoPago,
+        tipo_servicio: tipoServicio || undefined,
+        descuento_tipo: totalDescuento > 0 ? descuentoTipo : undefined,
+        descuento_valor: totalDescuento > 0 ? descuentoValor : undefined,
+        total_descuento: totalDescuento > 0 ? totalDescuento : undefined,
+        propina_porcentaje: montoPropina > 0 && propinaPorcentaje != null ? propinaPorcentaje : undefined,
+        propina_monto: montoPropina > 0 ? montoPropina : undefined,
+      }
+      const resultado = await procesarPagoVenta(comandaTerminadaSeleccionada.id_venta, bodyPago)
+      if (resultado?.error) throw new Error(resultado.error)
+      await Swal.fire({
+        icon: 'success',
+        title: '¡Pago procesado!',
+        text: 'La orden ha sido cobrada correctamente',
+        confirmButtonColor: '#10b981',
+        timer: 2000,
+      })
+      setComandaTerminadaSeleccionada(null)
+      setCart([])
+      setNombreCliente('')
+      setTipoServicio('comer-aqui')
+      setMetodoPago(null)
+      setPropinaPorcentaje(null)
+      setMontoPropina(0)
+      removerDescuento()
+      await cargarComandasTerminadasSinPagar()
+    } catch (error) {
+      const errorMsg = extraerMensajeError(error, 'Error al procesar pago')
       await Swal.fire({
         icon: 'error',
         title: 'Error',
@@ -834,36 +1212,74 @@ const PuntoVenta = () => {
       })
       return
     }
+    if (cart.length === 0) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Carrito vacío',
+        text: 'No puedes procesar el pago sin productos en el carrito',
+        confirmButtonColor: '#10b981',
+      })
+      return
+    }
 
     setProcesando(true)
     try {
-      // Verificar que la pre-orden esté en estado "en_caja"
-      if (preordenSeleccionada.estado !== 'en_caja') {
-        try {
-          const preordenActualizada = await actualizarPreorden(preordenSeleccionada.id_preorden, {
-            estado: 'en_caja'
-          })
-          
-          if (preordenActualizada?.error) {
-            throw new Error(preordenActualizada.error)
-          }
-          
-          setPreordenSeleccionada(preordenActualizada)
-        } catch (error) {
-          console.error('Error al actualizar estado de pre-orden:', error)
-          const errorMsg = extraerMensajeError(error)
-          await Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: `Error al actualizar estado: ${errorMsg}`,
-            confirmButtonColor: '#10b981',
-          })
-          setProcesando(false)
-          return
-        }
-      }
+      // Sincronizar el carrito actual (incluyendo productos extras agregados) a la pre-orden
+      // antes de procesar el pago, para que todos los productos se envíen a las comandas
+      const extraLeche = cart.reduce((sum, item) => {
+        if (item.tipoLeche === 'deslactosada') return sum + (15 * item.quantity)
+        if (item.tipoLeche === 'almendras') return sum + (20 * item.quantity)
+        return sum
+      }, 0)
+      const extraExtras = cart.reduce((sum, item) => {
+        if (item.extras && item.extras.length > 0) return sum + (item.extras.length * 20 * item.quantity)
+        return sum
+      }, 0)
+      const extraProteina = cart.reduce((sum, item) => {
+        if (item.tipoProteina === 'normal') return sum + (30 * item.quantity)
+        if (item.tipoProteina === 'isolatada') return sum + (35 * item.quantity)
+        return sum
+      }, 0)
 
-      // Procesar el pago
+      const detallesParaPreorden = cart.map(item => {
+        const observaciones = []
+        if (item.tipoLeche && item.tipoLeche !== 'entera') {
+          if (item.tipoLeche === 'deslactosada') observaciones.push('Leche deslactosada')
+          else if (item.tipoLeche === 'almendras') observaciones.push('Leche de almendras')
+        }
+        if (item.extras && item.extras.length > 0) {
+          const nombresExtras = { tocino: 'Tocino', huevo: 'Huevo', jamon: 'Jamón', chorizo: 'Chorizo' }
+          const extrasNombres = item.extras.map(id => nombresExtras[id] || id)
+          observaciones.push(`Extras: ${extrasNombres.join(', ')}`)
+        }
+        if (item.tipoProteina) {
+          const nombreProteina = item.tipoProteina === 'isolatada' ? 'Proteína Isolatada' : 'Proteína Normal'
+          observaciones.push(`Scoop: ${nombreProteina}`)
+        }
+        return {
+          id_producto: item.id_producto || item.originalId || item.id,
+          cantidad: item.quantity,
+          observaciones: observaciones.length > 0 ? observaciones.join(' - ') : null,
+          tipo_preparacion: item.tipoPreparacion || null
+        }
+      })
+
+      const preordenConCartActualizado = await actualizarPreorden(preordenSeleccionada.id_preorden, {
+        nombre_cliente: nombreCliente || preordenSeleccionada.nombre_cliente,
+        tipo_servicio: tipoServicio,
+        comentarios: comentarios,
+        detalles: detallesParaPreorden,
+        extra_leche: extraLeche > 0 ? extraLeche : null,
+        extra_extras: (extraExtras + extraProteina) > 0 ? (extraExtras + extraProteina) : null,
+        estado: 'en_caja'
+      })
+
+      if (preordenConCartActualizado?.error) {
+        throw new Error(preordenConCartActualizado.error)
+      }
+      setPreordenSeleccionada(preordenConCartActualizado)
+
+      // Procesar el pago (la pre-orden ya tiene los detalles actualizados del carrito incluyendo extras)
       const pagoData = {
         metodo_pago: metodoPago,
       }
@@ -889,11 +1305,13 @@ const PuntoVenta = () => {
 
         // Emitir evento para notificación de comanda creada (si hay id_comanda)
         if (resultado.id_comanda) {
+          const numeroPedidoDia = resultado.numero_pedido_dia ?? resultado.numeroPedidoDia
           window.dispatchEvent(new CustomEvent('comanda-creada', {
             detail: {
               id_comanda: resultado.id_comanda,
               id_venta: resultado.id_venta,
-              ticket_id: resultado.ticket_id || preordenSeleccionada.ticket_id || null
+              ticket_id: resultado.ticket_id || preordenSeleccionada.ticket_id || null,
+              numero_pedido_dia: numeroPedidoDia ?? null,
             }
           }))
         }
@@ -1061,8 +1479,8 @@ const PuntoVenta = () => {
 
     // Crear producto personalizado
     const productoPersonalizado = {
-      id: `personalizado-${Date.now()}`, // ID único temporal
-      id_producto: `personalizado-${Date.now()}`, // ID único temporal
+      id: `personalizado-${Date.now()}`, // ID único temporal para UI
+      id_producto: null, // Enviar null al backend para productos personalizados
       nombre: nombre,
       precio: precio,
       personalizado: true // Marca para identificar productos personalizados
@@ -1076,9 +1494,9 @@ const PuntoVenta = () => {
     setPrecioProductoPersonalizado('')
   }
 
-  // Actualizar monto de propina cuando cambia el carrito o el porcentaje
+  // Actualizar monto de propina cuando cambia el carrito o el porcentaje (solo si es porcentaje numérico, no personalizado)
   useEffect(() => {
-    if (propinaPorcentaje) {
+    if (propinaPorcentaje != null && typeof propinaPorcentaje === 'number') {
       const subtotal = cart.reduce((sum, item) => sum + (parseFloat(item.precio) * item.quantity), 0)
       const extraLeche = cart.reduce((sum, item) => {
         if (item.tipoLeche === 'deslactosada') {
@@ -1108,10 +1526,59 @@ const PuntoVenta = () => {
     }
   }, [cart, propinaPorcentaje])
 
+  // Actualizar monto de descuento cuando cambia el carrito
+  useEffect(() => {
+    if (descuentoTipo && descuentoValor != null) {
+      const totalBase = calcularSubtotalConExtras()
+      if (descuentoTipo === 'porcentaje') {
+        setTotalDescuento((totalBase * descuentoValor) / 100)
+      } else {
+        setTotalDescuento(Math.min(descuentoValor, totalBase))
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cart, descuentoTipo, descuentoValor])
+
   // Función para remover propina
   const removerPropina = () => {
     setPropinaPorcentaje(null)
     setMontoPropina(0)
+  }
+
+  // Función para seleccionar descuento por porcentaje (5, 10, 15, 20)
+  const seleccionarDescuento = (porcentaje) => {
+    setDescuentoTipo('porcentaje')
+    setDescuentoValor(porcentaje)
+    const totalBase = calcularSubtotalConExtras()
+    setTotalDescuento((totalBase * porcentaje) / 100)
+    setMostrarModalDescuento(false)
+  }
+
+  // Función para aplicar descuento personalizado (porcentaje o monto)
+  const aplicarDescuentoPersonalizado = () => {
+    const valor = parseFloat(descuentoPersonalizado)
+    if (isNaN(valor) || valor <= 0) return
+    if (tipoDescuentoPersonalizado === 'porcentaje') {
+      setDescuentoTipo('porcentaje')
+      setDescuentoValor(valor)
+      const totalBase = calcularSubtotalConExtras()
+      setTotalDescuento(Math.min((totalBase * valor) / 100, totalBase))
+    } else {
+      setDescuentoTipo('monto')
+      setDescuentoValor(valor)
+      const totalBase = calcularSubtotalConExtras()
+      setTotalDescuento(Math.min(valor, totalBase))
+    }
+    setDescuentoPersonalizado('')
+    setMostrarModalDescuento(false)
+  }
+
+  // Función para remover descuento
+  const removerDescuento = () => {
+    setDescuentoTipo(null)
+    setDescuentoValor(null)
+    setTotalDescuento(0)
+    setDescuentoPersonalizado('')
   }
 
   // Función para parsear observaciones y extraer tipo de leche, extras y tipo de proteína
@@ -1251,6 +1718,59 @@ const PuntoVenta = () => {
     })
     
     return itemsCarrito
+  }
+
+  // Convertir comanda terminada sin pagar a items del carrito (para mostrarlos en Orden actual con propina/descuento/modal)
+  const convertirComandaTerminadaACarrito = (comanda) => {
+    if (!comanda?.detalles?.length) return []
+    const itemsCarrito = []
+    comanda.detalles.forEach((detalle, idx) => {
+      const producto = productos.find(p => p.id_producto === detalle.id_producto)
+      const precio = detalle.precio_unitario != null ? parseFloat(detalle.precio_unitario) : (producto ? parseFloat(producto.precio) : 0)
+      const nombre = detalle.producto_nombre || detalle.nombre_producto || (producto?.nombre) || 'Producto'
+      const { tipoLeche, extras, tipoProteina, tipoPreparacion } = parsearObservaciones(detalle.observaciones || '')
+      const tipoLecheHash = tipoLeche || 'none'
+      const extrasHash = extras?.length ? extras.sort().join(',') : 'none'
+      const tipoProteinaHash = tipoProteina || 'none'
+      const uniqueId = `comanda-${comanda.id_comanda}-${detalle.id_producto ?? idx}-${tipoLecheHash}-${extrasHash}-${tipoProteinaHash}`
+      const observaciones = []
+      if (tipoLeche && tipoLeche !== 'entera') {
+        observaciones.push(tipoLeche === 'deslactosada' ? 'Leche deslactosada' : 'Leche de almendras')
+      }
+      if (extras?.length) {
+        const nombresExtras = { tocino: 'Tocino', huevo: 'Huevo', jamon: 'Jamón', chorizo: 'Chorizo' }
+        observaciones.push(`Extras: ${extras.map(id => nombresExtras[id] || id).join(', ')}`)
+      }
+      if (tipoProteina) observaciones.push(`Scoop: ${tipoProteina === 'isolatada' ? 'Proteína Isolatada' : 'Proteína Normal'}`)
+      itemsCarrito.push({
+        id: uniqueId,
+        id_producto: detalle.id_producto,
+        nombre,
+        precio,
+        quantity: detalle.cantidad,
+        tipoLeche: tipoLeche || null,
+        extras: extras || [],
+        tipoProteina: tipoProteina || null,
+        tipoPreparacion: detalle.tipo_preparacion || tipoPreparacion || null,
+        observaciones: observaciones.length ? observaciones.join(' - ') : null,
+        fromComandaTerminada: true,
+      })
+    })
+    return itemsCarrito
+  }
+
+  const seleccionarComandaTerminada = (comanda) => {
+    if (!comanda) return
+    const items = convertirComandaTerminadaACarrito(comanda)
+    setCart(items)
+    setNombreCliente(comanda.venta_nombre_cliente || '')
+    setTipoServicio(comanda.venta_tipo_servicio === 'para-llevar' ? 'para-llevar' : 'comer-aqui')
+    setComandaTerminadaSeleccionada(comanda)
+    setPreordenSeleccionada(null)
+    setMetodoPago(null)
+    setPropinaPorcentaje(null)
+    setMontoPropina(0)
+    removerDescuento()
   }
 
   // Función para seleccionar pre-orden
@@ -1421,23 +1941,35 @@ const PuntoVenta = () => {
 
   // Función para seleccionar producto desde búsqueda
   const seleccionarProductoDesdeBusqueda = (producto) => {
-    // Expandir la categoría del producto
-    setExpandedCategories(prev => ({
-      ...prev,
-      [producto.categoria]: true
-    }))
-    
-    // Manejar click en producto desde búsqueda
-    handleProductClick(producto)
-    
-    // Limpiar búsqueda
-    setSearchTerm('')
-    
-    // Destacar el producto temporalmente
+    const llevaLeche = Boolean(producto.lleva_leche === true || producto.lleva_leche === 1 || producto.lleva_leche === '1')
+    const llevaExtras = Boolean(producto.lleva_extras === true || producto.lleva_extras === 1 || producto.lleva_extras === '1')
+    const llevaProteina = Boolean(producto.lleva_proteina === true || producto.lleva_proteina === 1 || producto.lleva_proteina === '1' || producto.categoria === 'runner_proteina')
+
+    if (!llevaLeche && !llevaExtras && !llevaProteina) {
+      // Producto sin opciones: agregar directamente al carrito
+      addToCart({
+        ...producto,
+        id: producto.id_producto,
+        name: producto.nombre,
+        price: producto.precio,
+      })
+      setSearchTerm('')
+      return
+    }
+
+    // Producto con opciones: expandir categoría Y mostrar panel de opciones
+    setExpandedCategories(prev => ({ ...prev, [producto.categoria]: true }))
+    setProductoExpandido(producto.id_producto)
+    if (!opcionesProductos[producto.id_producto]) {
+      setOpcionesProductos(prev => ({
+        ...prev,
+        [producto.id_producto]: { tipoLeche: 'entera', extras: [], tipoProteina: null }
+      }))
+    }
     setHighlightedProduct(producto.id_producto)
-    setTimeout(() => {
-      setHighlightedProduct(null)
-    }, 2000)
+    // NO limpiar búsqueda para que el usuario vea el producto - al cambiar a categorías se verá el panel
+    setSearchTerm('')
+    setTimeout(() => setHighlightedProduct(null), 3000)
   }
 
   if (productosLoading) {
@@ -1842,7 +2374,7 @@ const PuntoVenta = () => {
 
         {/* Carrito / Detalles de Pre-orden y Pre-órdenes */}
         <div className="lg:col-span-1 space-y-6">
-          {/* Carrito / Detalles de Pre-orden */}
+          {/* Carrito / Detalles de Pre-orden / Orden actual (incluye comanda lista para cobrar) */}
           <div className="card sticky top-24">
             {preordenSeleccionada ? (
               <>
@@ -1876,6 +2408,27 @@ const PuntoVenta = () => {
                             <X className="w-4 h-4" />
                           </button>
                         )}
+                        <button
+                          onClick={() => setMostrarModalDescuento(true)}
+                          className={`p-2 rounded-lg hover:bg-gray-100 transition-colors ${
+                            totalDescuento > 0 ? 'text-amber-600 bg-amber-50' : 'text-gray-600'
+                          }`}
+                          title={totalDescuento > 0 ? `Descuento ${descuentoTipo === 'porcentaje' ? descuentoValor + '%' : '$' + totalDescuento.toFixed(2)}` : 'Agregar descuento'}
+                        >
+                          <Percent className="w-6 h-6" />
+                        </button>
+                        {totalDescuento > 0 && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              removerDescuento()
+                            }}
+                            className="p-1.5 rounded-lg hover:bg-red-100 transition-colors text-red-600"
+                            title="Quitar descuento"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
                     <button
@@ -1888,6 +2441,7 @@ const PuntoVenta = () => {
                         setComentarios('')
                         setPropinaPorcentaje(null)
                         setMontoPropina(0)
+                        removerDescuento()
                       }}
                       className="p-1 rounded hover:bg-gray-100 transition-colors"
                     >
@@ -2044,9 +2598,13 @@ const PuntoVenta = () => {
                           return sum
                         }, 0)
                         const totalConExtras = subtotal + extraLeche + extraExtras + extraProteina
-                        // Calcular monto de propina actualizado si hay porcentaje
-                        const montoPropinaActual = propinaPorcentaje ? (totalConExtras * propinaPorcentaje) / 100 : 0
-                        const totalFinal = totalConExtras + montoPropinaActual
+                        const descuentoActual = totalDescuento
+                        const totalDespuesDescuento = Math.max(0, totalConExtras - descuentoActual)
+                        const montoPropinaActual = (propinaPorcentaje != null && typeof propinaPorcentaje === 'number')
+                          ? (totalDespuesDescuento * propinaPorcentaje) / 100
+                          : (propinaPorcentaje === 'personalizado' ? (montoPropina || 0) : 0)
+                        const totalFinal = totalDespuesDescuento + montoPropinaActual
+                        const propinaLabel = propinaPorcentaje === 'personalizado' ? 'Propina (personalizado)' : (typeof propinaPorcentaje === 'number' ? `Propina (${propinaPorcentaje}%)` : 'Propina')
                         
                         return (
                           <>
@@ -2066,16 +2624,22 @@ const PuntoVenta = () => {
                                 <span>+${extraExtras.toFixed(2)}</span>
                               </div>
                             )}
+                            {descuentoActual > 0 && (
+                              <div className="flex items-center justify-between text-amber-600">
+                                <span>Descuento ({descuentoTipo === 'porcentaje' ? descuentoValor + '%' : '$' + descuentoActual.toFixed(2)}):</span>
+                                <span>-${descuentoActual.toFixed(2)}</span>
+                              </div>
+                            )}
                             {montoPropinaActual > 0 && (
                               <div className="flex items-center justify-between text-gray-600">
-                                <span>Propina ({propinaPorcentaje}%):</span>
-                                <span>+${montoPropinaActual.toFixed(2)}</span>
+                                <span>{propinaLabel}:</span>
+                                <span>+${Number(montoPropinaActual).toFixed(2)}</span>
                               </div>
                             )}
                             <div className="flex items-center justify-between text-lg font-bold text-gray-900 pt-2 border-t border-gray-200">
                               <span>Total:</span>
                               <span className="text-matcha-600">
-                                ${totalFinal.toFixed(2)}
+                                ${Number(totalFinal).toFixed(2)}
                               </span>
                             </div>
                           </>
@@ -2136,20 +2700,43 @@ const PuntoVenta = () => {
               </>
             ) : (
               <>
-                {/* Vista de Carrito Normal */}
+                {/* Vista de Carrito Normal (incluye comanda lista para cobrar) */}
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                     <ShoppingCart className="w-5 h-5 text-matcha-600" />
-                    <h2 className="text-lg font-semibold text-gray-900">Orden Actual</h2>
-                    {cart.length > 0 && (
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      {comandaTerminadaSeleccionada ? 'Para cobrar' : 'Orden Actual'}
+                    </h2>
+                    {comandaTerminadaSeleccionada && (
+                      <span className="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-1 rounded-full">Sin pagar</span>
+                    )}
+                    {comandaTerminadaSeleccionada && (
                       <span className="bg-matcha-100 text-matcha-700 text-xs font-medium px-2 py-1 rounded-full">
-                        {cart.reduce((sum, item) => sum + item.quantity, 0)}
+                        {comandaTerminadaSeleccionada.numero_dia ?? comandaTerminadaSeleccionada.numero_pedido_dia ?? comandaTerminadaSeleccionada.id_comanda}
                       </span>
                     )}
                     </div>
                     <div className="flex items-center gap-1">
+                    {comandaTerminadaSeleccionada && (
                       <button
+                        onClick={() => {
+                          setComandaTerminadaSeleccionada(null)
+                          setCart([])
+                          setNombreCliente('')
+                          setTipoServicio('comer-aqui')
+                          setMetodoPago(null)
+                          removerPropina()
+                          removerDescuento()
+                        }}
+                        className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-red-600 font-bold"
+                        title="Quitar comanda"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    )}
+                    <div className="flex items-center gap-1">
+                    <button
                         onClick={() => setMostrarModalPropina(true)}
                         className={`p-2 rounded-lg hover:bg-gray-100 transition-colors ${
                           propinaPorcentaje ? 'text-matcha-600 bg-matcha-50' : 'text-gray-600'
@@ -2170,14 +2757,30 @@ const PuntoVenta = () => {
                           <X className="w-4 h-4" />
                         </button>
                       )}
+                      <button
+                        onClick={() => setMostrarModalDescuento(true)}
+                        className={`p-2 rounded-lg hover:bg-gray-100 transition-colors ${
+                          totalDescuento > 0 ? 'text-amber-600 bg-amber-50' : 'text-gray-600'
+                        }`}
+                        title={totalDescuento > 0 ? `Descuento ${descuentoTipo === 'porcentaje' ? descuentoValor + '%' : '$' + totalDescuento.toFixed(2)}` : 'Agregar descuento'}
+                      >
+                        <Percent className="w-6 h-6" />
+                      </button>
+                      {totalDescuento > 0 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            removerDescuento()
+                          }}
+                          className="p-1.5 rounded-lg hover:bg-red-100 transition-colors text-red-600"
+                          title="Quitar descuento"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
-                  {numeroTicket !== null && (
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <span>Ticket #</span>
-                      <span className="font-semibold text-matcha-600">{numeroTicket}</span>
-                    </div>
-                  )}
+                  
                 </div>
 
             {cart.length === 0 ? (
@@ -2311,8 +2914,13 @@ const PuntoVenta = () => {
                       return sum
                     }, 0)
                     const totalConExtras = subtotal + extraLeche + extraExtras + extraProteina
-                    const montoPropinaActual = propinaPorcentaje ? (totalConExtras * propinaPorcentaje) / 100 : 0
-                    const totalFinal = totalConExtras + montoPropinaActual
+                    const descuentoActual = totalDescuento
+                    const totalDespuesDescuento = Math.max(0, totalConExtras - descuentoActual)
+                    const montoPropinaActual = (propinaPorcentaje != null && typeof propinaPorcentaje === 'number')
+                      ? (totalDespuesDescuento * propinaPorcentaje) / 100
+                      : (propinaPorcentaje === 'personalizado' ? (montoPropina || 0) : 0)
+                    const totalFinal = totalDespuesDescuento + montoPropinaActual
+                    const propinaLabel = propinaPorcentaje === 'personalizado' ? 'Propina (personalizado)' : (typeof propinaPorcentaje === 'number' ? `Propina (${propinaPorcentaje}%)` : 'Propina')
                     
                     return (
                       <>
@@ -2339,10 +2947,16 @@ const PuntoVenta = () => {
                               <span>+${extraProteina.toFixed(2)}</span>
                             </div>
                           )}
+                          {descuentoActual > 0 && (
+                            <div className="flex items-center justify-between text-sm text-amber-600">
+                              <span>Descuento ({descuentoTipo === 'porcentaje' ? descuentoValor + '%' : '$' + descuentoActual.toFixed(2)}):</span>
+                              <span>-${descuentoActual.toFixed(2)}</span>
+                            </div>
+                          )}
                           {montoPropinaActual > 0 && (
                             <div className="flex items-center justify-between text-sm text-gray-600">
-                              <span>Propina ({propinaPorcentaje}%):</span>
-                              <span>+${montoPropinaActual.toFixed(2)}</span>
+                              <span>{propinaLabel}:</span>
+                              <span>+${Number(montoPropinaActual).toFixed(2)}</span>
                             </div>
                           )}
                           <div className="flex items-center justify-between pt-2 border-t border-gray-200">
@@ -2350,7 +2964,7 @@ const PuntoVenta = () => {
                       Total:
                     </span>
                     <span className="text-2xl font-bold text-matcha-600">
-                              ${totalFinal.toFixed(2)}
+                              ${Number(totalFinal).toFixed(2)}
                     </span>
                   </div>
                         </div>
@@ -2358,6 +2972,8 @@ const PuntoVenta = () => {
                     )
                   })()}
 
+                  {!comandaTerminadaSeleccionada && (
+                    <>
                   {/* Botón Guardar como Pre-orden */}
                   <button
                     onClick={abrirModalGuardarPreorden}
@@ -2369,6 +2985,21 @@ const PuntoVenta = () => {
                     )}
                     Guardar como Pre-orden
                   </button>
+
+                  {/* Enviar sin pagar: preparar primero, cobrar cuando esté lista */}
+                  <button
+                    onClick={enviarSinPagar}
+                    disabled={procesando || ventaLoading || comandaLoading}
+                    className="w-full py-2.5 text-sm border border-amber-500 text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    title="Enviar a cocina para preparar, cobrar cuando esté lista (se pedirá el nombre del cliente si no está)"
+                  >
+                    {(procesando || ventaLoading || comandaLoading) && (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    )}
+                    Enviar a Comandas (Sin Pagar)
+                  </button>
+                    </>
+                  )}
 
                   <div className="grid grid-cols-2 gap-3">
                     <button
@@ -2419,9 +3050,61 @@ const PuntoVenta = () => {
                 </div>
               </>
             )}
-              </>
-            )}
           </div>
+
+          {/* Comandas terminadas sin pagar */}
+          {comandasTerminadasSinPagar.length > 0 && (
+            <div className="card mb-4">
+              <div className="flex items-center gap-2 mb-4">
+                <CheckCircle className="w-5 h-5 text-amber-600" />
+                <h2 className="text-lg font-semibold text-gray-900">Comandas listas sin pagar</h2>
+                <span className="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-1 rounded-full">
+                  {comandasTerminadasSinPagar.length}
+                </span>
+              </div>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {comandasTerminadasSinPagar.map((comanda) => {
+                  const itemsCount = comanda.detalles?.reduce((sum, d) => sum + d.cantidad, 0) || 0
+                  const isSelected = comandaTerminadaSeleccionada?.id_comanda === comanda.id_comanda
+                  return (
+                    <div
+                      key={comanda.id_comanda}
+                      className={`p-3 rounded-lg border-2 transition-all ${
+                        isSelected ? 'border-amber-500 bg-amber-50' : 'border-gray-200 hover:border-amber-300'
+                      }`}
+                    >
+                      <button
+                        onClick={() => {
+                          if (isSelected) {
+                            setComandaTerminadaSeleccionada(null)
+                            setCart([])
+                            setNombreCliente('')
+                            setTipoServicio('comer-aqui')
+                          } else {
+                            seleccionarComandaTerminada(comanda)
+                          }
+                        }}
+                        className="w-full text-left"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-semibold text-gray-900 text-sm">
+                              {comanda.numero_dia ?? comanda.numero_pedido_dia ?? comanda.id_comanda} · {comanda.venta_nombre_cliente || 'Sin nombre'}
+                            </p>
+                            <p className="text-xs text-gray-500">{itemsCount} items</p>
+                          </div>
+                          <p className="font-bold text-amber-600">${parseFloat(comanda.total || 0).toFixed(2)}</p>
+                        </div>
+                        <span className="inline-block mt-2 px-2 py-0.5 rounded text-xs font-medium bg-amber-200 text-amber-800">
+                          Sin pagar
+                        </span>
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Pre-órdenes Pendientes */}
           <div className="card">
@@ -2511,6 +3194,9 @@ const PuntoVenta = () => {
               </div>
             )}
           </div>
+            </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -2530,11 +3216,11 @@ const PuntoVenta = () => {
             </div>
 
             {/* Contenido */}
-            <div className="p-6 space-y-6">
+            <div className="p-6 space-y-4">
               {/* Nombre del Cliente */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nombre del Cliente <span className="text-gray-400">(Opcional)</span>
+                <label className="block text-sm font-medium text-gray-700 mb-0 required">
+                  Nombre del Cliente <span className="text-gray-400"></span>
                 </label>
                 <input
                   type="text"
@@ -2544,6 +3230,31 @@ const PuntoVenta = () => {
                   className="input w-full"
                 />
               </div>
+
+              {/* Enviar ticket por WhatsApp */}
+              {/*
+              <div>
+                <div className="flex gap-2">
+                  <input
+                    type="tel"
+                    placeholder="Número de WhatsApp"
+                    value={numeroWhatsApp}
+                    onChange={(e) => setNumeroWhatsApp(e.target.value)}
+                    className="input flex-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={enviarTicketWhatsApp}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors whitespace-nowrap flex items-center gap-2"
+                  >
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                    </svg>
+                    Enviar ticket
+                  </button>
+                </div>
+              </div>
+              */}
 
               {/* Tipo de Servicio */}
               <div>
@@ -2594,7 +3305,7 @@ const PuntoVenta = () => {
                   <span>Subtotal:</span>
                   <span>${total.toFixed(2)}</span>
                 </div>
-                {/* Calcular extra de leche basado en los items del carrito */}
+                {/* Calcular extras, descuento, propina y total final */}
                 {(() => {
                   const extraLecheTotal = cart.reduce((sum, item) => {
                     if (item.tipoLeche && (item.tipoLeche === 'deslactosada' || item.tipoLeche === 'almendras')) {
@@ -2620,6 +3331,12 @@ const PuntoVenta = () => {
                   }, 0)
                   
                   const totalConExtras = total + extraLecheTotal + extraExtrasTotal + extraProteinaTotal
+                  const totalDespuesDescuento = Math.max(0, totalConExtras - totalDescuento)
+                  const montoPropinaResumen = (propinaPorcentaje != null && typeof propinaPorcentaje === 'number')
+                    ? (totalDespuesDescuento * propinaPorcentaje) / 100
+                    : (propinaPorcentaje === 'personalizado' ? (montoPropina || 0) : 0)
+                  const totalFinalResumen = totalDespuesDescuento + montoPropinaResumen
+                  const propinaLabelResumen = propinaPorcentaje === 'personalizado' ? 'Propina (personalizado)' : (typeof propinaPorcentaje === 'number' ? `Propina (${propinaPorcentaje}%)` : 'Propina')
                   
                   return (
                     <>
@@ -2641,16 +3358,30 @@ const PuntoVenta = () => {
                           <span>+${extraProteinaTotal.toFixed(2)}</span>
                         </div>
                       )}
+                      {totalDescuento > 0 && (
+                        <div className="flex items-center justify-between text-amber-600">
+                          <span>Descuento ({descuentoTipo === 'porcentaje' ? descuentoValor + '%' : '$' + totalDescuento.toFixed(2)}):</span>
+                          <span>-${totalDescuento.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {montoPropinaResumen > 0 && (
+                        <div className="flex items-center justify-between text-gray-600">
+                          <span>{propinaLabelResumen}:</span>
+                          <span>+${Number(montoPropinaResumen).toFixed(2)}</span>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between text-lg font-bold text-gray-900 pt-2 border-t border-gray-200">
                         <span>Total:</span>
                         <span className="text-matcha-600">
-                          ${totalConExtras.toFixed(2)}
+                          ${Number(totalFinalResumen).toFixed(2)}
                         </span>
                       </div>
                     </>
                   )
                 })()}
               </div>
+
+              
             </div>
 
             {/* Footer */}
@@ -2663,7 +3394,7 @@ const PuntoVenta = () => {
               </button>
               <button
                 onClick={procesarVenta}
-                disabled={procesando || ventaLoading || comandaLoading}
+                disabled={procesando || ventaLoading || comandaLoading || !metodoPago}
                 className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {(procesando || ventaLoading || comandaLoading) && (
@@ -2987,13 +3718,134 @@ const PuntoVenta = () => {
         </div>
       )}
 
+      {/* Modal Descuento */}
+      {mostrarModalDescuento && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h2 className="text-2xl font-bold text-gray-900">Aplicar Descuento</h2>
+              <button
+                onClick={() => setMostrarModalDescuento(false)}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-600 mb-4">
+                Selecciona un porcentaje o ingresa un monto fijo de descuento
+              </p>
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <button
+                  onClick={() => seleccionarDescuento(5)}
+                  className={`py-4 px-4 rounded-lg border-2 transition-all text-center ${
+                    descuentoTipo === 'porcentaje' && descuentoValor === 5
+                      ? 'border-amber-500 bg-amber-50'
+                      : 'border-gray-200 hover:border-amber-500 hover:bg-amber-50'
+                  }`}
+                >
+                  <div className="text-2xl font-bold text-gray-900">5%</div>
+                </button>
+                <button
+                  onClick={() => seleccionarDescuento(10)}
+                  className={`py-4 px-4 rounded-lg border-2 transition-all text-center ${
+                    descuentoTipo === 'porcentaje' && descuentoValor === 10
+                      ? 'border-amber-500 bg-amber-50'
+                      : 'border-gray-200 hover:border-amber-500 hover:bg-amber-50'
+                  }`}
+                >
+                  <div className="text-2xl font-bold text-gray-900">10%</div>
+                </button>
+                <button
+                  onClick={() => seleccionarDescuento(15)}
+                  className={`py-4 px-4 rounded-lg border-2 transition-all text-center ${
+                    descuentoTipo === 'porcentaje' && descuentoValor === 15
+                      ? 'border-amber-500 bg-amber-50'
+                      : 'border-gray-200 hover:border-amber-500 hover:bg-amber-50'
+                  }`}
+                >
+                  <div className="text-2xl font-bold text-gray-900">15%</div>
+                </button>
+                <button
+                  onClick={() => seleccionarDescuento(20)}
+                  className={`py-4 px-4 rounded-lg border-2 transition-all text-center ${
+                    descuentoTipo === 'porcentaje' && descuentoValor === 20
+                      ? 'border-amber-500 bg-amber-50'
+                      : 'border-gray-200 hover:border-amber-500 hover:bg-amber-50'
+                  }`}
+                >
+                  <div className="text-2xl font-bold text-gray-900">20%</div>
+                </button>
+              </div>
+              <div className="border-t border-gray-200 pt-4">
+                <p className="text-sm text-gray-600 mb-3">O especifica un descuento personalizado:</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setTipoDescuentoPersonalizado('porcentaje')}
+                    className={`flex-1 py-2 px-3 rounded-lg border-2 transition-all text-sm ${
+                      tipoDescuentoPersonalizado === 'porcentaje'
+                        ? 'border-amber-500 bg-amber-50 text-amber-700'
+                        : 'border-gray-200 hover:border-amber-500'
+                    }`}
+                  >
+                    Porcentaje (%)
+                  </button>
+                  <button
+                    onClick={() => setTipoDescuentoPersonalizado('monto')}
+                    className={`flex-1 py-2 px-3 rounded-lg border-2 transition-all text-sm ${
+                      tipoDescuentoPersonalizado === 'monto'
+                        ? 'border-amber-500 bg-amber-50 text-amber-700'
+                        : 'border-gray-200 hover:border-amber-500'
+                    }`}
+                  >
+                    Monto fijo ($)
+                  </button>
+                </div>
+                <div className="flex gap-2 mt-3">
+                  <div className="flex-1 relative">
+                    <input
+                      type="number"
+                      value={descuentoPersonalizado}
+                      onChange={(e) => setDescuentoPersonalizado(e.target.value)}
+                      placeholder={tipoDescuentoPersonalizado === 'porcentaje' ? 'Ej: 12' : 'Ej: 50.00'}
+                      className="input w-full pr-12"
+                      min="0"
+                      step={tipoDescuentoPersonalizado === 'porcentaje' ? '1' : '0.01'}
+                      max={tipoDescuentoPersonalizado === 'porcentaje' ? '100' : undefined}
+                    />
+                    <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">
+                      {tipoDescuentoPersonalizado === 'porcentaje' ? '%' : '$'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={aplicarDescuentoPersonalizado}
+                    disabled={!descuentoPersonalizado || descuentoPersonalizado === '0'}
+                    className="btn-primary px-4 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Aplicar
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="p-6 border-t border-gray-200">
+              <button
+                onClick={() => setMostrarModalDescuento(false)}
+                className="btn-outline w-full"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal Cancelar Pre-orden */}
       {mostrarModalCancelar && preordenACancelar && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-red-600">Cancelar Pre-orden</h2>
+              <h2 className="text-2xl font-bold text-red-600">¿Cancelar Pre-orden?</h2>
               <button
                 onClick={() => {
                   setMostrarModalCancelar(false)
@@ -3009,9 +3861,6 @@ const PuntoVenta = () => {
             {/* Contenido */}
             <div className="p-6 space-y-4">
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <p className="text-sm text-red-800 font-medium mb-2">
-                  ¿Estás seguro de que deseas cancelar esta pre-orden?
-                </p>
                 <div className="text-sm text-red-700 space-y-1">
                   <p><span className="font-medium">Pre-orden #:</span> {preordenACancelar.id_preorden}</p>
                   <p><span className="font-medium">Cliente:</span> {preordenACancelar.nombre_cliente || 'Sin nombre'}</p>
@@ -3021,7 +3870,7 @@ const PuntoVenta = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Contraseña de Administrador o Superadministrador <span className="text-red-500">*</span>
+                  Contraseña de Administrador<span className="text-red-500">*</span>
                 </label>
                 <input
                   type="password"
@@ -3036,9 +3885,6 @@ const PuntoVenta = () => {
                   className="input w-full"
                   autoFocus
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Se requiere la contraseña de un administrador o superadministrador para confirmar la cancelación
-                </p>
               </div>
             </div>
 
@@ -3063,7 +3909,7 @@ const PuntoVenta = () => {
                 {procesando && (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 )}
-                Confirmar Cancelación
+                Confirmar
               </button>
             </div>
           </div>
