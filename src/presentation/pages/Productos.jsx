@@ -861,7 +861,7 @@ const Productos = () => {
                       <span className="text-sm font-medium text-gray-700">Lleva Proteína/Creatina</span>
                     </label>
                     <p className="text-xs text-gray-500 mt-1 ml-6">
-                      Marca esta opción si el producto permite seleccionar proteína normal o isolatada (para categoría runner_proteina)
+                      Marca esta opción si el producto permite seleccionar proteína normal o isolatada
                     </p>
                   </div>
                 </div>

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { X, Package, Bell, AlertTriangle } from 'lucide-react'
+import { X, Package, Bell, AlertTriangle, DollarSign } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 const ToastNotification = ({ notification, onClose, onNavigate, duration = 5000, isActive = false }) => {
@@ -103,6 +103,8 @@ const ToastNotification = ({ notification, onClose, onNavigate, duration = 5000,
       return <Package className={`w-5 h-5 ${notification.tipo === 'comanda' ? 'text-matcha-600' : 'text-gray-600'}`} />
     } else if (notification.icono === 'alert-triangle') {
       return <AlertTriangle className={`w-5 h-5 ${notification.tipo === 'inventario' ? (notification.estado === 'critical' ? 'text-red-600' : 'text-yellow-600') : 'text-gray-600'}`} />
+    } else if (notification.icono === 'dollar-sign') {
+      return <DollarSign className="w-5 h-5 text-amber-600" />
     }
     // Icono para pre-órdenes debe ser azul
     if (notification.tipo === 'preorden') {
@@ -118,6 +120,8 @@ const ToastNotification = ({ notification, onClose, onNavigate, duration = 5000,
       return notification.estado === 'critical' ? 'bg-white border-red-200' : 'bg-white border-yellow-200'
     } else if (notification.tipo === 'preorden') {
       return 'bg-white border-blue-200'
+    } else if (notification.tipo === 'comanda-lista-cobrar') {
+      return 'bg-white border-amber-200'
     }
     return 'bg-white border-gray-200'
   }

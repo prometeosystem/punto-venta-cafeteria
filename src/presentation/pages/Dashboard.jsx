@@ -142,9 +142,17 @@ const Dashboard = () => {
     }
   }
 
-  // Formatear fecha para gráficos
+  // Número del día para ventas (1, 2, 3... se reinicia cada día)
+  const ventasConNumeroDia = [...ventas]
+    .sort((a, b) => (a.id_venta || 0) - (b.id_venta || 0))
+    .map((v, i) => ({ ...v, numero_dia: i + 1 }))
+
+  // Formatear fecha para gráficos (evitar desfase: tratar YYYY-MM-DD como fecha local)
   const formatearFechaSemana = (fechaStr) => {
-    const fecha = new Date(fechaStr)
+    if (!fechaStr) return ''
+    const parts = String(fechaStr).split('T')[0].split('-')
+    if (parts.length !== 3) return fechaStr
+    const fecha = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
     return fecha.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric' })
   }
 
@@ -256,7 +264,10 @@ const Dashboard = () => {
                 <Tooltip 
                   formatter={(value) => `$${value.toFixed(2)}`}
                   labelFormatter={(label) => {
-                    const fecha = new Date(label)
+                    if (!label) return ''
+                    const parts = String(label).split('T')[0].split('-')
+                    if (parts.length !== 3) return label
+                    const fecha = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
                     return fecha.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'short' })
                   }}
                   contentStyle={{ backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px' }}
@@ -307,7 +318,7 @@ const Dashboard = () => {
           Ventas Recientes
         </h2>
         <div className="space-y-3">
-          {ventas.slice(0, 5).map((venta) => {
+          {ventasConNumeroDia.slice(0, 5).map((venta) => {
             const fecha = new Date(venta.fecha_venta)
             const tiempoTranscurrido = Math.floor((Date.now() - fecha.getTime()) / 60000) // minutos
             let tiempoTexto = ''
@@ -321,7 +332,7 @@ const Dashboard = () => {
             return (
               <div key={venta.id_venta} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                 <div className="flex-1">
-                  <p className="font-medium text-gray-900">Venta #{venta.id_venta}</p>
+                  <p className="font-medium text-gray-900">Venta #{venta.numero_dia ?? venta.id_venta}</p>
                   <p className="text-sm text-gray-500">
                     {venta.metodo_pago} - ${parseFloat(venta.total).toFixed(2)}
                   </p>
@@ -352,7 +363,7 @@ const Dashboard = () => {
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
               <h2 className="text-2xl font-bold text-gray-900">
-                Detalles de Venta #{ventaDetalle?.id_venta || ''}
+                Detalles de Venta #{ventaDetalle ? (ventasConNumeroDia.find(v => v.id_venta === ventaDetalle.id_venta)?.numero_dia ?? ventaDetalle.id_venta) : ''}
               </h2>
               <button
                 onClick={() => setMostrarModalDetalles(false)}
@@ -372,6 +383,12 @@ const Dashboard = () => {
                 <div className="space-y-6">
                   {/* Información General */}
                   <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">Cliente:</p>
+                      <p className="font-medium text-gray-900">
+                        {ventaDetalle.nombre_cliente}
+                      </p>
+                    </div>
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Fecha</p>
                       <p className="font-medium text-gray-900">
@@ -398,6 +415,25 @@ const Dashboard = () => {
                         ${parseFloat(ventaDetalle.total || 0).toFixed(2)}
                       </p>
                     </div>
+                    {(ventaDetalle.total_descuento != null && parseFloat(ventaDetalle.total_descuento) > 0) && (
+                      <div>
+                        <p className="text-sm text-gray-600 mb-1">Descuento</p>
+                        <p className="font-medium text-gray-900">
+                          -${parseFloat(ventaDetalle.total_descuento).toFixed(2)}
+                          {ventaDetalle.descuento_tipo === 'porcentaje' && ventaDetalle.descuento_valor != null && (
+                            <span className="text-gray-500 text-sm ml-1">({ventaDetalle.descuento_valor}%)</span>
+                          )}
+                        </p>
+                      </div>
+                    )}
+                    {(ventaDetalle.monto_propina != null && parseFloat(ventaDetalle.monto_propina) > 0) && (
+                      <div>
+                        <p className="text-sm text-gray-600 mb-1">Propina</p>
+                        <p className="font-medium text-gray-900">
+                          +${parseFloat(ventaDetalle.monto_propina).toFixed(2)}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Tipo de Leche Global (si existe) */}
@@ -432,7 +468,9 @@ const Dashboard = () => {
                       {ventaDetalle.detalles && ventaDetalle.detalles.length > 0 ? (
                         ventaDetalle.detalles.map((detalle, index) => {
                           const producto = productos.find(p => p.id_producto === detalle.id_producto)
-                          const nombreProducto = producto?.nombre || `Producto #${detalle.id_producto}`
+                          const nombreProducto = (detalle.id_producto == null || detalle.id_producto === '')
+                            ? (detalle.nombre_producto || 'Producto personalizado')
+                            : (producto?.nombre || `Producto #${detalle.id_producto}`)
                           
                           // Parsear observaciones
                           const observaciones = detalle.observaciones ? detalle.observaciones.split(' - ') : []

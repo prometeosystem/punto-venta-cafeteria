@@ -14,24 +14,33 @@ export const useVentas = () => {
       if (!usuario) {
         throw new Error('Usuario no autenticado')
       }
+      // Asegurar id_usuario (backend puede devolver snake_case; algunos stores usan camelCase)
+      const idUsuario = usuario.id_usuario ?? usuario.idUsuario
+      if (idUsuario == null || idUsuario === '') {
+        throw new Error('Sesión incompleta: falta id de usuario. Vuelve a iniciar sesión.')
+      }
+
+      // Sanitizar id_cliente y total para evitar enviar strings inválidos al backend
+      const idClienteRaw = ventaData.id_cliente
+      const id_cliente = idClienteRaw != null && String(idClienteRaw).match(/^\d+$/) ? Number(idClienteRaw) : null
+      const total = parseFloat(String(ventaData.total).replace(/,/g, '')) || 0
 
       const venta = {
-        id_cliente: ventaData.id_cliente || null,
-        nombre_cliente: ventaData.nombre_cliente || null,
-        id_usuario: usuario.id_usuario,
-        total: ventaData.total,
+        id_cliente,
+        nombre_cliente: ventaData.nombre_cliente != null ? String(ventaData.nombre_cliente).trim() || null : null,
+        id_usuario: Number(idUsuario),
+        total,
         metodo_pago: ventaData.metodo_pago,
-        // Campos del modal
         tipo_servicio: ventaData.tipo_servicio || null,
         tipo_leche: ventaData.tipo_leche || null,
         comentarios: ventaData.comentarios || null,
-        extra_leche: ventaData.extra_leche || null,
+        extra_leche: ventaData.extra_leche ?? null,
         detalles: ventaData.detalles,
+        descuento_tipo: ventaData.descuento_tipo ?? null,
+        descuento_valor: ventaData.descuento_valor != null ? parseFloat(ventaData.descuento_valor) : null,
+        total_descuento: ventaData.total_descuento != null ? parseFloat(ventaData.total_descuento) : null,
+        pagada: ventaData.pagada !== undefined ? ventaData.pagada : true,
       }
-
-      // Log de depuración
-      console.log('📦 Datos de venta a enviar:', venta)
-      console.log('📦 nombre_cliente:', venta.nombre_cliente)
 
       const response = await ventasService.crearVenta(venta)
       return response
@@ -86,6 +95,21 @@ export const useVentas = () => {
     }
   }
 
+  const procesarPagoVenta = async (idVenta, body) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const data = await ventasService.procesarPagoVenta(idVenta, body)
+      return data
+    } catch (err) {
+      const errorMessage = err.response?.data?.error || err.response?.data?.detail || err.message || 'Error al procesar pago'
+      setError(errorMessage)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return {
     loading,
     error,
@@ -93,6 +117,7 @@ export const useVentas = () => {
     obtenerVentas,
     obtenerVenta,
     obtenerInfoTicketActual,
+    procesarPagoVenta,
   }
 }
 

@@ -35,11 +35,26 @@ export const useComandas = () => {
     }
   }
 
-  const actualizarEstado = async (idComanda, nuevoEstado) => {
+  const obtenerComandasTerminadasSinPagar = async () => {
     setLoading(true)
     setError(null)
     try {
-      const response = await comandasService.actualizarEstadoComanda(idComanda, nuevoEstado)
+      const data = await comandasService.obtenerComandasTerminadasSinPagar()
+      return data
+    } catch (err) {
+      const errorMessage = err.response?.data?.detail || err.message || 'Error al obtener comandas'
+      setError(errorMessage)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const actualizarEstado = async (idComanda, nuevoEstado, permitirStockNegativo = false) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const response = await comandasService.actualizarEstadoComanda(idComanda, nuevoEstado, permitirStockNegativo)
       return response
     } catch (err) {
       const errorMessage = err.response?.data?.detail || err.message || 'Error al actualizar estado'
@@ -54,6 +69,7 @@ export const useComandas = () => {
     loading,
     error,
     obtenerComandas,
+    obtenerComandasTerminadasSinPagar,
     crearComanda,
     actualizarEstado,
   }

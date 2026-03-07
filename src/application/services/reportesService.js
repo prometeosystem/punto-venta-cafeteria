@@ -32,6 +32,28 @@ export const reportesService = {
       }
     })
     return response.data
+  },
+
+  // Total de propinas por rango de fechas
+  obtenerPropinasPorFecha: async (fechaInicio, fechaFin) => {
+    const response = await api.get('/api/reportes/propinas_por_fecha', {
+      params: {
+        fecha_inicio: fechaInicio,
+        fecha_fin: fechaFin
+      }
+    })
+    return response.data
+  },
+
+  // Total de descuentos por rango de fechas
+  obtenerDescuentosPorFecha: async (fechaInicio, fechaFin) => {
+    const response = await api.get('/api/reportes/descuentos_por_fecha', {
+      params: {
+        fecha_inicio: fechaInicio,
+        fecha_fin: fechaFin
+      }
+    })
+    return response.data
   }
 }
 
