@@ -9,14 +9,15 @@ import {
   ShoppingCart,
   Package,
   Warehouse,
-  Users,
-  ClipboardList,
   BarChart3,
   Settings,
-  Menu,
   X,
   ExternalLink,
   Coffee,
+  FileText,
+  Wallet,
+  ArrowLeftRight,
+  Calculator,
 } from 'lucide-react'
 
 import { User as UserIcon } from 'lucide-react'
@@ -24,13 +25,16 @@ import { User as UserIcon } from 'lucide-react'
 const menuItems = [
   { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { path: '/punto-venta', icon: ShoppingCart, label: 'Punto de Venta' },
+  { path: '/caja', icon: Wallet, label: 'Caja' },
+  { path: '/movimientos-caja', icon: ArrowLeftRight, label: 'Movimientos' },
   { path: '/barista', icon: Coffee, label: 'Barista' },
   { path: '/productos', icon: Package, label: 'Productos' },
   { path: '/inventario', icon: Warehouse, label: 'Inventario' },
-  // { path: '/clientes', icon: Users, label: 'Clientes' }, // Temporalmente oculto
   { path: '/loyabit', icon: ExternalLink, label: 'Loyabit' },
   { path: '/empleados', icon: UserIcon, label: 'Empleados' },
   { path: '/reportes', icon: BarChart3, label: 'Reportes' },
+  { path: '/contabilidad', icon: Calculator, label: 'Contabilidad' },
+  { path: '/bitacora', icon: FileText, label: 'Bitácora' },
   { path: '/configuracion', icon: Settings, label: 'Configuración' },
 ]
 

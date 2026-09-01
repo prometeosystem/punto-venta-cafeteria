@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { TrendingUp, DollarSign, Package, ShoppingCart, Loader2, Eye, X } from 'lucide-react'
 import { useVentas } from '../hooks/useVentas'
 import { useComandas } from '../hooks/useComandas'
@@ -41,36 +41,19 @@ const Dashboard = () => {
         // Obtener ventas del día (usar zona horaria de CDMX para coincidir con el backend)
         // El backend usa America/Mexico_City, así que necesitamos usar la fecha local
         const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' }) // Formato YYYY-MM-DD
-        console.log('[Dashboard] Obteniendo ventas del día (CDMX):', hoy)
         const ventasHoy = await obtenerVentas(hoy, hoy).catch(err => {
-          console.error('[Dashboard] Error al obtener ventas:', err)
+          // Error silencioso - no mostrar en consola
           return []
         })
-        console.log('[Dashboard] Ventas obtenidas:', ventasHoy)
-        console.log('[Dashboard] Cantidad de ventas:', ventasHoy?.length || 0)
-        if (ventasHoy && ventasHoy.length > 0) {
-          console.log('[Dashboard] Primera venta:', ventasHoy[0])
-          console.log('[Dashboard] Detalles primera venta:', ventasHoy[0]?.detalles)
-          console.log('[Dashboard] Total primera venta:', ventasHoy[0]?.total)
-        } else {
-          console.log('[Dashboard] No hay ventas para el día:', hoy)
-          // Intentar obtener todas las ventas para ver si hay algún problema
-          const todasVentas = await obtenerVentas().catch(() => [])
-          console.log('[Dashboard] Total de ventas en el sistema:', todasVentas?.length || 0)
-          if (todasVentas && todasVentas.length > 0) {
-            console.log('[Dashboard] Última venta:', todasVentas[0])
-            console.log('[Dashboard] Fecha última venta:', todasVentas[0]?.fecha_venta)
-          }
-        }
         setVentas(ventasHoy || [])
 
         // Obtener comandas activas
         const comandasActivas = await obtenerComandas('pendiente').catch(err => {
-          console.error('Error al obtener comandas activas:', err)
+          // Error silencioso - no mostrar en consola
           return []
         })
         const comandasEnPreparacion = await obtenerComandas('en_preparacion').catch(err => {
-          console.error('Error al obtener comandas en preparación:', err)
+          // Error silencioso - no mostrar en consola
           return []
         })
         setComandas([...(comandasActivas || []), ...(comandasEnPreparacion || [])])
@@ -96,7 +79,7 @@ const Dashboard = () => {
         )
         setProductosMasVendidos(productosMasVendidosData || [])
       } catch (error) {
-        console.error('Error al cargar datos del dashboard:', error)
+        // Error silencioso - no mostrar en consola
         // Asegurarse de que los estados estén vacíos si hay error
         setVentas([])
         setComandas([])
@@ -109,21 +92,22 @@ const Dashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Calcular estadísticas
-  console.log('[Dashboard] Calculando estadísticas con ventas:', ventas.length)
-  const ventasDelDia = ventas.reduce((sum, v) => sum + parseFloat(v.total || 0), 0)
-  const ordenesActivas = comandas.length
-  const pedidosDelDia = ventas.length // Número de pedidos/ventas del día
-  const productosVendidosDelDia = ventas.reduce((sum, v) => {
-    // Sumar las cantidades de todos los detalles de productos en cada venta
-    const detallesSum = v.detalles?.reduce((dSum, d) => dSum + (d.cantidad || 0), 0) || 0
-    console.log('[Dashboard] Venta ID:', v.id_venta, 'Detalles:', v.detalles, 'Sum:', detallesSum)
-    return sum + detallesSum
-  }, 0)
-  console.log('[Dashboard] Estadísticas calculadas:')
-  console.log('  - Ventas del día:', ventasDelDia)
-  console.log('  - Pedidos del día:', pedidosDelDia)
-  console.log('  - Productos vendidos:', productosVendidosDelDia)
+  // Calcular estadísticas - memoizado para evitar re-ejecuciones innecesarias
+  const estadisticas = useMemo(() => {
+    const ventasDelDia = ventas.reduce((sum, v) => sum + parseFloat(v.total || 0), 0)
+    const ordenesActivas = comandas.length
+    const pedidosDelDia = ventas.length // Número de pedidos/ventas del día
+    const productosVendidosDelDia = ventas.reduce((sum, v) => {
+      // Sumar las cantidades de todos los detalles de productos en cada venta
+      const detallesSum = v.detalles?.reduce((dSum, d) => dSum + (d.cantidad || 0), 0) || 0
+      return sum + detallesSum
+    }, 0)
+
+    return { ventasDelDia, ordenesActivas, pedidosDelDia, productosVendidosDelDia }
+  }, [ventas, comandas])
+
+  // Extraer valores para usar en el JSX
+  const { ventasDelDia, ordenesActivas, pedidosDelDia, productosVendidosDelDia } = estadisticas
 
   // Abrir modal de detalles
   const abrirModalDetalles = async (idVenta) => {
@@ -133,10 +117,9 @@ const Dashboard = () => {
     
     try {
       const ventaCompleta = await obtenerVenta(idVenta)
-      console.log('[Dashboard] Venta completa obtenida:', ventaCompleta)
       setVentaDetalle(ventaCompleta)
     } catch (error) {
-      console.error('[Dashboard] Error al obtener detalles de venta:', error)
+      // Error silencioso - no mostrar en consola
     } finally {
       setCargandoDetalle(false)
     }

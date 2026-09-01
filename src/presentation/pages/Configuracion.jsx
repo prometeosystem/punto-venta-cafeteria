@@ -1,10 +1,17 @@
 import { useState, useEffect } from 'react'
-import { Save, Bell, CreditCard, Store, Users, Package, DollarSign, ShoppingCart, Loader2 } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Bell, CreditCard, Store, Users, Loader2, Tags, ChevronRight } from 'lucide-react'
 import { useUsuarios } from '../hooks/useUsuarios'
 import { useVentas } from '../hooks/useVentas'
 import { useProductos } from '../hooks/useProductos'
 import { useClientes } from '../hooks/useClientes'
 import { useComandas } from '../hooks/useComandas'
+import {
+  METODOS_PAGO_DISPONIBLES,
+  obtenerMetodosPagoConfig,
+  guardarMetodosPagoConfig,
+} from '../utils/metodosPagoConfig'
+import Swal from 'sweetalert2'
 
 const Configuracion = () => {
   const { usuarios, loading: usuariosLoading } = useUsuarios()
@@ -12,8 +19,8 @@ const Configuracion = () => {
   const { productos } = useProductos()
   const { clientes } = useClientes()
   const { obtenerComandas } = useComandas()
-  
-  const [metodosPagoUsados, setMetodosPagoUsados] = useState([])
+
+  const [metodosPagoConfig, setMetodosPagoConfig] = useState(() => obtenerMetodosPagoConfig())
   const [estadisticas, setEstadisticas] = useState({
     totalVentas: 0,
     totalComandas: 0,
@@ -28,24 +35,16 @@ const Configuracion = () => {
     const cargarDatos = async () => {
       try {
         setLoading(true)
-        
-        // Obtener ventas recientes para métodos de pago
+
         const hoy = new Date()
         const hace30Dias = new Date()
         hace30Dias.setDate(hace30Dias.getDate() - 30)
-        
+
         const ventasRecientes = await obtenerVentas(
           hace30Dias.toISOString().split('T')[0],
           hoy.toISOString().split('T')[0]
         ).catch(() => [])
-        
-        // Obtener métodos de pago únicos usados
-        if (Array.isArray(ventasRecientes)) {
-          const metodosUnicos = [...new Set(ventasRecientes.map(v => v.metodo_pago).filter(Boolean))]
-          setMetodosPagoUsados(metodosUnicos)
-        }
-        
-        // Obtener todas las comandas para contar (sin filtro de estado)
+
         let todasComandas = []
         try {
           const comandasPendientes = await obtenerComandas('pendiente').catch(() => [])
@@ -62,16 +61,15 @@ const Configuracion = () => {
           console.error('Error al obtener comandas:', error)
           todasComandas = []
         }
-        
-        // Calcular estadísticas
+
         const productosActivos = productos.filter(p => p.activo === 1 || p.activo === true).length
         const productosInactivos = productos.filter(p => p.activo === 0 || p.activo === false).length
         const usuariosActivos = usuarios.filter(u => u.activo === 1 || u.activo === true).length
-        
-        const totalVentas = Array.isArray(ventasRecientes) 
+
+        const totalVentas = Array.isArray(ventasRecientes)
           ? ventasRecientes.reduce((sum, v) => sum + parseFloat(v.total || 0), 0)
           : 0
-        
+
         setEstadisticas({
           totalVentas,
           totalComandas: Array.isArray(todasComandas) ? todasComandas.length : 0,
@@ -86,10 +84,23 @@ const Configuracion = () => {
         setLoading(false)
       }
     }
-    
+
     cargarDatos()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productos, usuarios, clientes])
+
+  const toggleMetodoPago = (id) => {
+    const activos = Object.values(metodosPagoConfig).filter(Boolean).length
+    if (metodosPagoConfig[id] && activos <= 1) {
+      Swal.fire('Atención', 'Debe quedar al menos un método de pago activo', 'warning')
+      return
+    }
+    const next = guardarMetodosPagoConfig({
+      ...metodosPagoConfig,
+      [id]: !metodosPagoConfig[id],
+    })
+    setMetodosPagoConfig(next)
+  }
 
   const getRolLabel = (rol) => {
     const labels = {
@@ -99,16 +110,6 @@ const Configuracion = () => {
       superadministrador: 'Super Administrador',
     }
     return labels[rol] || rol
-  }
-
-  const getMetodoPagoLabel = (metodo) => {
-    const labels = {
-      efectivo: 'Efectivo',
-      tarjeta: 'Tarjeta de Débito/Crédito',
-      transferencia: 'Transferencia Bancaria',
-      'pago-movil': 'Pago Móvil',
-    }
-    return labels[metodo] || metodo
   }
 
   if (loading) {
@@ -123,6 +124,26 @@ const Configuracion = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Configuración</h1>
+      </div>
+
+      {/* Categorías de movimiento */}
+      <div className="card">
+        <div className="flex items-center gap-3 mb-3">
+          <Tags className="w-5 h-5 text-matcha-600" />
+          <h2 className="text-lg font-semibold text-gray-900">
+            Categorías de movimiento
+          </h2>
+        </div>
+        <p className="text-sm text-gray-600 mb-4">
+          Administra las categorías usadas en entradas y salidas de caja.
+        </p>
+        <Link
+          to="/categorias-movimiento"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-matcha-500 text-white text-sm font-medium hover:bg-matcha-600 transition-colors"
+        >
+          Gestionar categorías
+          <ChevronRight className="w-4 h-4" />
+        </Link>
       </div>
 
       {/* Información del negocio */}
@@ -171,32 +192,37 @@ const Configuracion = () => {
         </div>
       </div>
 
-      {/* Configuración de Pagos */}
+      {/* Métodos de pago en Punto de Venta */}
       <div className="card">
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-3 mb-2">
           <CreditCard className="w-5 h-5 text-matcha-600" />
           <h2 className="text-lg font-semibold text-gray-900">
-            Métodos de Pago Usados (Últimos 30 días)
+            Métodos de pago en Punto de Venta
           </h2>
         </div>
+        <p className="text-sm text-gray-600 mb-4">
+          Activa o desactiva qué botones de pago aparecen al cobrar.
+        </p>
         <div className="space-y-3">
-          {loading ? (
-            <div className="flex items-center justify-center py-4">
-              <Loader2 className="w-5 h-5 animate-spin text-matcha-600" />
-            </div>
-          ) : metodosPagoUsados.length === 0 ? (
-            <p className="text-sm text-gray-500 py-4">No hay métodos de pago registrados</p>
-          ) : (
-            metodosPagoUsados.map((metodo) => (
-              <div
-                key={metodo}
-                className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg bg-gray-50"
-              >
-                <div className="w-4 h-4 rounded-full bg-green-500"></div>
-                <span className="text-gray-900 font-medium">{getMetodoPagoLabel(metodo)}</span>
+          {METODOS_PAGO_DISPONIBLES.map((metodo) => (
+            <label
+              key={metodo.id}
+              className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
+            >
+              <div>
+                <p className="text-gray-900 font-medium">{metodo.label}</p>
+                <p className="text-sm text-gray-500">
+                  Botón en POS: “{metodo.boton}”
+                </p>
               </div>
-            ))
-          )}
+              <input
+                type="checkbox"
+                checked={!!metodosPagoConfig[metodo.id]}
+                onChange={() => toggleMetodoPago(metodo.id)}
+                className="w-4 h-4"
+              />
+            </label>
+          ))}
         </div>
       </div>
 

@@ -254,14 +254,17 @@ const Empleados = () => {
       // Variable para almacenar la contraseña final (debe ser string)
       let contrasenaFinal = ''
       
-      // Verificar qué tipo de dato es
-      console.log('🔍 Tipo de contrasenaRaw:', typeof contrasenaRaw)
-      console.log('🔍 Valor de contrasenaRaw:', contrasenaRaw)
-      console.log('🔍 Es objeto?', typeof contrasenaRaw === 'object' && contrasenaRaw !== null)
+      // Verificar qué tipo de dato es (solo en desarrollo)
+      if (import.meta.env.DEV) {
+        console.log('🔍 Tipo de contrasenaRaw:', typeof contrasenaRaw)
+        console.log('🔍 Es objeto?', typeof contrasenaRaw === 'object' && contrasenaRaw !== null)
+      }
       
       // CASO 1: Si es un objeto/diccionario
       if (contrasenaRaw && typeof contrasenaRaw === 'object' && !Array.isArray(contrasenaRaw)) {
-        console.log('⚠️ La contraseña es un objeto, extrayendo valor...')
+        if (import.meta.env.DEV) {
+          console.log('⚠️ La contraseña es un objeto, extrayendo valor...')
+        }
         
         // Intentar obtener valorCompleto primero (es el campo más común)
         contrasenaFinal = contrasenaRaw.valorCompleto || ''
@@ -281,7 +284,9 @@ const Empleados = () => {
             // Buscar un string que tenga entre 6 y 15 caracteres
             if (typeof value === 'string' && value.length >= 6 && value.length <= 15) {
               contrasenaFinal = value
-              console.log(`✅ Encontrado valor en clave "${key}":`, value)
+              if (import.meta.env.DEV) {
+                console.log(`✅ Encontrado valor en clave "${key}":`, value)
+              }
               break
             }
           }
@@ -299,11 +304,11 @@ const Empleados = () => {
           return
         }
         
-        console.log('✅ Contraseña extraída del objeto:', contrasenaFinal)
+        // Contraseña procesada correctamente
       }
       // CASO 2: Si ya es un string
       else if (typeof contrasenaRaw === 'string') {
-        console.log('✅ La contraseña ya es un string')
+        // Contraseña ya es string
         contrasenaFinal = contrasenaRaw
       }
       // CASO 3: Otro tipo (number, boolean, etc.)
@@ -398,22 +403,13 @@ const Empleados = () => {
       // PASO 4: VERIFICACIÓN FINAL ANTES DE ENVIAR
       // ============================================
       
-      console.log('📤 ===== DATOS A ENVIAR AL BACKEND =====')
-      console.log('Tipo de contrasena:', typeof empleadoData.contrasena)
-      console.log('Valor de contrasena:', empleadoData.contrasena)
-      if (empleadoData.contrasena) {
-        console.log('Longitud de contrasena:', empleadoData.contrasena.length)
-      }
-      console.log('Es string?', typeof empleadoData.contrasena === 'string')
-      console.log('Datos completos:', JSON.stringify({
-        ...empleadoData,
-        contrasena: empleadoData.contrasena ? `[${empleadoData.contrasena.length} caracteres]` : 'no incluida'
-      }, null, 2))
-      console.log('========================================')
+      // Datos preparados para envío al backend
       
       // Verificación de seguridad adicional
       if (empleadoData.contrasena && typeof empleadoData.contrasena !== 'string') {
-        console.error('❌ ERROR CRÍTICO: La contraseña no es un string. Tipo:', typeof empleadoData.contrasena)
+        if (import.meta.env.DEV) {
+          console.error('❌ ERROR CRÍTICO: La contraseña no es un string. Tipo:', typeof empleadoData.contrasena)
+        }
         await Swal.fire({
           icon: 'error',
           title: 'Error interno',
@@ -425,7 +421,9 @@ const Empleados = () => {
       }
       
       if (empleadoData.contrasena && (empleadoData.contrasena.length < 6 || empleadoData.contrasena.length > 15)) {
-        console.error('❌ ERROR CRÍTICO: La contraseña tiene longitud inválida:', empleadoData.contrasena.length)
+        if (import.meta.env.DEV) {
+          console.error('❌ ERROR CRÍTICO: La contraseña tiene longitud inválida:', empleadoData.contrasena.length)
+        }
         await Swal.fire({
           icon: 'error',
           title: 'Error interno',
@@ -461,7 +459,9 @@ const Empleados = () => {
       cerrarModalCrear()
       await obtenerUsuarios()
     } catch (error) {
-      console.error('Error al guardar empleado:', error)
+      if (import.meta.env.DEV) {
+        console.error('Error al guardar empleado:', error)
+      }
       
       // Extraer mensaje de error de diferentes formatos posibles
       let errorMsg = 'Error al guardar el empleado'
@@ -544,7 +544,9 @@ const Empleados = () => {
         })
         await obtenerUsuarios()
       } catch (error) {
-        console.error('Error al desactivar empleado:', error)
+        if (import.meta.env.DEV) {
+          console.error('Error al desactivar empleado:', error)
+        }
         
         // Extraer mensaje de error de diferentes formatos posibles
         let errorMsg = 'Error al desactivar el empleado'

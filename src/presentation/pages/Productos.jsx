@@ -1275,11 +1275,9 @@ const Productos = () => {
       {/* Modal de Recorte de Imagen - Fuera del modal del producto para evitar problemas de z-index */}
       {mostrarCropModal && imagenParaRecortar && (
         <>
-          {console.log('Renderizando ImageCropModal', { mostrarCropModal, tieneImagen: !!imagenParaRecortar })}
           <ImageCropModal
             imageSrc={imagenParaRecortar}
             onCropComplete={(croppedFile) => {
-              console.log('Imagen recortada recibida')
               setImagen(croppedFile)
               setEliminarImagen(false)
               // Crear preview de la imagen recortada
@@ -1290,14 +1288,12 @@ const Productos = () => {
               reader.readAsDataURL(croppedFile)
             }}
             onClose={() => {
-              console.log('Cerrando modal de recorte')
               setMostrarCropModal(false)
               setImagenParaRecortar(null)
             }}
           />
         </>
       )}
-      {console.log('Estado actual:', { mostrarCropModal, tieneImagen: !!imagenParaRecortar })}
     </div>
   )
 }

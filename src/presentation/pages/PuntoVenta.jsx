@@ -1,13 +1,18 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Plus, Minus, Trash2, ShoppingCart, ChevronDown, ChevronUp, Loader2, Package, Clock, User, CreditCard, X, Search, Trash, Coins, Percent, CheckCircle } from 'lucide-react'
 import { useProductos } from '../hooks/useProductos'
 import { useVentas } from '../hooks/useVentas'
 import { useComandas } from '../hooks/useComandas'
 import { usePreordenes } from '../hooks/usePreordenes'
 import { useAuth } from '../context/AuthContext'
+import { useCaja } from '../hooks/useCaja'
+import { imprimirTicket, itemsDesdeCarrito } from '../utils/imprimirTicket'
+import { obtenerMetodosPagoActivos } from '../utils/metodosPagoConfig'
 import Swal from 'sweetalert2'
 
 const PuntoVenta = () => {
+  const navigate = useNavigate()
   const [cart, setCart] = useState([])
   const [expandedCategories, setExpandedCategories] = useState({})
   const [metodoPago, setMetodoPago] = useState(null)
@@ -33,6 +38,8 @@ const PuntoVenta = () => {
   const { crearComanda, obtenerComandasTerminadasSinPagar, loading: comandaLoading } = useComandas()
   const { obtenerPreordenes, procesarPago, actualizarPreorden, cancelarPreorden, crearPreorden, obtenerPreorden, loading: preordenesLoading } = usePreordenes()
   const { usuario } = useAuth()
+  const { estado: estadoCaja, loading: cajaLoading } = useCaja(15000)
+  const [metodosPagoActivos, setMetodosPagoActivos] = useState(() => obtenerMetodosPagoActivos())
   const [numeroTicket, setNumeroTicket] = useState(null)
   const [mostrarModalCancelar, setMostrarModalCancelar] = useState(false)
   const [passwordCancelar, setPasswordCancelar] = useState('')
@@ -63,6 +70,35 @@ const PuntoVenta = () => {
   // Estados para producto personalizado
   const [nombreProductoPersonalizado, setNombreProductoPersonalizado] = useState('')
   const [precioProductoPersonalizado, setPrecioProductoPersonalizado] = useState('')
+
+  // Si la caja está cerrada, redirigir a abrir caja
+  useEffect(() => {
+    if (cajaLoading) return
+    if (estadoCaja && estadoCaja.abierta === false) {
+      navigate('/caja', { replace: true, state: { from: 'punto-venta', cajaCerrada: true } })
+    }
+  }, [cajaLoading, estadoCaja, navigate])
+
+  // Escuchar cambios de métodos de pago desde Configuración
+  useEffect(() => {
+    const sync = () => {
+      const activos = obtenerMetodosPagoActivos()
+      setMetodosPagoActivos(activos)
+      setMetodoPago((prev) => {
+        if (!prev) return prev
+        return activos.some((m) => m.id === prev) ? prev : null
+      })
+    }
+    const onStorage = (e) => {
+      if (e.key === 'zona2_metodos_pago') sync()
+    }
+    window.addEventListener('metodos-pago-config-changed', sync)
+    window.addEventListener('storage', onStorage)
+    return () => {
+      window.removeEventListener('metodos-pago-config-changed', sync)
+      window.removeEventListener('storage', onStorage)
+    }
+  }, [])
 
   // Cargar número de ticket actual
   const cargarNumeroTicket = async () => {
@@ -499,6 +535,88 @@ const PuntoVenta = () => {
     setMostrarModalFinalizar(true)
   }
 
+  const ofrecerImpresionTicket = async ({ titulo, texto, ticketData }) => {
+    const result = await Swal.fire({
+      icon: 'success',
+      title: titulo,
+      text: texto,
+      showCancelButton: true,
+      confirmButtonText: 'Imprimir ticket (Enter)',
+      cancelButtonText: 'Cerrar (Esc)',
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#6b7280',
+      reverseButtons: true,
+      focusConfirm: true,
+      allowEnterKey: true,
+      allowEscapeKey: true,
+      keydownListenerCapture: true,
+      didOpen: () => {
+        const confirmBtn = Swal.getConfirmButton()
+        const cancelBtn = Swal.getCancelButton()
+        if (confirmBtn) confirmBtn.focus()
+        const onKey = (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            e.stopPropagation()
+            confirmBtn?.click()
+          } else if (e.key === 'Escape') {
+            e.preventDefault()
+            e.stopPropagation()
+            cancelBtn?.click()
+          }
+        }
+        document.addEventListener('keydown', onKey, true)
+        Swal.getPopup()._onTicketKeys = onKey
+      },
+      willClose: () => {
+        const popup = Swal.getPopup()
+        if (popup?._onTicketKeys) {
+          document.removeEventListener('keydown', popup._onTicketKeys, true)
+        }
+      },
+    })
+    if (result.isConfirmed) {
+      const printResult = imprimirTicket(ticketData)
+      if (printResult?.error) {
+        await Swal.fire({
+          icon: 'warning',
+          title: 'No se pudo imprimir',
+          text: printResult.error,
+          confirmButtonColor: '#10b981',
+        })
+      }
+    }
+  }
+
+  const verificarCajaParaCobro = async () => {
+    if (metodoPago === 'efectivo' && !estadoCaja?.abierta) {
+      const result = await Swal.fire({
+        title: 'Caja cerrada',
+        text: 'No hay caja abierta. Debe abrir caja antes de cobrar en efectivo.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Ir a Caja',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#10b981',
+      })
+      if (result.isConfirmed) navigate('/caja')
+      return false
+    }
+    if (metodoPago !== 'efectivo' && !estadoCaja?.abierta) {
+      const continuar = await Swal.fire({
+        title: 'Sin caja abierta',
+        text: 'No hay caja abierta. La venta se registrará, pero se recomienda abrir caja.',
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonText: 'Continuar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#10b981',
+      })
+      if (!continuar.isConfirmed) return false
+    }
+    return true
+  }
+
   // Verificar si hay productos con leche en el carrito
   const tieneProductosConLeche = cart.some(item => {
     const idProducto = item.id_producto || item.id
@@ -508,6 +626,9 @@ const PuntoVenta = () => {
 
   // Función para procesar venta completa (o pago de comanda terminada si hay una seleccionada)
   const procesarVenta = async () => {
+    const cajaOk = await verificarCajaParaCobro()
+    if (!cajaOk) return
+
     setProcesando(true)
     setMostrarModalFinalizar(false)
     try {
@@ -524,12 +645,30 @@ const PuntoVenta = () => {
         }
         const resultado = await procesarPagoVenta(comandaTerminadaSeleccionada.id_venta, bodyPago)
         if (resultado?.error) throw new Error(resultado.error)
-        await Swal.fire({
-          icon: 'success',
-          title: '¡Pago procesado!',
-          text: 'La orden ha sido cobrada correctamente',
-          confirmButtonColor: '#10b981',
-          timer: 2000,
+        const subtotalTicket = Math.max(0, total + cart.reduce((sum, item) => {
+          let extra = 0
+          if (item.tipoLeche === 'deslactosada') extra += 15 * item.quantity
+          else if (item.tipoLeche === 'almendras') extra += 20 * item.quantity
+          if (item.extras?.length) extra += item.extras.length * 20 * item.quantity
+          if (item.tipoProteina === 'normal') extra += 30 * item.quantity
+          else if (item.tipoProteina === 'isolatada') extra += 35 * item.quantity
+          return sum + extra
+        }, 0) - totalDescuento)
+        const ticketData = {
+          numero: comandaTerminadaSeleccionada.numero_dia ?? comandaTerminadaSeleccionada.numero_pedido_dia ?? numeroTicket,
+          cliente: nombreCliente || comandaTerminadaSeleccionada.nombre_cliente || null,
+          tipoServicio: tipoServicio || null,
+          metodoPago,
+          cajero: usuario ? `${usuario.nombre || ''} ${usuario.apellido_paterno || ''}`.trim() : null,
+          items: itemsDesdeCarrito(cart),
+          subtotal: subtotalTicket + totalDescuento,
+          propina: montoPropina || 0,
+          total: subtotalTicket + (montoPropina || 0),
+        }
+        await ofrecerImpresionTicket({
+          titulo: '¡Pago procesado!',
+          texto: 'La orden ha sido cobrada correctamente. ¿Deseas imprimir el ticket?',
+          ticketData,
         })
         setComandaTerminadaSeleccionada(null)
         setCart([])
@@ -666,6 +805,19 @@ const PuntoVenta = () => {
         }))
       }
 
+      const ticketData = {
+        numero: ventaResponse?.numero_pedido_dia ?? ventaResponse?.numeroPedidoDia ?? numeroTicket,
+        cliente: nombreCliente || null,
+        tipoServicio,
+        metodoPago,
+        cajero: usuario ? `${usuario.nombre || ''} ${usuario.apellido_paterno || ''}`.trim() : null,
+        comentarios: comentarios || null,
+        items: itemsDesdeCarrito(cart),
+        subtotal: totalConExtra,
+        propina: montoPropina || 0,
+        total: totalFinalVenta + (montoPropina || 0),
+      }
+
       // Limpiar carrito y resetear
       setCart([])
       setMetodoPago(null)
@@ -680,12 +832,10 @@ const PuntoVenta = () => {
       // Actualizar número de ticket después de crear la venta
       await cargarNumeroTicket()
       
-      await Swal.fire({
-        icon: 'success',
-        title: '¡Venta procesada!',
-        text: 'La venta se ha procesado correctamente',
-        confirmButtonColor: '#10b981',
-        timer: 2000,
+      await ofrecerImpresionTicket({
+        titulo: '¡Venta procesada!',
+        texto: 'La venta se ha procesado correctamente. ¿Deseas imprimir el ticket?',
+        ticketData,
       })
       
       // Notificar a otras pantallas (como Barista) que se procesó un pago
@@ -861,6 +1011,8 @@ const PuntoVenta = () => {
   // Procesar pago de comanda terminada sin pagar (con propina, descuento y tipo servicio si se indicaron)
   const procesarPagoComandaTerminada = async () => {
     if (!comandaTerminadaSeleccionada || !metodoPago) return
+    const cajaOk = await verificarCajaParaCobro()
+    if (!cajaOk) return
     setProcesando(true)
     try {
       const bodyPago = {
@@ -874,12 +1026,30 @@ const PuntoVenta = () => {
       }
       const resultado = await procesarPagoVenta(comandaTerminadaSeleccionada.id_venta, bodyPago)
       if (resultado?.error) throw new Error(resultado.error)
-      await Swal.fire({
-        icon: 'success',
-        title: '¡Pago procesado!',
-        text: 'La orden ha sido cobrada correctamente',
-        confirmButtonColor: '#10b981',
-        timer: 2000,
+      const subtotalTicket = Math.max(0, total + cart.reduce((sum, item) => {
+        let extra = 0
+        if (item.tipoLeche === 'deslactosada') extra += 15 * item.quantity
+        else if (item.tipoLeche === 'almendras') extra += 20 * item.quantity
+        if (item.extras?.length) extra += item.extras.length * 20 * item.quantity
+        if (item.tipoProteina === 'normal') extra += 30 * item.quantity
+        else if (item.tipoProteina === 'isolatada') extra += 35 * item.quantity
+        return sum + extra
+      }, 0) - totalDescuento)
+      const ticketData = {
+        numero: comandaTerminadaSeleccionada.numero_dia ?? comandaTerminadaSeleccionada.numero_pedido_dia ?? numeroTicket,
+        cliente: nombreCliente || comandaTerminadaSeleccionada.nombre_cliente || null,
+        tipoServicio: tipoServicio || null,
+        metodoPago,
+        cajero: usuario ? `${usuario.nombre || ''} ${usuario.apellido_paterno || ''}`.trim() : null,
+        items: itemsDesdeCarrito(cart),
+        subtotal: subtotalTicket + totalDescuento,
+        propina: montoPropina || 0,
+        total: subtotalTicket + (montoPropina || 0),
+      }
+      await ofrecerImpresionTicket({
+        titulo: '¡Pago procesado!',
+        texto: 'La orden ha sido cobrada correctamente. ¿Deseas imprimir el ticket?',
+        ticketData,
       })
       setComandaTerminadaSeleccionada(null)
       setCart([])
@@ -1222,6 +1392,9 @@ const PuntoVenta = () => {
       return
     }
 
+    const cajaOk = await verificarCajaParaCobro()
+    if (!cajaOk) return
+
     setProcesando(true)
     try {
       // Sincronizar el carrito actual (incluyendo productos extras agregados) a la pre-orden
@@ -1316,12 +1489,24 @@ const PuntoVenta = () => {
           }))
         }
 
-        await Swal.fire({
-          icon: 'success',
-          title: '¡Pago procesado!',
-          text: 'El pago se ha procesado correctamente. La orden ahora está disponible para el barista.',
-          confirmButtonColor: '#10b981',
-          timer: 2000,
+        const ticketData = {
+          numero: numeroTicket,
+          ticketId: resultado.ticket_id || preordenSeleccionada.ticket_id || null,
+          cliente: nombreCliente || preordenSeleccionada.nombre_cliente || null,
+          tipoServicio: tipoServicio || preordenSeleccionada.tipo_servicio || null,
+          metodoPago,
+          cajero: usuario ? `${usuario.nombre || ''} ${usuario.apellido_paterno || ''}`.trim() : null,
+          comentarios: comentarios || preordenSeleccionada.comentarios || null,
+          items: itemsDesdeCarrito(cart),
+          subtotal: calcularSubtotalConExtras(),
+          propina: montoPropina || 0,
+          total: calcularSubtotalConExtras() + (montoPropina || 0),
+        }
+
+        await ofrecerImpresionTicket({
+          titulo: '¡Pago procesado!',
+          texto: 'El pago se procesó correctamente. ¿Deseas imprimir el ticket?',
+          ticketData,
         })
         
         // Notificar a otras pantallas (como Barista) que se procesó un pago
@@ -1972,10 +2157,19 @@ const PuntoVenta = () => {
     setTimeout(() => setHighlightedProduct(null), 3000)
   }
 
-  if (productosLoading) {
+  if (productosLoading || cajaLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-8 h-8 animate-spin text-matcha-600" />
+      </div>
+    )
+  }
+
+  if (estadoCaja && estadoCaja.abierta === false) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-matcha-600" />
+        <span className="ml-3 text-gray-600">Redirigiendo a abrir caja...</span>
       </div>
     )
   }
@@ -2659,27 +2853,22 @@ const PuntoVenta = () => {
                       </button>
 
                       {/* Método de pago */}
-                      <div className="grid grid-cols-2 gap-3">
-                        <button
-                          onClick={() => setMetodoPago('efectivo')}
-                          className={`w-full py-3 text-lg ${
-                            metodoPago === 'efectivo'
-                              ? 'btn-primary'
-                              : 'btn-outline'
-                          }`}
-                        >
-                          $ Efectivo
-                        </button>
-                        <button
-                          onClick={() => setMetodoPago('tarjeta')}
-                          className={`w-full py-3 text-lg ${
-                            metodoPago === 'tarjeta'
-                              ? 'btn-secondary'
-                              : 'btn-outline'
-                          }`}
-                        >
-                          Tarjeta
-                        </button>
+                      <div className={`grid gap-3 ${metodosPagoActivos.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                        {metodosPagoActivos.map((metodo) => (
+                          <button
+                            key={metodo.id}
+                            onClick={() => setMetodoPago(metodo.id)}
+                            className={`w-full py-3 text-lg ${
+                              metodoPago === metodo.id
+                                ? metodo.id === 'efectivo'
+                                  ? 'btn-primary'
+                                  : 'btn-secondary'
+                                : 'btn-outline'
+                            }`}
+                          >
+                            {metodo.boton}
+                          </button>
+                        ))}
                       </div>
 
                       {/* Botón procesar pago */}
@@ -3001,27 +3190,22 @@ const PuntoVenta = () => {
                     </>
                   )}
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      onClick={() => setMetodoPago('efectivo')}
-                      className={`w-full py-3 text-lg ${
-                        metodoPago === 'efectivo'
-                          ? 'btn-primary'
-                          : 'btn-outline'
-                      }`}
-                    >
-                      $ Efectivo
-                    </button>
-                    <button
-                      onClick={() => setMetodoPago('tarjeta')}
-                      className={`w-full py-3 text-lg ${
-                        metodoPago === 'tarjeta'
-                          ? 'btn-secondary'
-                          : 'btn-outline'
-                      }`}
-                    >
-                      Tarjeta
-                    </button>
+                  <div className={`grid gap-3 ${metodosPagoActivos.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                    {metodosPagoActivos.map((metodo) => (
+                      <button
+                        key={metodo.id}
+                        onClick={() => setMetodoPago(metodo.id)}
+                        className={`w-full py-3 text-lg ${
+                          metodoPago === metodo.id
+                            ? metodo.id === 'efectivo'
+                              ? 'btn-primary'
+                              : 'btn-secondary'
+                            : 'btn-outline'
+                        }`}
+                      >
+                        {metodo.boton}
+                      </button>
+                    ))}
                   </div>
                   <button
                     onClick={abrirModalFinalizar}
