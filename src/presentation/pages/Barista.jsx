@@ -48,7 +48,9 @@ const Barista = () => {
         setCargando(false)
       }
     } catch (error) {
-      console.error('Error al cargar comandas:', error)
+      if (import.meta.env.DEV) {
+        console.error('Error al cargar comandas:', error)
+      }
       // Solo mostrar error en la primera carga o si es un error crítico
       if (esPrimeraCarga) {
         Swal.fire({
@@ -136,7 +138,9 @@ const Barista = () => {
         })
       }
     } catch (error) {
-      console.error('Error al iniciar preparación:', error)
+      if (import.meta.env.DEV) {
+        console.error('Error al iniciar preparación:', error)
+      }
       const errorMsg = error.response?.data?.detail || error.response?.data?.error || error.message || 'Error al iniciar preparación'
       Swal.fire({
         icon: 'error',
@@ -326,7 +330,9 @@ const Barista = () => {
             timer: 3000,
           })
         } catch (error) {
-          console.error('Error al marcar como terminada:', error)
+          if (import.meta.env.DEV) {
+            console.error('Error al marcar como terminada:', error)
+          }
           
           // Verificar si el error contiene información sobre stock insuficiente
           const errorData = error.response?.data
@@ -423,7 +429,9 @@ const Barista = () => {
         }
       }
     } catch (error) {
-      console.error('Error inesperado al marcar como terminada:', error)
+      if (import.meta.env.DEV) {
+        console.error('Error inesperado al marcar como terminada:', error)
+      }
       await Swal.fire({
         icon: 'error',
         title: 'Error',

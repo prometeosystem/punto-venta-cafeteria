@@ -18,9 +18,60 @@ Sistema de punto de venta tipo CRM para cafetería desarrollado con React, Vite 
   - Reportes y Análisis
   - Configuración del Sistema
 
+## Ecosistema de repos
+
+| Repo | Responsabilidad |
+|------|-----------------|
+| `punto-venta-cafeteria` (este) | Frontend POS (React + Vite) |
+| `punto-venta-cafeteria-BackEnd` | API FastAPI + MySQL |
+| `Pagina-web-zona2coffe` | Sitio web público |
+
+## Cómo trabajar cambios
+
+Historial **lineal** (estilo fast-forward / rebase). No se hace push directo a `main`.
+
+```mermaid
+flowchart LR
+  feature[feature/xxx] --> devJuan[dev-juan]
+  devJuan -->|PR rebase| main[main]
+```
+
+1. Clonar y usar la rama de trabajo:
+   ```bash
+   git clone https://github.com/prometeosystem/punto-venta-cafeteria.git
+   cd punto-venta-cafeteria
+   git checkout dev-juan
+   git pull --ff-only origin dev-juan
+   ```
+2. Crear una rama de feature desde `dev-juan`:
+   ```bash
+   git checkout -b feature/nombre-corto
+   ```
+3. Hacer commits pequeños y claros (evitar secretos: `.env`, tokens, contraseñas).
+4. Antes de subir, actualizar con fast-forward only:
+   ```bash
+   git fetch origin
+   git pull --ff-only origin dev-juan
+   ```
+5. Push de la feature y abrir PR hacia `dev-juan` (o integrar en `dev-juan` y luego PR `dev-juan` → `main`).
+6. Esperar CI verde (GitHub Actions).
+7. Merge con **Rebase and merge** (historial lineal). No usar merge commit clásico.
+8. Si `main` avanzó, rebasear antes del PR:
+   ```bash
+   git fetch origin
+   git rebase origin/main
+   ```
+9. Nunca: `git push --force` a `main`, ni commits de `node_modules/`, `.env` o credenciales.
+
+Configuración local recomendada (solo en este repo):
+
+```bash
+git config pull.ff only
+```
+
 ## 📋 Requisitos Previos
 
-- Node.js 18+ 
+- Node.js 20+ (recomendado; CI usa Node 20)
 - npm o yarn
 
 ## 🛠️ Instalación

@@ -18,6 +18,12 @@ const routePermissions = {
   '/empleados': ['administrador', 'superadministrador'],
   '/reportes': ['administrador', 'superadministrador'],
   '/configuracion': ['administrador', 'superadministrador'],
+  '/bitacora': ['administrador', 'superadministrador'],
+  '/caja': ['vendedor', 'administrador', 'superadministrador'],
+  '/historial-caja': ['administrador', 'superadministrador'],
+  '/movimientos-caja': ['vendedor', 'administrador', 'superadministrador'],
+  '/categorias-movimiento': ['administrador', 'superadministrador'],
+  '/contabilidad': ['administrador', 'superadministrador'],
   '/test-sonidos': ['administrador', 'superadministrador'], // Ruta de prueba para sonidos
 }
 

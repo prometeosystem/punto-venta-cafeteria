@@ -6,7 +6,13 @@ import { NotificationProvider } from './context/NotificationContext'
 
 function App() {
   return (
-    <BrowserRouter basename="/sistema">
+    <BrowserRouter
+      basename="/sistema"
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true,
+      }}
+    >
       <AuthProvider>
         <LayoutProvider>
           <NotificationProvider>

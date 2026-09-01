@@ -23,6 +23,13 @@ export const NotificationProvider = ({ children }) => {
   const playNotificationSound = useCallback(() => {
     try {
       const audioContext = new (window.AudioContext || window.webkitAudioContext)()
+
+      // Verificar si el AudioContext necesita ser reanudado (requiere interacción del usuario)
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().catch(() => {
+          // Silenciosamente ignorar errores de AudioContext
+        })
+      }
       const now = audioContext.currentTime
       const duration = 1.8 // Duración total del sonido en segundos
       
@@ -91,9 +98,13 @@ export const NotificationProvider = ({ children }) => {
       oscillator4.start(now + 0.15) // Último tono para el efecto "ding"
       oscillator4.stop(now + duration)
     } catch (error) {
-      console.error('Error al reproducir sonido de notificación:', error)
-      // Fallback a un sonido simple si hay error
-      try {
+      if (import.meta.env.DEV) {
+        console.error('Error al reproducir sonido de notificación:', error)
+      }
+    }
+
+    // Fallback a un sonido simple si hay error
+    try {
         const audioContext = new (window.AudioContext || window.webkitAudioContext)()
         const oscillator = audioContext.createOscillator()
         const gainNode = audioContext.createGain()
@@ -110,15 +121,23 @@ export const NotificationProvider = ({ children }) => {
         oscillator.start(audioContext.currentTime)
         oscillator.stop(audioContext.currentTime + 0.5)
       } catch (fallbackError) {
-        console.error('Error en fallback del sonido:', fallbackError)
+        if (import.meta.env.DEV) {
+          console.error('Error en fallback del sonido:', fallbackError)
+        }
       }
-    }
   }, [])
 
   // Reproducir sonido de error/alerta (Batería Baja iPhone - Auténtico: tres tonos descendentes)
   const playErrorSound = useCallback(() => {
     try {
       const audioContext = new (window.AudioContext || window.webkitAudioContext)()
+
+      // Verificar si el AudioContext necesita ser reanudado (requiere interacción del usuario)
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().catch(() => {
+          // Silenciosamente ignorar errores de AudioContext
+        })
+      }
       const now = audioContext.currentTime
       const baseDuration = 0.25
       
@@ -151,9 +170,13 @@ export const NotificationProvider = ({ children }) => {
       })
       
     } catch (error) {
-      console.error('Error al reproducir sonido de error:', error)
-      // Fallback a un sonido simple
-      try {
+      if (import.meta.env.DEV) {
+        console.error('Error al reproducir sonido de error:', error)
+      }
+    }
+
+    // Fallback a un sonido simple
+    try {
         const audioContext = new (window.AudioContext || window.webkitAudioContext)()
         const oscillator = audioContext.createOscillator()
         const gainNode = audioContext.createGain()
@@ -170,7 +193,8 @@ export const NotificationProvider = ({ children }) => {
         oscillator.start(audioContext.currentTime)
         oscillator.stop(audioContext.currentTime + 0.4)
       } catch (fallbackError) {
-        console.error('Error en fallback del sonido de error:', fallbackError)
+        if (import.meta.env.DEV) {
+          console.error('Error en fallback del sonido de error:', fallbackError)
       }
     }
   }, [])
@@ -179,6 +203,13 @@ export const NotificationProvider = ({ children }) => {
   const playPreordenSound = useCallback(() => {
     try {
       const audioContext = new (window.AudioContext || window.webkitAudioContext)()
+
+      // Verificar si el AudioContext necesita ser reanudado (requiere interacción del usuario)
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().catch(() => {
+          // Silenciosamente ignorar errores de AudioContext
+        })
+      }
       const now = audioContext.currentTime
       
       // Primer "ding"
@@ -212,9 +243,13 @@ export const NotificationProvider = ({ children }) => {
       oscillator2.stop(now + 0.5)
       
     } catch (error) {
-      console.error('Error al reproducir sonido de pre-orden:', error)
-      // Fallback a un sonido simple
-      try {
+      if (import.meta.env.DEV) {
+        console.error('Error al reproducir sonido de pre-orden:', error)
+      }
+    }
+
+    // Fallback a un sonido simple
+    try {
         const audioContext = new (window.AudioContext || window.webkitAudioContext)()
         const oscillator = audioContext.createOscillator()
         const gainNode = audioContext.createGain()
@@ -231,7 +266,8 @@ export const NotificationProvider = ({ children }) => {
         oscillator.start(audioContext.currentTime)
         oscillator.stop(audioContext.currentTime + 0.5)
       } catch (fallbackError) {
-        console.error('Error en fallback del sonido de pre-orden:', fallbackError)
+        if (import.meta.env.DEV) {
+          console.error('Error en fallback del sonido de pre-orden:', fallbackError)
       }
     }
   }, [])
@@ -382,7 +418,9 @@ export const NotificationProvider = ({ children }) => {
       // Solo mostrar error si no es un error de autenticación (401)
       // Los errores 401 son esperados cuando el usuario no está autenticado
       if (error.response?.status !== 401) {
-        console.error('Error al verificar insumos con stock bajo:', error)
+        if (import.meta.env.DEV) {
+          console.error('Error al verificar insumos con stock bajo:', error)
+        }
       }
     }
   }, [playErrorSound, usuario])

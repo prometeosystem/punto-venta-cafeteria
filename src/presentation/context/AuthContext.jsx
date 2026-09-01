@@ -16,7 +16,9 @@ const decodeToken = (token) => {
     )
     return JSON.parse(jsonPayload)
   } catch (error) {
-    console.error('Error al decodificar token:', error)
+    if (import.meta.env.DEV) {
+      console.error('Error al decodificar token:', error)
+    }
     return null
   }
 }

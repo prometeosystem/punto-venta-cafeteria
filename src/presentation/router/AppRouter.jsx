@@ -1,20 +1,37 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import MainLayout from '../layouts/MainLayout'
 import Login from '../pages/Login'
-import Dashboard from '../pages/Dashboard'
-import PuntoVenta from '../pages/PuntoVenta'
-import Productos from '../pages/Productos'
-import Inventario from '../pages/Inventario'
-// import Clientes from '../pages/Clientes' // Temporalmente oculto
-import Empleados from '../pages/Empleados'
-import Reportes from '../pages/Reportes'
-import Configuracion from '../pages/Configuracion'
-import Loyabit from '../pages/Loyabit'
-import Barista from '../pages/Barista'
-import TestNotificationSounds from '../pages/TestNotificationSounds'
 import ProtectedRoute from '../components/ProtectedRoute'
 import RoleProtectedRoute from '../components/RoleProtectedRoute'
 import RoleBasedRedirect from '../components/RoleBasedRedirect'
+
+const Dashboard = lazy(() => import('../pages/Dashboard'))
+const PuntoVenta = lazy(() => import('../pages/PuntoVenta'))
+const Productos = lazy(() => import('../pages/Productos'))
+const Inventario = lazy(() => import('../pages/Inventario'))
+const Empleados = lazy(() => import('../pages/Empleados'))
+const Reportes = lazy(() => import('../pages/Reportes'))
+const Configuracion = lazy(() => import('../pages/Configuracion'))
+const Loyabit = lazy(() => import('../pages/Loyabit'))
+const Barista = lazy(() => import('../pages/Barista'))
+const Bitacora = lazy(() => import('../pages/Bitacora'))
+const Caja = lazy(() => import('../pages/Caja'))
+const HistorialCaja = lazy(() => import('../pages/HistorialCaja'))
+const MovimientosCaja = lazy(() => import('../pages/MovimientosCaja'))
+const CategoriasMovimiento = lazy(() => import('../pages/CategoriasMovimiento'))
+const Contabilidad = lazy(() => import('../pages/Contabilidad'))
+const TestNotificationSounds = lazy(() => import('../pages/TestNotificationSounds'))
+
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-[200px]">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-matcha-500" />
+  </div>
+)
+
+const LazyPage = ({ children }) => (
+  <Suspense fallback={<PageLoader />}>{children}</Suspense>
+)
 
 function AppRouter() {
   return (
@@ -32,83 +49,22 @@ function AppRouter() {
         }
       >
         <Route index element={<RoleBasedRedirect />} />
-        <Route 
-          path="dashboard" 
-          element={
-            <RoleProtectedRoute>
-              <Dashboard />
-            </RoleProtectedRoute>
-          } 
-        />
-        <Route 
-          path="punto-venta" 
-          element={
-            <RoleProtectedRoute>
-              <PuntoVenta />
-            </RoleProtectedRoute>
-          } 
-        />
-        <Route 
-          path="barista" 
-          element={
-            <RoleProtectedRoute>
-              <Barista />
-            </RoleProtectedRoute>
-          } 
-        />
-        <Route 
-          path="productos" 
-          element={
-            <RoleProtectedRoute>
-              <Productos />
-            </RoleProtectedRoute>
-          } 
-        />
-        <Route 
-          path="inventario" 
-          element={
-            <RoleProtectedRoute>
-              <Inventario />
-            </RoleProtectedRoute>
-          } 
-        />
-        {/* <Route path="clientes" element={<Clientes />} /> */} {/* Temporalmente oculto */}
-        <Route 
-          path="loyabit" 
-          element={
-            <RoleProtectedRoute>
-              <Loyabit />
-            </RoleProtectedRoute>
-          } 
-        />
-        <Route 
-          path="empleados" 
-          element={
-            <RoleProtectedRoute>
-              <Empleados />
-            </RoleProtectedRoute>
-          } 
-        />
-        <Route 
-          path="reportes" 
-          element={
-            <RoleProtectedRoute>
-              <Reportes />
-            </RoleProtectedRoute>
-          } 
-        />
-        <Route 
-          path="configuracion" 
-          element={
-            <RoleProtectedRoute>
-              <Configuracion />
-            </RoleProtectedRoute>
-          } 
-        />
-        <Route 
-          path="test-sonidos" 
-          element={<TestNotificationSounds />}
-        />
+        <Route path="dashboard" element={<RoleProtectedRoute><LazyPage><Dashboard /></LazyPage></RoleProtectedRoute>} />
+        <Route path="punto-venta" element={<RoleProtectedRoute><LazyPage><PuntoVenta /></LazyPage></RoleProtectedRoute>} />
+        <Route path="barista" element={<RoleProtectedRoute><LazyPage><Barista /></LazyPage></RoleProtectedRoute>} />
+        <Route path="productos" element={<RoleProtectedRoute><LazyPage><Productos /></LazyPage></RoleProtectedRoute>} />
+        <Route path="inventario" element={<RoleProtectedRoute><LazyPage><Inventario /></LazyPage></RoleProtectedRoute>} />
+        <Route path="loyabit" element={<RoleProtectedRoute><LazyPage><Loyabit /></LazyPage></RoleProtectedRoute>} />
+        <Route path="empleados" element={<RoleProtectedRoute><LazyPage><Empleados /></LazyPage></RoleProtectedRoute>} />
+        <Route path="reportes" element={<RoleProtectedRoute><LazyPage><Reportes /></LazyPage></RoleProtectedRoute>} />
+        <Route path="bitacora" element={<RoleProtectedRoute><LazyPage><Bitacora /></LazyPage></RoleProtectedRoute>} />
+        <Route path="caja" element={<RoleProtectedRoute><LazyPage><Caja /></LazyPage></RoleProtectedRoute>} />
+        <Route path="historial-caja" element={<RoleProtectedRoute><LazyPage><HistorialCaja /></LazyPage></RoleProtectedRoute>} />
+        <Route path="movimientos-caja" element={<RoleProtectedRoute><LazyPage><MovimientosCaja /></LazyPage></RoleProtectedRoute>} />
+        <Route path="categorias-movimiento" element={<RoleProtectedRoute><LazyPage><CategoriasMovimiento /></LazyPage></RoleProtectedRoute>} />
+        <Route path="contabilidad" element={<RoleProtectedRoute><LazyPage><Contabilidad /></LazyPage></RoleProtectedRoute>} />
+        <Route path="configuracion" element={<RoleProtectedRoute><LazyPage><Configuracion /></LazyPage></RoleProtectedRoute>} />
+        <Route path="test-sonidos" element={<RoleProtectedRoute><LazyPage><TestNotificationSounds /></LazyPage></RoleProtectedRoute>} />
       </Route>
     </Routes>
   )
