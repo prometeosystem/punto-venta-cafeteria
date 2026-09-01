@@ -4,10 +4,12 @@ import { LayoutProvider } from './context/LayoutContext'
 import { AuthProvider } from './context/AuthContext'
 import { NotificationProvider } from './context/NotificationContext'
 
+const routerBasename = (import.meta.env.BASE_URL || '/').replace(/\/$/, '') || '/'
+
 function App() {
   return (
     <BrowserRouter
-      basename="/sistema"
+      basename={routerBasename === '/' ? undefined : routerBasename}
       future={{
         v7_startTransition: true,
         v7_relativeSplatPath: true,

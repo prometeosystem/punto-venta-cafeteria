@@ -34,8 +34,10 @@ api.interceptors.response.use(
       localStorage.removeItem('usuario')
       // Redirigir al login si no estamos ya ahí
       // Evitar bucles de redirección
-      if (window.location.pathname !== '/sistema/login' && !window.location.pathname.includes('/login')) {
-        window.location.href = '/sistema/login'
+      const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '')
+      const loginPath = `${base}/login`
+      if (window.location.pathname !== loginPath && !window.location.pathname.endsWith('/login')) {
+        window.location.href = loginPath
       }
     }
     // Si hay error de red (sin respuesta), no redirigir automáticamente
