@@ -9,6 +9,23 @@ import { useAuth } from '../context/AuthContext'
 import { useCaja } from '../hooks/useCaja'
 import { imprimirTicket, itemsDesdeCarrito } from '../utils/imprimirTicket'
 import { obtenerMetodosPagoActivos } from '../utils/metodosPagoConfig'
+import {
+  EXTRAS_DISPONIBLES,
+  LECHE_PRECIOS,
+  PROTEINA_SCOOP_PRECIO,
+  calcOpcionesItemTotal,
+  calcPrecioExtras,
+  calcPrecioLeche,
+  buildItemObservaciones,
+  calcPrecioOpcionesProducto,
+  calcPrecioProteina,
+  desglosarExtrasCarrito,
+  getNombreExtra,
+  getNombreProteina,
+  parseObservacionesProducto,
+  sortMenuCategories,
+  tieneScoopProteina,
+} from '../utils/productOptionsConfig'
 import Swal from 'sweetalert2'
 
 const PuntoVenta = () => {
@@ -187,18 +204,11 @@ const PuntoVenta = () => {
       }
     }
     if (extrasSeleccionados && extrasSeleccionados.length > 0) {
-      const nombresExtras = {
-        'tocino': 'Tocino',
-        'huevo': 'Huevo',
-        'jamon': 'Jamón',
-        'chorizo': 'Chorizo'
-      }
-      const extrasNombres = extrasSeleccionados.map(id => nombresExtras[id] || id)
+      const extrasNombres = extrasSeleccionados.map((id) => getNombreExtra(id))
       observaciones.push(`Extras: ${extrasNombres.join(', ')}`)
     }
     if (tipoProteinaSeleccionado) {
-      const nombreProteina = tipoProteinaSeleccionado === 'isolatada' ? 'Proteína Isolatada' : 'Proteína Normal'
-      observaciones.push(`Proteína: ${nombreProteina}`)
+      observaciones.push('Scoop: Scoop de Proteína')
     }
     
     const cartItem = {
@@ -382,8 +392,10 @@ const PuntoVenta = () => {
 
   const total = cart.reduce((sum, item) => sum + (parseFloat(item.precio) * item.quantity), 0)
 
-  // Agrupar productos por categoría
-  const categories = [...new Set(productos.map(p => p.categoria))]
+  // Agrupar productos activos por categoría (orden del menú Zona 2)
+  const categories = sortMenuCategories(
+    [...new Set(productos.filter((p) => p.activo).map((p) => p.categoria))]
+  )
 
   // Función helper para extraer mensaje de error
   const extraerMensajeError = (error, mensajeDefault = 'Error al procesar la operación') => {
@@ -425,20 +437,8 @@ const PuntoVenta = () => {
 
   // Generar texto del ticket para WhatsApp
   const generarTextoTicket = () => {
-    const extraLecheTotal = cart.reduce((sum, item) => {
-      if (item.tipoLeche === 'deslactosada') return sum + (15 * item.quantity)
-      if (item.tipoLeche === 'almendras') return sum + (20 * item.quantity)
-      return sum
-    }, 0)
-    const extraExtrasTotal = cart.reduce((sum, item) => {
-      if (item.extras && item.extras.length > 0) return sum + (item.extras.length * 20 * item.quantity)
-      return sum
-    }, 0)
-    const extraProteinaTotal = cart.reduce((sum, item) => {
-      if (item.tipoProteina === 'normal') return sum + (30 * item.quantity)
-      if (item.tipoProteina === 'isolatada') return sum + (35 * item.quantity)
-      return sum
-    }, 0)
+    const { extraLeche: extraLecheTotal, extraExtras: extraExtrasTotal, extraProteina: extraProteinaTotal } =
+      desglosarExtrasCarrito(cart)
     const totalConExtras = total + extraLecheTotal + extraExtrasTotal + extraProteinaTotal
     const totalDespuesDescuento = Math.max(0, totalConExtras - totalDescuento)
     const montoPropinaTicket = (propinaPorcentaje != null && typeof propinaPorcentaje === 'number')
@@ -645,15 +645,7 @@ const PuntoVenta = () => {
         }
         const resultado = await procesarPagoVenta(comandaTerminadaSeleccionada.id_venta, bodyPago)
         if (resultado?.error) throw new Error(resultado.error)
-        const subtotalTicket = Math.max(0, total + cart.reduce((sum, item) => {
-          let extra = 0
-          if (item.tipoLeche === 'deslactosada') extra += 15 * item.quantity
-          else if (item.tipoLeche === 'almendras') extra += 20 * item.quantity
-          if (item.extras?.length) extra += item.extras.length * 20 * item.quantity
-          if (item.tipoProteina === 'normal') extra += 30 * item.quantity
-          else if (item.tipoProteina === 'isolatada') extra += 35 * item.quantity
-          return sum + extra
-        }, 0) - totalDescuento)
+        const subtotalTicket = Math.max(0, total + cart.reduce((sum, item) => sum + calcOpcionesItemTotal(item), 0) - totalDescuento)
         const ticketData = {
           numero: comandaTerminadaSeleccionada.numero_dia ?? comandaTerminadaSeleccionada.numero_pedido_dia ?? numeroTicket,
           cliente: nombreCliente || comandaTerminadaSeleccionada.nombre_cliente || null,
@@ -683,31 +675,7 @@ const PuntoVenta = () => {
       }
 
       // Calcular total con extras basado en los items del carrito
-      const extraLeche = cart.reduce((sum, item) => {
-        if (item.tipoLeche === 'deslactosada') {
-          return sum + (15 * item.quantity)
-        } else if (item.tipoLeche === 'almendras') {
-          return sum + (20 * item.quantity)
-        }
-        return sum
-      }, 0)
-      
-      const extraExtras = cart.reduce((sum, item) => {
-        if (item.extras && item.extras.length > 0) {
-          return sum + (item.extras.length * 20 * item.quantity)
-        }
-        return sum
-      }, 0)
-      
-      // Calcular total de proteína
-      const extraProteina = cart.reduce((sum, item) => {
-        if (item.tipoProteina === 'normal') {
-          return sum + (30 * item.quantity)
-        } else if (item.tipoProteina === 'isolatada') {
-          return sum + (35 * item.quantity)
-        }
-        return sum
-      }, 0)
+      const { extraLeche, extraExtras, extraProteina } = desglosarExtrasCarrito(cart)
       
       const totalConExtra = total + extraLeche + extraExtras + extraProteina
       const totalFinalVenta = Math.max(0, totalConExtra - totalDescuento)
@@ -895,20 +863,7 @@ const PuntoVenta = () => {
     setProcesando(true)
     setMostrarModalFinalizar(false)
     try {
-      const extraLeche = cart.reduce((sum, item) => {
-        if (item.tipoLeche === 'deslactosada') return sum + (15 * item.quantity)
-        if (item.tipoLeche === 'almendras') return sum + (20 * item.quantity)
-        return sum
-      }, 0)
-      const extraExtras = cart.reduce((sum, item) => {
-        if (item.extras?.length > 0) return sum + (item.extras.length * 20 * item.quantity)
-        return sum
-      }, 0)
-      const extraProteina = cart.reduce((sum, item) => {
-        if (item.tipoProteina === 'normal') return sum + (30 * item.quantity)
-        if (item.tipoProteina === 'isolatada') return sum + (35 * item.quantity)
-        return sum
-      }, 0)
+      const { extraLeche, extraExtras, extraProteina } = desglosarExtrasCarrito(cart)
       const totalConExtra = total + extraLeche + extraExtras + extraProteina
       const totalFinalVenta = Math.max(0, totalConExtra - totalDescuento)
 
@@ -1026,15 +981,7 @@ const PuntoVenta = () => {
       }
       const resultado = await procesarPagoVenta(comandaTerminadaSeleccionada.id_venta, bodyPago)
       if (resultado?.error) throw new Error(resultado.error)
-      const subtotalTicket = Math.max(0, total + cart.reduce((sum, item) => {
-        let extra = 0
-        if (item.tipoLeche === 'deslactosada') extra += 15 * item.quantity
-        else if (item.tipoLeche === 'almendras') extra += 20 * item.quantity
-        if (item.extras?.length) extra += item.extras.length * 20 * item.quantity
-        if (item.tipoProteina === 'normal') extra += 30 * item.quantity
-        else if (item.tipoProteina === 'isolatada') extra += 35 * item.quantity
-        return sum + extra
-      }, 0) - totalDescuento)
+      const subtotalTicket = Math.max(0, total + cart.reduce((sum, item) => sum + calcOpcionesItemTotal(item), 0) - totalDescuento)
       const ticketData = {
         numero: comandaTerminadaSeleccionada.numero_dia ?? comandaTerminadaSeleccionada.numero_pedido_dia ?? numeroTicket,
         cliente: nombreCliente || comandaTerminadaSeleccionada.nombre_cliente || null,
@@ -1113,63 +1060,15 @@ const PuntoVenta = () => {
     setProcesando(true)
     try {
       // Calcular total con extras
-      const extraLeche = cart.reduce((sum, item) => {
-        if (item.tipoLeche === 'deslactosada') {
-          return sum + (15 * item.quantity)
-        } else if (item.tipoLeche === 'almendras') {
-          return sum + (20 * item.quantity)
-        }
-        return sum
-      }, 0)
-      
-      const extraExtras = cart.reduce((sum, item) => {
-        if (item.extras && item.extras.length > 0) {
-          return sum + (item.extras.length * 20 * item.quantity)
-        }
-        return sum
-      }, 0)
-
-      const extraProteina = cart.reduce((sum, item) => {
-        if (item.tipoProteina === 'normal') {
-          return sum + (30 * item.quantity)
-        } else if (item.tipoProteina === 'isolatada') {
-          return sum + (35 * item.quantity)
-        }
-        return sum
-      }, 0)
+      const { extraLeche, extraExtras, extraProteina } = desglosarExtrasCarrito(cart)
       
       // Crear detalles de la pre-orden desde el carrito
-      const detalles = cart.map(item => {
-        const observaciones = []
-        if (item.tipoLeche && item.tipoLeche !== 'entera') {
-          if (item.tipoLeche === 'deslactosada') {
-            observaciones.push('Leche deslactosada')
-          } else if (item.tipoLeche === 'almendras') {
-            observaciones.push('Leche de almendras')
-          }
-        }
-        if (item.extras && item.extras.length > 0) {
-          const nombresExtras = {
-            'tocino': 'Tocino',
-            'huevo': 'Huevo',
-            'jamon': 'Jamón',
-            'chorizo': 'Chorizo'
-          }
-          const extrasNombres = item.extras.map(id => nombresExtras[id] || id)
-          observaciones.push(`Extras: ${extrasNombres.join(', ')}`)
-        }
-        if (item.tipoProteina) {
-          const nombreProteina = item.tipoProteina === 'isolatada' ? 'Proteína Isolatada' : 'Proteína Normal'
-          observaciones.push(`Scoop: ${nombreProteina}`)
-        }
-        
-        return {
-          id_producto: item.id_producto || item.originalId || item.id,
-          cantidad: item.quantity,
-          observaciones: observaciones.length > 0 ? observaciones.join(' - ') : null,
-          tipo_preparacion: item.tipoPreparacion || null
-        }
-      })
+      const detalles = cart.map(item => ({
+        id_producto: item.id_producto || item.originalId || item.id,
+        cantidad: item.quantity,
+        observaciones: buildItemObservaciones(item),
+        tipo_preparacion: item.tipoPreparacion || null
+      }))
       
       // Crear la pre-orden (se crea con estado 'preorden' por defecto)
       const preordenCreada = await crearPreorden({
@@ -1254,63 +1153,14 @@ const PuntoVenta = () => {
     setProcesando(true)
     try {
       // Calcular total con extras
-      const extraLeche = cart.reduce((sum, item) => {
-        if (item.tipoLeche === 'deslactosada') {
-          return sum + (15 * item.quantity)
-        } else if (item.tipoLeche === 'almendras') {
-          return sum + (20 * item.quantity)
-        }
-        return sum
-      }, 0)
+      const { extraLeche, extraExtras, extraProteina } = desglosarExtrasCarrito(cart)
       
-      const extraExtras = cart.reduce((sum, item) => {
-        if (item.extras && item.extras.length > 0) {
-          return sum + (item.extras.length * 20 * item.quantity)
-        }
-        return sum
-      }, 0)
-
-      const extraProteina = cart.reduce((sum, item) => {
-        if (item.tipoProteina === 'normal') {
-          return sum + (30 * item.quantity)
-        } else if (item.tipoProteina === 'isolatada') {
-          return sum + (35 * item.quantity)
-        }
-        return sum
-      }, 0)
-      
-      // Crear detalles de la pre-orden desde el carrito
-      const detalles = cart.map(item => {
-        const observaciones = []
-        if (item.tipoLeche && item.tipoLeche !== 'entera') {
-          if (item.tipoLeche === 'deslactosada') {
-            observaciones.push('Leche deslactosada')
-          } else if (item.tipoLeche === 'almendras') {
-            observaciones.push('Leche de almendras')
-          }
-        }
-        if (item.extras && item.extras.length > 0) {
-          const nombresExtras = {
-            'tocino': 'Tocino',
-            'huevo': 'Huevo',
-            'jamon': 'Jamón',
-            'chorizo': 'Chorizo'
-          }
-          const extrasNombres = item.extras.map(id => nombresExtras[id] || id)
-          observaciones.push(`Extras: ${extrasNombres.join(', ')}`)
-        }
-        if (item.tipoProteina) {
-          const nombreProteina = item.tipoProteina === 'isolatada' ? 'Proteína Isolatada' : 'Proteína Normal'
-          observaciones.push(`Scoop: ${nombreProteina}`)
-        }
-        
-        return {
-          id_producto: item.id_producto || item.originalId || item.id,
-          cantidad: item.quantity,
-          observaciones: observaciones.length > 0 ? observaciones.join(' - ') : null,
-          tipo_preparacion: item.tipoPreparacion || null // Incluir tipo de preparación del item
-        }
-      })
+      const detalles = cart.map(item => ({
+        id_producto: item.id_producto || item.originalId || item.id,
+        cantidad: item.quantity,
+        observaciones: buildItemObservaciones(item),
+        tipo_preparacion: item.tipoPreparacion || null
+      }))
       
       // Si es una orden del sistema (pagada con origen sistema), convertirla en pre-orden
       // cambiando el estado a 'en_caja' y el origen a 'web'
@@ -1399,43 +1249,14 @@ const PuntoVenta = () => {
     try {
       // Sincronizar el carrito actual (incluyendo productos extras agregados) a la pre-orden
       // antes de procesar el pago, para que todos los productos se envíen a las comandas
-      const extraLeche = cart.reduce((sum, item) => {
-        if (item.tipoLeche === 'deslactosada') return sum + (15 * item.quantity)
-        if (item.tipoLeche === 'almendras') return sum + (20 * item.quantity)
-        return sum
-      }, 0)
-      const extraExtras = cart.reduce((sum, item) => {
-        if (item.extras && item.extras.length > 0) return sum + (item.extras.length * 20 * item.quantity)
-        return sum
-      }, 0)
-      const extraProteina = cart.reduce((sum, item) => {
-        if (item.tipoProteina === 'normal') return sum + (30 * item.quantity)
-        if (item.tipoProteina === 'isolatada') return sum + (35 * item.quantity)
-        return sum
-      }, 0)
+      const { extraLeche, extraExtras, extraProteina } = desglosarExtrasCarrito(cart)
 
-      const detallesParaPreorden = cart.map(item => {
-        const observaciones = []
-        if (item.tipoLeche && item.tipoLeche !== 'entera') {
-          if (item.tipoLeche === 'deslactosada') observaciones.push('Leche deslactosada')
-          else if (item.tipoLeche === 'almendras') observaciones.push('Leche de almendras')
-        }
-        if (item.extras && item.extras.length > 0) {
-          const nombresExtras = { tocino: 'Tocino', huevo: 'Huevo', jamon: 'Jamón', chorizo: 'Chorizo' }
-          const extrasNombres = item.extras.map(id => nombresExtras[id] || id)
-          observaciones.push(`Extras: ${extrasNombres.join(', ')}`)
-        }
-        if (item.tipoProteina) {
-          const nombreProteina = item.tipoProteina === 'isolatada' ? 'Proteína Isolatada' : 'Proteína Normal'
-          observaciones.push(`Scoop: ${nombreProteina}`)
-        }
-        return {
-          id_producto: item.id_producto || item.originalId || item.id,
-          cantidad: item.quantity,
-          observaciones: observaciones.length > 0 ? observaciones.join(' - ') : null,
-          tipo_preparacion: item.tipoPreparacion || null
-        }
-      })
+      const detallesParaPreorden = cart.map(item => ({
+        id_producto: item.id_producto || item.originalId || item.id,
+        cantidad: item.quantity,
+        observaciones: buildItemObservaciones(item),
+        tipo_preparacion: item.tipoPreparacion || null
+      }))
 
       const preordenConCartActualizado = await actualizarPreorden(preordenSeleccionada.id_preorden, {
         nombre_cliente: nombreCliente || preordenSeleccionada.nombre_cliente,
@@ -1549,28 +1370,7 @@ const PuntoVenta = () => {
   // Función para calcular subtotal con extras (sin propina)
   const calcularSubtotalConExtras = () => {
     const subtotal = cart.reduce((sum, item) => sum + (parseFloat(item.precio) * item.quantity), 0)
-    const extraLeche = cart.reduce((sum, item) => {
-      if (item.tipoLeche === 'deslactosada') {
-        return sum + (15 * item.quantity)
-      } else if (item.tipoLeche === 'almendras') {
-        return sum + (20 * item.quantity)
-      }
-      return sum
-    }, 0)
-    const extraExtras = cart.reduce((sum, item) => {
-      if (item.extras && item.extras.length > 0) {
-        return sum + (item.extras.length * 20 * item.quantity)
-      }
-      return sum
-    }, 0)
-    const extraProteina = cart.reduce((sum, item) => {
-      if (item.tipoProteina === 'normal') {
-        return sum + (30 * item.quantity)
-      } else if (item.tipoProteina === 'isolatada') {
-        return sum + (35 * item.quantity)
-      }
-      return sum
-    }, 0)
+    const { extraLeche, extraExtras, extraProteina } = desglosarExtrasCarrito(cart)
     return subtotal + extraLeche + extraExtras + extraProteina
   }
 
@@ -1683,28 +1483,7 @@ const PuntoVenta = () => {
   useEffect(() => {
     if (propinaPorcentaje != null && typeof propinaPorcentaje === 'number') {
       const subtotal = cart.reduce((sum, item) => sum + (parseFloat(item.precio) * item.quantity), 0)
-      const extraLeche = cart.reduce((sum, item) => {
-        if (item.tipoLeche === 'deslactosada') {
-          return sum + (15 * item.quantity)
-        } else if (item.tipoLeche === 'almendras') {
-          return sum + (20 * item.quantity)
-        }
-        return sum
-      }, 0)
-      const extraExtras = cart.reduce((sum, item) => {
-        if (item.extras && item.extras.length > 0) {
-          return sum + (item.extras.length * 20 * item.quantity)
-        }
-        return sum
-      }, 0)
-      const extraProteina = cart.reduce((sum, item) => {
-        if (item.tipoProteina === 'normal') {
-          return sum + (30 * item.quantity)
-        } else if (item.tipoProteina === 'isolatada') {
-          return sum + (35 * item.quantity)
-        }
-        return sum
-      }, 0)
+      const { extraLeche, extraExtras, extraProteina } = desglosarExtrasCarrito(cart)
       const totalConExtras = subtotal + extraLeche + extraExtras + extraProteina
       const monto = (totalConExtras * propinaPorcentaje) / 100
       setMontoPropina(monto)
@@ -1767,79 +1546,7 @@ const PuntoVenta = () => {
   }
 
   // Función para parsear observaciones y extraer tipo de leche, extras y tipo de proteína
-  const parsearObservaciones = (observaciones) => {
-    if (!observaciones) return { tipoLeche: null, extras: [], tipoProteina: null, tipoPreparacion: null }
-    
-    let tipoLeche = null
-    const extras = []
-    let tipoProteina = null
-    let tipoPreparacion = null
-    
-    // Buscar tipo de preparación
-    if (observaciones.includes('Preparación: Frío') || observaciones.includes('Preparación: Frio')) {
-      tipoPreparacion = 'heladas'
-    } else if (observaciones.includes('Preparación: Frapeadas')) {
-      tipoPreparacion = 'frapeadas'
-    }
-    
-    // Buscar tipo de leche
-    if (observaciones.includes('Leche deslactosada') || observaciones.includes('deslactosada')) {
-      tipoLeche = 'deslactosada'
-    } else if (observaciones.includes('Leche de almendras') || observaciones.includes('almendras')) {
-      tipoLeche = 'almendras'
-    } else if (observaciones.includes('entera')) {
-      tipoLeche = 'entera'
-    }
-    
-    // Buscar extras
-    const nombresExtras = {
-      'Tocino': 'tocino',
-      'tocino': 'tocino',
-      'Huevo': 'huevo',
-      'huevo': 'huevo',
-      'Jamón': 'jamon',
-      'jamón': 'jamon',
-      'jamon': 'jamon',
-      'Chorizo': 'chorizo',
-      'chorizo': 'chorizo'
-    }
-    
-    if (observaciones.includes('Extras:')) {
-      const extrasPart = observaciones.split('Extras:')[1]
-      if (extrasPart) {
-        // Separar por coma o por guión (para manejar "Extras: Tocino - Proteína: Proteína Normal")
-        const extrasList = extrasPart.split(/[,-]/).map(e => e.trim())
-        extrasList.forEach(extra => {
-          // Si contiene "Proteína:", no es un extra, es tipo de proteína
-          if (extra.includes('Proteína:') || extra.includes('Proteina:') || extra.includes('Scoop:')) return
-          const extraId = nombresExtras[extra]
-          if (extraId && !extras.includes(extraId)) {
-            extras.push(extraId)
-          }
-        })
-      }
-    }
-    
-    // Buscar tipo de proteína
-    if (observaciones.includes('Proteína:') || observaciones.includes('Proteina:') || observaciones.includes('Scoop:')) {
-      const scoopPart = observaciones.includes('Proteína:') 
-        ? observaciones.split('Proteína:')[1] 
-        : observaciones.includes('Proteina:')
-          ? observaciones.split('Proteina:')[1]
-          : observaciones.split('Scoop:')[1]
-          
-      if (scoopPart) {
-        const scoopType = scoopPart.split(/[-]/)[0].trim()
-        if (scoopType.includes('Isolatada')) {
-          tipoProteina = 'isolatada'
-        } else if (scoopType.includes('Normal') || scoopType.includes('Proteína') || scoopType.includes('Proteina')) {
-          tipoProteina = 'normal'
-        }
-      }
-    }
-    
-    return { tipoLeche, extras, tipoProteina, tipoPreparacion }
-  }
+  const parsearObservaciones = (observaciones) => parseObservacionesProducto(observaciones)
 
   // Función para convertir detalles de preorden a items del carrito
   const convertirDetallesACarrito = (detalles) => {
@@ -1860,31 +1567,6 @@ const PuntoVenta = () => {
       const tipoProteinaHash = tipoProteina || 'none'
       const uniqueId = `${producto.id_producto}-${tipoLecheHash}-${extrasHash}-${tipoProteinaHash}`
       
-      // Construir observaciones
-      const observaciones = []
-      if (tipoLeche && tipoLeche !== 'entera') {
-        if (tipoLeche === 'deslactosada') {
-          observaciones.push('Leche deslactosada')
-        } else if (tipoLeche === 'almendras') {
-          observaciones.push('Leche de almendras')
-        }
-      }
-      if (extras && extras.length > 0) {
-        const nombresExtras = {
-          'tocino': 'Tocino',
-          'huevo': 'Huevo',
-          'jamon': 'Jamón',
-          'chorizo': 'Chorizo'
-        }
-        const extrasNombres = extras.map(id => nombresExtras[id] || id)
-        observaciones.push(`Extras: ${extrasNombres.join(', ')}`)
-      }
-      if (tipoProteina) {
-        const nombreProteina = tipoProteina === 'isolatada' ? 'Proteína Isolatada' : 'Proteína Normal'
-        observaciones.push(`Scoop: ${nombreProteina}`)
-      }
-      
-      // Crear item del carrito
       const cartItem = {
         ...producto,
         id: uniqueId,
@@ -1893,11 +1575,11 @@ const PuntoVenta = () => {
         precio: parseFloat(producto.precio),
         tipoLeche: tipoLeche,
         extras: extras || [],
-        tipoProteina: tipoProteina, // Agregar tipo de proteína
-        tipoPreparacion: detalle.tipo_preparacion || tipoPreparacion || null, // Agregar tipo de preparación (prioridad al detalle)
-        observaciones: observaciones.length > 0 ? observaciones.join(' - ') : null,
+        tipoProteina: tipoProteina,
+        tipoPreparacion: detalle.tipo_preparacion || tipoPreparacion || null,
         quantity: detalle.cantidad
       }
+      cartItem.observaciones = buildItemObservaciones(cartItem)
       
       itemsCarrito.push(cartItem)
     })
@@ -1918,16 +1600,7 @@ const PuntoVenta = () => {
       const extrasHash = extras?.length ? extras.sort().join(',') : 'none'
       const tipoProteinaHash = tipoProteina || 'none'
       const uniqueId = `comanda-${comanda.id_comanda}-${detalle.id_producto ?? idx}-${tipoLecheHash}-${extrasHash}-${tipoProteinaHash}`
-      const observaciones = []
-      if (tipoLeche && tipoLeche !== 'entera') {
-        observaciones.push(tipoLeche === 'deslactosada' ? 'Leche deslactosada' : 'Leche de almendras')
-      }
-      if (extras?.length) {
-        const nombresExtras = { tocino: 'Tocino', huevo: 'Huevo', jamon: 'Jamón', chorizo: 'Chorizo' }
-        observaciones.push(`Extras: ${extras.map(id => nombresExtras[id] || id).join(', ')}`)
-      }
-      if (tipoProteina) observaciones.push(`Scoop: ${tipoProteina === 'isolatada' ? 'Proteína Isolatada' : 'Proteína Normal'}`)
-      itemsCarrito.push({
+      const cartItem = {
         id: uniqueId,
         id_producto: detalle.id_producto,
         nombre,
@@ -1937,9 +1610,10 @@ const PuntoVenta = () => {
         extras: extras || [],
         tipoProteina: tipoProteina || null,
         tipoPreparacion: detalle.tipo_preparacion || tipoPreparacion || null,
-        observaciones: observaciones.length ? observaciones.join(' - ') : null,
         fromComandaTerminada: true,
-      })
+      }
+      cartItem.observaciones = buildItemObservaciones(cartItem)
+      itemsCarrito.push(cartItem)
     })
     return itemsCarrito
   }
@@ -2407,15 +2081,10 @@ const PuntoVenta = () => {
                               {llevaExtras && (
                                 <div>
                                   <label className="block text-xs font-medium text-gray-700 mb-2">
-                                    Extras (+$20 c/u)
+                                    Extras
                                   </label>
                                   <div className="grid grid-cols-2 gap-2">
-                                    {[
-                                      { id: 'tocino', nombre: 'Tocino' },
-                                      { id: 'huevo', nombre: 'Huevo' },
-                                      { id: 'jamon', nombre: 'Jamón' },
-                                      { id: 'chorizo', nombre: 'Chorizo' }
-                                    ].map(extra => (
+                                    {EXTRAS_DISPONIBLES.map(extra => (
                                       <button
                                         key={extra.id}
                                         type="button"
@@ -2426,80 +2095,59 @@ const PuntoVenta = () => {
                                             : 'border-gray-200 hover:border-gray-300'
                                         }`}
                                       >
-                                        {extra.nombre}
+                                        {extra.label} (+${extra.precio})
                                       </button>
                                     ))}
                                   </div>
                                 </div>
                               )}
                               
-                              {/* Tipo de Proteína/Creatina */}
+                              {/* Scoop de proteína */}
                               {llevaProteina && (
                                 <div>
                                   <label className="block text-xs font-medium text-gray-700 mb-2">
-                                    Proteína
+                                    Proteína extra
                                   </label>
-                                  <div className="grid grid-cols-2 gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => actualizarTipoProteina(product.id_producto, 'normal')}
-                                      className={`py-2 px-2 rounded border-2 transition-all text-xs ${
-                                        opciones.tipoProteina === 'normal'
-                                          ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
-                                          : 'border-gray-200 hover:border-gray-300'
-                                      }`}
-                                    >
-                                      Normal (+$30)
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => actualizarTipoProteina(product.id_producto, 'isolatada')}
-                                      className={`py-2 px-2 rounded border-2 transition-all text-xs ${
-                                        opciones.tipoProteina === 'isolatada'
-                                          ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
-                                          : 'border-gray-200 hover:border-gray-300'
-                                      }`}
-                                    >
-                                      Isolatada (+$35)
-                                    </button>
-                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => actualizarTipoProteina(
+                                      product.id_producto,
+                                      tieneScoopProteina(opciones.tipoProteina) ? null : 'scoop'
+                                    )}
+                                    className={`py-2 px-2 rounded border-2 transition-all text-xs w-full ${
+                                      tieneScoopProteina(opciones.tipoProteina)
+                                        ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
+                                        : 'border-gray-200 hover:border-gray-300'
+                                    }`}
+                                  >
+                                    Scoop de proteína (+${PROTEINA_SCOOP_PRECIO})
+                                  </button>
                                 </div>
                               )}
                               
                               {/* Resumen visual de opciones seleccionadas */}
                               {(opciones.tipoLeche && opciones.tipoLeche !== 'entera') || opciones.tipoProteina || (opciones.extras && opciones.extras.length > 0) ? (
                                 <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-200">
-                                  {/* Etiqueta de tipo de proteína */}
                                   {opciones.tipoProteina && (
                                     <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 border border-yellow-300">
-                                      Proteína: {opciones.tipoProteina === 'isolatada' ? 'Proteína Isolatada' : 'Proteína Normal'}
+                                      {getNombreProteina(opciones.tipoProteina)}
                                     </span>
                                   )}
-                                  {/* Etiqueta de tipo de leche */}
                                   {opciones.tipoLeche && opciones.tipoLeche !== 'entera' && (
                                     <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-300">
                                       Leche: {opciones.tipoLeche === 'deslactosada' ? 'Deslactosada' : 'Almendras'}
                                     </span>
                                   )}
-                                  {/* Etiquetas de extras */}
                                   {opciones.extras && opciones.extras.length > 0 && (
                                     <>
-                                      {opciones.extras.map((extraId, index) => {
-                                        const nombresExtras = {
-                                          'tocino': 'Tocino',
-                                          'huevo': 'Huevo',
-                                          'jamon': 'Jamón',
-                                          'chorizo': 'Chorizo'
-                                        }
-                                        return (
-                                          <span 
-                                            key={index}
-                                            className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 border border-purple-300"
-                                          >
-                                            {nombresExtras[extraId] || extraId}
-                                          </span>
-                                        )
-                                      })}
+                                      {opciones.extras.map((extraId, index) => (
+                                        <span
+                                          key={index}
+                                          className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 border border-purple-300"
+                                        >
+                                          {getNombreExtra(extraId)}
+                                        </span>
+                                      ))}
                                     </>
                                   )}
                                 </div>
@@ -2514,36 +2162,31 @@ const PuntoVenta = () => {
                                 {opciones.tipoLeche === 'deslactosada' && (
                                   <div className="flex items-center justify-between text-xs text-gray-600">
                                     <span>Extra Leche:</span>
-                                    <span>+$15.00</span>
+                                    <span>+${LECHE_PRECIOS.deslactosada.toFixed(2)}</span>
                                   </div>
                                 )}
                                 {opciones.tipoLeche === 'almendras' && (
                                   <div className="flex items-center justify-between text-xs text-gray-600">
                                     <span>Extra Leche:</span>
-                                    <span>+$20.00</span>
+                                    <span>+${LECHE_PRECIOS.almendras.toFixed(2)}</span>
                                   </div>
                                 )}
                                 {opciones.tipoProteina && (
                                   <div className="flex items-center justify-between text-xs text-gray-600">
-                                    <span>Proteína: {opciones.tipoProteina === 'isolatada' ? 'Proteína Isolatada' : 'Proteína Normal'}</span>
-                                    <span>+${opciones.tipoProteina === 'isolatada' ? '35.00' : '30.00'}</span>
+                                    <span>{getNombreProteina(opciones.tipoProteina)}</span>
+                                    <span>+${PROTEINA_SCOOP_PRECIO.toFixed(2)}</span>
                                   </div>
                                 )}
                                 {opciones.extras && opciones.extras.length > 0 && (
                                   <div className="flex items-center justify-between text-xs text-gray-600">
                                     <span>Extras ({opciones.extras.length}):</span>
-                                    <span>+${(opciones.extras.length * 20).toFixed(2)}</span>
+                                    <span>+${calcPrecioExtras(opciones.extras).toFixed(2)}</span>
                                   </div>
                                 )}
                                 <div className="flex items-center justify-between text-sm font-bold text-gray-900 pt-2 border-t border-gray-200">
                                   <span>Total:</span>
                                   <span className="text-matcha-600">
-                                    ${(
-                                      parseFloat(product.precio) +
-                                      (opciones.tipoLeche === 'deslactosada' ? 15 : opciones.tipoLeche === 'almendras' ? 20 : 0) +
-                                      ((opciones.extras?.length || 0) * 20) +
-                                      (opciones.tipoProteina === 'normal' ? 30 : opciones.tipoProteina === 'isolatada' ? 35 : 0)
-                                    ).toFixed(2)}
+                                    ${calcPrecioOpcionesProducto(product.precio, opciones).toFixed(2)}
                                   </span>
                                 </div>
                                 <button
@@ -2679,13 +2322,7 @@ const PuntoVenta = () => {
                   <>
                     <div className="space-y-3 max-h-96 overflow-y-auto mb-4">
                       {cart.map(item => {
-                        const nombresExtras = {
-                          'tocino': 'Tocino',
-                          'huevo': 'Huevo',
-                          'jamon': 'Jamón',
-                          'chorizo': 'Chorizo'
-                        }
-                        const extrasNombres = item.extras?.map(id => nombresExtras[id] || id) || []
+                        const extrasNombres = item.extras?.map((id) => getNombreExtra(id)) || []
                         
                         const getNombreTipoLeche = (tipo) => {
                           if (tipo === 'deslactosada') return 'Deslactosada'
@@ -2716,7 +2353,7 @@ const PuntoVenta = () => {
                                 )}
                                 {item.tipoProteina && (
                                   <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 border border-yellow-300">
-                                    Scoop: {item.tipoProteina === 'isolatada' ? 'Proteína Isolatada' : 'Proteína Normal'}
+                                    Scoop: {getNombreProteina(item.tipoProteina)}
                                   </span>
                                 )}
                                 {tipoLecheNombre && (
@@ -2769,28 +2406,7 @@ const PuntoVenta = () => {
                       {/* Calcular total con extras y propina */}
                       {(() => {
                         const subtotal = cart.reduce((sum, item) => sum + (parseFloat(item.precio) * item.quantity), 0)
-                        const extraLeche = cart.reduce((sum, item) => {
-                          if (item.tipoLeche === 'deslactosada') {
-                            return sum + (15 * item.quantity)
-                          } else if (item.tipoLeche === 'almendras') {
-                            return sum + (20 * item.quantity)
-                          }
-                          return sum
-                        }, 0)
-                        const extraExtras = cart.reduce((sum, item) => {
-                          if (item.extras && item.extras.length > 0) {
-                            return sum + (item.extras.length * 20 * item.quantity)
-                          }
-                          return sum
-                        }, 0)
-                        const extraProteina = cart.reduce((sum, item) => {
-                          if (item.tipoProteina === 'normal') {
-                            return sum + (30 * item.quantity)
-                          } else if (item.tipoProteina === 'isolatada') {
-                            return sum + (35 * item.quantity)
-                          }
-                          return sum
-                        }, 0)
+                        const { extraLeche, extraExtras, extraProteina } = desglosarExtrasCarrito(cart)
                         const totalConExtras = subtotal + extraLeche + extraExtras + extraProteina
                         const descuentoActual = totalDescuento
                         const totalDespuesDescuento = Math.max(0, totalConExtras - descuentoActual)
@@ -2981,14 +2597,7 @@ const PuntoVenta = () => {
               <>
                 <div className="space-y-3 max-h-96 overflow-y-auto mb-4">
                   {cart.map(item => {
-                    // Obtener nombres de extras
-                    const nombresExtras = {
-                      'tocino': 'Tocino',
-                      'huevo': 'Huevo',
-                      'jamon': 'Jamón',
-                      'chorizo': 'Chorizo'
-                    }
-                    const extrasNombres = item.extras?.map(id => nombresExtras[id] || id) || []
+                    const extrasNombres = item.extras?.map((id) => getNombreExtra(id)) || []
                     
                     // Obtener nombre del tipo de leche
                     const getNombreTipoLeche = (tipo) => {
@@ -3027,7 +2636,7 @@ const PuntoVenta = () => {
                             {/* Etiqueta de tipo de proteína */}
                             {item.tipoProteina && (
                               <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 border border-yellow-300">
-                                Proteína: {item.tipoProteina === 'isolatada' ? 'Proteína Isolatada' : 'Proteína Normal'}
+                                {getNombreProteina(item.tipoProteina)}
                               </span>
                             )}
                             {/* Etiqueta de tipo de leche */}
@@ -3082,26 +2691,7 @@ const PuntoVenta = () => {
                   {/* Calcular total con extras y propina */}
                   {(() => {
                     const subtotal = cart.reduce((sum, item) => sum + (parseFloat(item.precio) * item.quantity), 0)
-                    const extraLeche = cart.reduce((sum, item) => {
-                      if (item.tipoLeche && (item.tipoLeche === 'deslactosada' || item.tipoLeche === 'almendras')) {
-                        return sum + (15 * item.quantity)
-                      }
-                      return sum
-                    }, 0)
-                    const extraExtras = cart.reduce((sum, item) => {
-                      if (item.extras && item.extras.length > 0) {
-                        return sum + (item.extras.length * 20 * item.quantity)
-                      }
-                      return sum
-                    }, 0)
-                    const extraProteina = cart.reduce((sum, item) => {
-                      if (item.tipoProteina === 'normal') {
-                        return sum + (30 * item.quantity)
-                      } else if (item.tipoProteina === 'isolatada') {
-                        return sum + (35 * item.quantity)
-                      }
-                      return sum
-                    }, 0)
+                    const { extraLeche, extraExtras, extraProteina } = desglosarExtrasCarrito(cart)
                     const totalConExtras = subtotal + extraLeche + extraExtras + extraProteina
                     const descuentoActual = totalDescuento
                     const totalDespuesDescuento = Math.max(0, totalConExtras - descuentoActual)
@@ -3491,28 +3081,8 @@ const PuntoVenta = () => {
                 </div>
                 {/* Calcular extras, descuento, propina y total final */}
                 {(() => {
-                  const extraLecheTotal = cart.reduce((sum, item) => {
-                    if (item.tipoLeche && (item.tipoLeche === 'deslactosada' || item.tipoLeche === 'almendras')) {
-                      return sum + (15 * item.quantity)
-                    }
-                    return sum
-                  }, 0)
-                  
-                  const extraExtrasTotal = cart.reduce((sum, item) => {
-                    if (item.extras && item.extras.length > 0) {
-                      return sum + (item.extras.length * 20 * item.quantity)
-                    }
-                    return sum
-                  }, 0)
-
-                  const extraProteinaTotal = cart.reduce((sum, item) => {
-                    if (item.tipoProteina === 'normal') {
-                      return sum + (30 * item.quantity)
-                    } else if (item.tipoProteina === 'isolatada') {
-                      return sum + (35 * item.quantity)
-                    }
-                    return sum
-                  }, 0)
+                  const { extraLeche: extraLecheTotal, extraExtras: extraExtrasTotal, extraProteina: extraProteinaTotal } =
+                    desglosarExtrasCarrito(cart)
                   
                   const totalConExtras = total + extraLecheTotal + extraExtrasTotal + extraProteinaTotal
                   const totalDespuesDescuento = Math.max(0, totalConExtras - totalDescuento)
@@ -3678,28 +3248,8 @@ const PuntoVenta = () => {
                   <span>${total.toFixed(2)}</span>
                 </div>
                 {(() => {
-                  const extraLecheTotal = cart.reduce((sum, item) => {
-                    if (item.tipoLeche && (item.tipoLeche === 'deslactosada' || item.tipoLeche === 'almendras')) {
-                      return sum + (15 * item.quantity)
-                    }
-                    return sum
-                  }, 0)
-                  
-                  const extraExtrasTotal = cart.reduce((sum, item) => {
-                    if (item.extras && item.extras.length > 0) {
-                      return sum + (item.extras.length * 20 * item.quantity)
-                    }
-                    return sum
-                  }, 0)
-
-                  const extraProteinaTotal = cart.reduce((sum, item) => {
-                    if (item.tipoProteina === 'normal') {
-                      return sum + (30 * item.quantity)
-                    } else if (item.tipoProteina === 'isolatada') {
-                      return sum + (35 * item.quantity)
-                    }
-                    return sum
-                  }, 0)
+                  const { extraLeche: extraLecheTotal, extraExtras: extraExtrasTotal, extraProteina: extraProteinaTotal } =
+                    desglosarExtrasCarrito(cart)
                   
                   const totalConExtras = total + extraLecheTotal + extraExtrasTotal + extraProteinaTotal
                   
