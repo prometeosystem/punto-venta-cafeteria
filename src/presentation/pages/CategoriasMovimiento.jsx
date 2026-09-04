@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { movimientoCajaService } from '../../application/services/movimientoCajaService'
-import { Tags, Plus, ArrowLeft } from 'lucide-react'
+import { Plus, ArrowLeft } from 'lucide-react'
 import Swal from 'sweetalert2'
 
 const CategoriasMovimiento = () => {
@@ -39,11 +39,6 @@ const CategoriasMovimiento = () => {
         <ArrowLeft className="w-4 h-4" />
         Volver a Configuración
       </Link>
-
-      <div className="flex items-center gap-3 mb-6">
-        <Tags className="w-8 h-8 text-matcha-500" />
-        <h1 className="text-2xl font-bold text-coffee-800">Categorías de Movimiento</h1>
-      </div>
 
       <div className="bg-white rounded-lg shadow p-4 mb-6 flex gap-4">
         <input placeholder="Nombre" value={nueva.nombre} onChange={(e) => setNueva({ ...nueva, nombre: e.target.value })} className="border rounded px-3 py-2 flex-1" />

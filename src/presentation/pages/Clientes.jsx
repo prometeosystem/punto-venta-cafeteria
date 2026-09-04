@@ -73,11 +73,7 @@ const Clientes = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Clientes CRM</h1>
-          <p className="text-gray-600 mt-1">Gestiona tus clientes y programa de fidelidad</p>
-        </div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-4">
         <button className="btn-primary flex items-center gap-2">
           <Plus className="w-5 h-5" />
           Nuevo Cliente

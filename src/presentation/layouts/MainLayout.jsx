@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import ToastNotification from '../components/ToastNotification'
@@ -7,8 +7,10 @@ import { useNotifications } from '../context/NotificationContext'
 
 const MainLayout = () => {
   const { sidebarOpen } = useLayout()
+  const { pathname } = useLocation()
   const { toastNotifications, removeToastNotification, removeNotification } = useNotifications()
-  
+  const isPuntoVenta = pathname.includes('punto-venta')
+
   const handleNavigate = (notificationId) => {
     // Eliminar de notificaciones permanentes cuando se toca el toast
     removeNotification(notificationId)
@@ -54,16 +56,20 @@ const MainLayout = () => {
         </div>
       )}
       
-      <div className="min-h-screen bg-gray-50 flex">
+      <div className="min-h-screen bg-gray-50 flex overflow-hidden h-dvh max-h-dvh">
         <Sidebar />
         <div 
-          className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${
+          className={`flex-1 flex flex-col min-h-0 min-w-0 transition-all duration-300 ease-in-out ${
             sidebarOpen ? 'lg:ml-64' : 'lg:ml-0'
           }`}
         >
           <Header />
           
-          <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+          <main
+            className={`flex-1 min-h-0 flex flex-col ${
+              isPuntoVenta ? 'overflow-hidden p-0' : 'overflow-y-auto p-3 lg:p-4'
+            }`}
+          >
             <Outlet />
           </main>
         </div>

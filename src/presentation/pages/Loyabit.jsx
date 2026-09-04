@@ -7,11 +7,7 @@ const Loyabit = () => {
   return (
     <div className="h-full w-full">
       <div className="card mb-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Loyabit</h1>
-            <p className="text-gray-600 mt-1">Sistema externo integrado</p>
-          </div>
+        <div className="flex items-center justify-end">
           <a
             href={loyabitUrl}
             target="_blank"

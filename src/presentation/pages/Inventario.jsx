@@ -291,11 +291,6 @@ const Inventario = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Inventario</h1>
-        <p className="text-gray-600 mt-1">Control de stock y materiales</p>
-      </div>
-
       {/* Resumen */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="card">

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useCaja } from '../hooks/useCaja'
-import { Wallet, Loader2, AlertCircle } from 'lucide-react'
+import { Loader2, AlertCircle } from 'lucide-react'
 import Swal from 'sweetalert2'
 
 const formatMoney = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n || 0)
@@ -128,10 +128,6 @@ const Caja = () => {
     return (
       <div className="max-w-lg mx-auto p-6">
         <div className="bg-white rounded-xl shadow-lg p-8">
-          <div className="flex items-center gap-3 mb-6">
-            <Wallet className="w-8 h-8 text-matcha-500" />
-            <h1 className="text-2xl font-bold text-coffee-800">Abrir Caja</h1>
-          </div>
           <p className="text-gray-600 mb-6">No hay caja abierta. Declare el fondo de cambio para iniciar el turno.</p>
           <div className="space-y-4">
             <div>
@@ -181,15 +177,9 @@ const Caja = () => {
 
   return (
     <div className="p-4 w-full space-y-3">
-      <div className="flex items-center gap-2">
-        <Wallet className="w-6 h-6 text-matcha-500 shrink-0" />
-        <div>
-          <h1 className="text-xl font-bold text-coffee-800 leading-tight">Estado de Caja</h1>
-          <p className="text-gray-500 text-xs">
-            Abierta por {sesion?.nombre_usuario_apertura} · {new Date(sesion?.fecha_apertura).toLocaleString('es-MX')}
-          </p>
-        </div>
-      </div>
+      <p className="text-gray-500 text-xs">
+        Abierta por {sesion?.nombre_usuario_apertura} · {new Date(sesion?.fecha_apertura).toLocaleString('es-MX')}
+      </p>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 items-start">
         {/* Columna principal: métricas */}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { movimientoCajaService } from '../../application/services/movimientoCajaService'
-import { ArrowLeftRight, Plus, Loader2, X } from 'lucide-react'
+import { Plus, Loader2, X } from 'lucide-react'
 import Swal from 'sweetalert2'
 
 const formatMoney = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n || 0)
@@ -116,11 +116,7 @@ const MovimientosCaja = () => {
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <ArrowLeftRight className="w-8 h-8 text-matcha-500" />
-          <h1 className="text-2xl font-bold text-coffee-800">Movimientos de Caja</h1>
-        </div>
+      <div className="flex items-center justify-end mb-6">
         <button
           onClick={abrirModal}
           className="flex items-center gap-2 bg-matcha-500 text-white px-4 py-2 rounded-lg hover:bg-matcha-600"

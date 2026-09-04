@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { cajaService } from '../../application/services/cajaService'
-import { History, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 
 const formatMoney = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n || 0)
 
@@ -25,13 +25,6 @@ const HistorialCaja = ({ embedded = false }) => {
 
   return (
     <div className={embedded ? '' : 'p-6'}>
-      {!embedded && (
-        <div className="flex items-center gap-3 mb-6">
-          <History className="w-8 h-8 text-matcha-500" />
-          <h1 className="text-2xl font-bold text-coffee-800">Historial de Caja</h1>
-        </div>
-      )}
-
       <div className="flex flex-wrap gap-4 mb-6">
         <input type="date" value={filtros.fecha_desde} onChange={(e) => setFiltros({ ...filtros, fecha_desde: e.target.value })} className="border rounded px-3 py-2" />
         <input type="date" value={filtros.fecha_hasta} onChange={(e) => setFiltros({ ...filtros, fecha_hasta: e.target.value })} className="border rounded px-3 py-2" />

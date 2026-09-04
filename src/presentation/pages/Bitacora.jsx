@@ -153,19 +153,6 @@ const Bitacora = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center gap-3 mb-2">
-            <FileText className="w-8 h-8 text-matcha-600" />
-            <h1 className="text-3xl font-bold text-gray-900">Bitácora</h1>
-          </div>
-          <p className="text-gray-600">
-            {seccion === 'movimientos'
-              ? 'Registro de todas las acciones realizadas en el sistema'
-              : 'Aperturas, cierres y arqueos de caja'}
-          </p>
-        </div>
-
         {/* Secciones */}
         <div className="flex flex-wrap gap-2 mb-6">
           <button

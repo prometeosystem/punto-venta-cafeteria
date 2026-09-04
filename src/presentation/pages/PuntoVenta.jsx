@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Minus, Trash2, ShoppingCart, ChevronDown, ChevronUp, Loader2, Package, Clock, User, CreditCard, X, Search, Trash, Coins, Percent, CheckCircle } from 'lucide-react'
+import { Plus, Minus, Trash2, ShoppingCart, ArrowLeft, Loader2, Package, Clock, User, CreditCard, X, Search, Trash, Coins, Percent, CheckCircle } from 'lucide-react'
 import { useProductos } from '../hooks/useProductos'
 import { useVentas } from '../hooks/useVentas'
 import { useComandas } from '../hooks/useComandas'
@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext'
 import { useCaja } from '../hooks/useCaja'
 import { imprimirTicket, itemsDesdeCarrito } from '../utils/imprimirTicket'
 import { obtenerMetodosPagoActivos } from '../utils/metodosPagoConfig'
+import { usePrinterContext } from '../context/PrinterContext'
 import {
   EXTRAS_DISPONIBLES,
   LECHE_PRECIOS,
@@ -30,8 +31,9 @@ import Swal from 'sweetalert2'
 
 const PuntoVenta = () => {
   const navigate = useNavigate()
+  const printer = usePrinterContext()
   const [cart, setCart] = useState([])
-  const [expandedCategories, setExpandedCategories] = useState({})
+  const [categoriaActiva, setCategoriaActiva] = useState(null)
   const [metodoPago, setMetodoPago] = useState(null)
   const [idCliente, setIdCliente] = useState(null)
   const [procesando, setProcesando] = useState(false)
@@ -271,13 +273,11 @@ const PuntoVenta = () => {
       return
     }
     
-    // Si tiene opciones, expandir/colapsar el panel
+    // Si tiene opciones, abrir modal de selección
     const productId = product.id_producto
     if (productoExpandido === productId) {
-      // Si ya está expandido, colapsar
       setProductoExpandido(null)
     } else {
-      // Expandir y inicializar opciones si no existen
       setProductoExpandido(productId)
       if (!opcionesProductos[productId]) {
         setOpcionesProductos({
@@ -290,6 +290,20 @@ const PuntoVenta = () => {
         })
       }
     }
+  }
+
+  const cerrarModalOpcionesProducto = () => {
+    if (productoExpandido) {
+      setOpcionesProductos((prev) => ({
+        ...prev,
+        [productoExpandido]: {
+          tipoLeche: 'entera',
+          extras: [],
+          tipoProteina: null,
+        },
+      }))
+    }
+    setProductoExpandido(null)
   }
   
   const confirmarAgregarAlCarrito = (product) => {
@@ -536,10 +550,54 @@ const PuntoVenta = () => {
   }
 
   const ofrecerImpresionTicket = async ({ titulo, texto, ticketData }) => {
+    const ticketCompleto = {
+      negocio: 'ZONA 2',
+      lugar: 'Zona 2 Coffee Recovery',
+      ...ticketData,
+    }
+
+    // Si la PT-210 está conectada, imprime directo por Bluetooth
+    if (printer.isConnected) {
+      try {
+        await printer.printTicket(ticketCompleto)
+        await Swal.fire({
+          icon: 'success',
+          title: titulo,
+          text: 'Recibo enviado a la impresora térmica.',
+          timer: 1800,
+          showConfirmButton: false,
+        })
+        return
+      } catch (err) {
+        console.error('Error impresión térmica:', err)
+        const retry = await Swal.fire({
+          icon: 'warning',
+          title: 'Error en impresora térmica',
+          text: `${err.message || 'No se pudo imprimir'}. ¿Imprimir por el navegador?`,
+          showCancelButton: true,
+          confirmButtonText: 'Imprimir en navegador',
+          cancelButtonText: 'Cerrar',
+          confirmButtonColor: '#10b981',
+        })
+        if (retry.isConfirmed) {
+          const printResult = imprimirTicket(ticketCompleto)
+          if (printResult?.error) {
+            await Swal.fire({
+              icon: 'warning',
+              title: 'No se pudo imprimir',
+              text: printResult.error,
+              confirmButtonColor: '#10b981',
+            })
+          }
+        }
+        return
+      }
+    }
+
     const result = await Swal.fire({
       icon: 'success',
       title: titulo,
-      text: texto,
+      text: `${texto} (Conecta la PT-210 arriba para imprimir en térmica).`,
       showCancelButton: true,
       confirmButtonText: 'Imprimir ticket (Enter)',
       cancelButtonText: 'Cerrar (Esc)',
@@ -576,7 +634,7 @@ const PuntoVenta = () => {
       },
     })
     if (result.isConfirmed) {
-      const printResult = imprimirTicket(ticketData)
+      const printResult = imprimirTicket(ticketCompleto)
       if (printResult?.error) {
         await Swal.fire({
           icon: 'warning',
@@ -1777,16 +1835,18 @@ const PuntoVenta = () => {
     })
   }
 
-  const toggleCategory = (category) => {
-    setExpandedCategories(prev => ({
-      ...prev,
-      [category]: !prev[category]
-    }))
+  const productosDeCategoria = (category) =>
+    productos.filter((p) => p.categoria === category && p.activo)
+
+  const abrirCategoria = (category) => {
+    setCategoriaActiva(category)
+    setProductoExpandido(null)
+    setSearchTerm('')
   }
 
-  // Todas las categorías colapsadas por defecto
-  const isCategoryExpanded = (category) => {
-    return expandedCategories[category] === true
+  const volverACategorias = () => {
+    setCategoriaActiva(null)
+    setProductoExpandido(null)
   }
 
   // Filtrar productos según búsqueda
@@ -1816,19 +1876,20 @@ const PuntoVenta = () => {
       return
     }
 
-    // Producto con opciones: expandir categoría Y mostrar panel de opciones
-    setExpandedCategories(prev => ({ ...prev, [producto.categoria]: true }))
+    // Producto con opciones: abrir modal
     setProductoExpandido(producto.id_producto)
     if (!opcionesProductos[producto.id_producto]) {
-      setOpcionesProductos(prev => ({
-        ...prev,
-        [producto.id_producto]: { tipoLeche: 'entera', extras: [], tipoProteina: null }
-      }))
+      setOpcionesProductos({
+        ...opcionesProductos,
+        [producto.id_producto]: {
+          tipoLeche: 'entera',
+          extras: [],
+          tipoProteina: null,
+        },
+      })
     }
-    setHighlightedProduct(producto.id_producto)
-    // NO limpiar búsqueda para que el usuario vea el producto - al cambiar a categorías se verá el panel
     setSearchTerm('')
-    setTimeout(() => setHighlightedProduct(null), 3000)
+    setHighlightedProduct(null)
   }
 
   if (productosLoading || cajaLoading) {
@@ -1848,379 +1909,166 @@ const PuntoVenta = () => {
     )
   }
 
+
+  const renderProductTile = (product) => {
+    const isHighlighted = highlightedProduct === product.id_producto
+    const isSelected = productoExpandido === product.id_producto
+
+    return (
+      <button
+        key={product.id_producto}
+        type="button"
+        onClick={() => handleProductClick(product)}
+        className={`rounded-xl border-2 transition-all p-3 text-left min-h-[88px] active:scale-[0.98] ${
+          isHighlighted || isSelected
+            ? 'border-matcha-500 bg-matcha-50'
+            : 'border-gray-200 bg-white hover:border-matcha-400'
+        }`}
+      >
+        <p className="font-medium text-gray-900 text-sm leading-snug">{product.nombre}</p>
+        <p className="text-sm text-matcha-600 font-semibold mt-1">${parseFloat(product.precio).toFixed(2)}</p>
+      </button>
+    )
+  }
+
+  const productoOpcionesModal = productoExpandido
+    ? productos.find((p) => p.id_producto === productoExpandido)
+    : null
+  const opcionesModal = productoExpandido
+    ? (opcionesProductos[productoExpandido] || { tipoLeche: 'entera', extras: [], tipoProteina: null })
+    : null
+  const modalLlevaLeche = productoOpcionesModal
+    ? Boolean(productoOpcionesModal.lleva_leche === true || productoOpcionesModal.lleva_leche === 1 || productoOpcionesModal.lleva_leche === '1')
+    : false
+  const modalLlevaExtras = productoOpcionesModal
+    ? Boolean(productoOpcionesModal.lleva_extras === true || productoOpcionesModal.lleva_extras === 1 || productoOpcionesModal.lleva_extras === '1')
+    : false
+  const modalLlevaProteina = productoOpcionesModal
+    ? Boolean(
+        productoOpcionesModal.lleva_proteina === true ||
+          productoOpcionesModal.lleva_proteina === 1 ||
+          productoOpcionesModal.lleva_proteina === '1' ||
+          productoOpcionesModal.categoria === 'runner_proteina'
+      )
+    : false
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Punto de Venta</h1>
-        <p className="text-gray-600 mt-1">Gestiona las ventas de tu cafetería</p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Productos */}
-        <div className="lg:col-span-2 space-y-4">
-          {/* Buscador de productos */}
-          <div className="card">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Buscar productos por nombre, descripción o categoría..."
-                className="input pl-10 w-full"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              {searchTerm && (
-                <button
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 rounded hover:bg-gray-100 transition-colors"
-                >
-                  <X className="w-4 h-4 text-gray-400" />
-                </button>
-              )}
-            </div>
-
-            {/* Resultados de búsqueda */}
-            {searchTerm && productosFiltrados.length > 0 && (
-              <div className="mt-4 border-t border-gray-200 pt-4">
-                <p className="text-sm text-gray-600 mb-3">
-                  {productosFiltrados.length} producto{productosFiltrados.length !== 1 ? 's' : ''} encontrado{productosFiltrados.length !== 1 ? 's' : ''}
-                </p>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-96 overflow-y-auto">
-                  {productosFiltrados.map(producto => (
-                    <button
-                      key={producto.id_producto}
-                      onClick={() => seleccionarProductoDesdeBusqueda(producto)}
-                      className="p-3 border-2 border-matcha-300 rounded-lg hover:border-matcha-500 hover:bg-matcha-50 transition-all duration-200 text-left bg-matcha-50"
-                    >
-                      <p className="font-medium text-gray-900 text-sm">{producto.nombre}</p>
-                      <p className="text-xs text-gray-500 mt-1">{producto.categoria}</p>
-                      <p className="text-sm text-matcha-600 font-semibold mt-1">
-                        ${parseFloat(producto.precio).toFixed(2)}
-                      </p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {searchTerm && productosFiltrados.length === 0 && (
-              <div className="mt-4 border-t border-gray-200 pt-4 text-center py-8 text-gray-400">
-                <Package className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No se encontraron productos</p>
-              </div>
+    <div className="h-full min-h-0 pt-3 px-2 pb-2 flex gap-2 overflow-hidden">
+      {/* Catálogo */}
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-2 overflow-hidden">
+        {/* Barra superior compacta */}
+        <div className="shrink-0 flex gap-2 items-center">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Buscar..."
+              className="input pl-8 w-full py-2.5 text-sm"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value)
+                if (e.target.value) setCategoriaActiva(null)
+              }}
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-100"
+              >
+                <X className="w-3.5 h-3.5 text-gray-400" />
+              </button>
             )}
           </div>
-
-          {/* Producto Personalizado */}
-          <div className="card">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              Agregar Producto Personalizado
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div>
-                <input
-                  type="text"
-                  value={nombreProductoPersonalizado}
-                  onChange={(e) => setNombreProductoPersonalizado(e.target.value)}
-                  placeholder="Nombre del producto"
-                  className="input w-full"
-                  maxLength="100"
-                />
-              </div>
-
-              <div>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                  <input
-                    type="number"
-                    value={precioProductoPersonalizado}
-                    onChange={(e) => setPrecioProductoPersonalizado(e.target.value)}
-                    placeholder="Precio"
-                    className="input w-full pl-8"
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-end">
-                <button
-                  onClick={agregarProductoPersonalizado}
-                  disabled={!nombreProductoPersonalizado.trim() || !precioProductoPersonalizado}
-                  className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                >
-                  <Plus className="w-4 h-4 mr-2 flex-shrink-0" />
-                  Agregar a Orden
-                </button>
-              </div>
-            </div>
+          <input
+            type="text"
+            value={nombreProductoPersonalizado}
+            onChange={(e) => setNombreProductoPersonalizado(e.target.value)}
+            placeholder="Producto personalizado"
+            className="input py-2.5 text-sm flex-1 min-w-0"
+            maxLength="100"
+          />
+          <div className="relative w-28 shrink-0">
+            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
+            <input
+              type="number"
+              value={precioProductoPersonalizado}
+              onChange={(e) => setPrecioProductoPersonalizado(e.target.value)}
+              placeholder="0"
+              className="input w-full pl-6 py-2.5 text-sm"
+              min="0"
+              step="0.01"
+            />
           </div>
-
-          {/* Lista de categorías (solo mostrar si no hay búsqueda activa o si hay búsqueda pero no hay resultados) */}
-          {(!searchTerm || productosFiltrados.length === 0) && categories.map(category => {
-            const isExpanded = isCategoryExpanded(category)
-            const categoryProducts = productos.filter(p => p.categoria === category && p.activo)
-            
-            return (
-              <div key={category} className="card">
-                <button
-                  onClick={() => toggleCategory(category)}
-                  className="w-full flex items-center justify-between mb-4 hover:opacity-80 transition-opacity"
-                >
-                  <h2 className="text-lg font-semibold text-gray-900">
-                    {category}
-                  </h2>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500">
-                      {categoryProducts.length} productos
-                    </span>
-                    {isExpanded ? (
-                      <ChevronUp className="w-5 h-5 text-gray-600" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5 text-gray-600" />
-                    )}
-                  </div>
-                </button>
-                <div
-                  className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                    isExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
-                  }`}
-                >
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pt-2">
-                    {categoryProducts.map(product => {
-                      const isHighlighted = highlightedProduct === product.id_producto
-                      const isExpanded = productoExpandido === product.id_producto
-                      const llevaLeche = Boolean(
-                        product.lleva_leche === true || 
-                        product.lleva_leche === 1 ||
-                        product.lleva_leche === "1"
-                      )
-                      const llevaExtras = Boolean(
-                        product.lleva_extras === true || 
-                        product.lleva_extras === 1 ||
-                        product.lleva_extras === "1"
-                      )
-                      const llevaProteina = Boolean(
-                        product.lleva_proteina === true || 
-                        product.lleva_proteina === 1 ||
-                        product.lleva_proteina === "1" ||
-                        product.categoria === 'runner_proteina'
-                      )
-                      const opciones = opcionesProductos[product.id_producto] || { tipoLeche: 'entera', extras: [], tipoProteina: null }
-                      
-                      return (
-                        <div
-                          key={product.id_producto}
-                          className={`border-2 rounded-lg transition-all duration-200 ${
-                            isHighlighted
-                              ? 'border-matcha-500 bg-matcha-100 shadow-lg scale-105'
-                              : isExpanded
-                              ? 'border-matcha-500 hover:border-matcha-500'
-                              : 'border-gray-200 hover:border-matcha-500 hover:bg-matcha-50'
-                          }`}
-                        >
-                          <button
-                            onClick={() => handleProductClick(product)}
-                            className="w-full p-4 text-left"
-                          >
-                            <p className="font-medium text-gray-900">{product.nombre}</p>
-                            <p className="text-sm text-matcha-600 font-semibold mt-1">
-                              ${parseFloat(product.precio).toFixed(2)}
-                            </p>
-                          </button>
-                          
-                          {/* Panel de opciones expandido */}
-                          {isExpanded && (llevaLeche || llevaExtras || llevaProteina) && (
-                            <div className="px-4 pb-4 space-y-4 border-t border-gray-200 mt-2 pt-4">
-                              {/* Tipo de Leche */}
-                              {llevaLeche && (
-                                <div>
-                                  <label className="block text-xs font-medium text-gray-700 mb-2">
-                                    Tipo de Leche
-                                  </label>
-                                  <div className="grid grid-cols-3 gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => actualizarTipoLeche(product.id_producto, 'entera')}
-                                      className={`py-2 px-2 rounded border-2 transition-all text-xs ${
-                                        opciones.tipoLeche === 'entera'
-                                          ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
-                                          : 'border-gray-200 hover:border-gray-300'
-                                      }`}
-                                    >
-                                      Entera
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => actualizarTipoLeche(product.id_producto, 'deslactosada')}
-                                      className={`py-2 px-2 rounded border-2 transition-all text-xs ${
-                                        opciones.tipoLeche === 'deslactosada'
-                                          ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
-                                          : 'border-gray-200 hover:border-gray-300'
-                                      }`}
-                                    >
-                                      Deslac. (+$15)
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => actualizarTipoLeche(product.id_producto, 'almendras')}
-                                      className={`py-2 px-2 rounded border-2 transition-all text-xs ${
-                                        opciones.tipoLeche === 'almendras'
-                                          ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
-                                          : 'border-gray-200 hover:border-gray-300'
-                                      }`}
-                                    >
-                                      Almend. (+$20)
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-                              
-                              {/* Extras */}
-                              {llevaExtras && (
-                                <div>
-                                  <label className="block text-xs font-medium text-gray-700 mb-2">
-                                    Extras
-                                  </label>
-                                  <div className="grid grid-cols-2 gap-2">
-                                    {EXTRAS_DISPONIBLES.map(extra => (
-                                      <button
-                                        key={extra.id}
-                                        type="button"
-                                        onClick={() => toggleExtra(product.id_producto, extra.id)}
-                                        className={`py-2 px-2 rounded border-2 transition-all text-xs ${
-                                          opciones.extras?.includes(extra.id)
-                                            ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
-                                            : 'border-gray-200 hover:border-gray-300'
-                                        }`}
-                                      >
-                                        {extra.label} (+${extra.precio})
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                              
-                              {/* Scoop de proteína */}
-                              {llevaProteina && (
-                                <div>
-                                  <label className="block text-xs font-medium text-gray-700 mb-2">
-                                    Proteína extra
-                                  </label>
-                                  <button
-                                    type="button"
-                                    onClick={() => actualizarTipoProteina(
-                                      product.id_producto,
-                                      tieneScoopProteina(opciones.tipoProteina) ? null : 'scoop'
-                                    )}
-                                    className={`py-2 px-2 rounded border-2 transition-all text-xs w-full ${
-                                      tieneScoopProteina(opciones.tipoProteina)
-                                        ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
-                                        : 'border-gray-200 hover:border-gray-300'
-                                    }`}
-                                  >
-                                    Scoop de proteína (+${PROTEINA_SCOOP_PRECIO})
-                                  </button>
-                                </div>
-                              )}
-                              
-                              {/* Resumen visual de opciones seleccionadas */}
-                              {(opciones.tipoLeche && opciones.tipoLeche !== 'entera') || opciones.tipoProteina || (opciones.extras && opciones.extras.length > 0) ? (
-                                <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-200">
-                                  {opciones.tipoProteina && (
-                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 border border-yellow-300">
-                                      {getNombreProteina(opciones.tipoProteina)}
-                                    </span>
-                                  )}
-                                  {opciones.tipoLeche && opciones.tipoLeche !== 'entera' && (
-                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-300">
-                                      Leche: {opciones.tipoLeche === 'deslactosada' ? 'Deslactosada' : 'Almendras'}
-                                    </span>
-                                  )}
-                                  {opciones.extras && opciones.extras.length > 0 && (
-                                    <>
-                                      {opciones.extras.map((extraId, index) => (
-                                        <span
-                                          key={index}
-                                          className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 border border-purple-300"
-                                        >
-                                          {getNombreExtra(extraId)}
-                                        </span>
-                                      ))}
-                                    </>
-                                  )}
-                                </div>
-                              ) : null}
-                              
-                              {/* Resumen y botón agregar */}
-                              <div className="border-t border-gray-200 pt-3 space-y-2">
-                                <div className="flex items-center justify-between text-xs text-gray-600">
-                                  <span>Subtotal:</span>
-                                  <span>${parseFloat(product.precio).toFixed(2)}</span>
-                                </div>
-                                {opciones.tipoLeche === 'deslactosada' && (
-                                  <div className="flex items-center justify-between text-xs text-gray-600">
-                                    <span>Extra Leche:</span>
-                                    <span>+${LECHE_PRECIOS.deslactosada.toFixed(2)}</span>
-                                  </div>
-                                )}
-                                {opciones.tipoLeche === 'almendras' && (
-                                  <div className="flex items-center justify-between text-xs text-gray-600">
-                                    <span>Extra Leche:</span>
-                                    <span>+${LECHE_PRECIOS.almendras.toFixed(2)}</span>
-                                  </div>
-                                )}
-                                {opciones.tipoProteina && (
-                                  <div className="flex items-center justify-between text-xs text-gray-600">
-                                    <span>{getNombreProteina(opciones.tipoProteina)}</span>
-                                    <span>+${PROTEINA_SCOOP_PRECIO.toFixed(2)}</span>
-                                  </div>
-                                )}
-                                {opciones.extras && opciones.extras.length > 0 && (
-                                  <div className="flex items-center justify-between text-xs text-gray-600">
-                                    <span>Extras ({opciones.extras.length}):</span>
-                                    <span>+${calcPrecioExtras(opciones.extras).toFixed(2)}</span>
-                                  </div>
-                                )}
-                                <div className="flex items-center justify-between text-sm font-bold text-gray-900 pt-2 border-t border-gray-200">
-                                  <span>Total:</span>
-                                  <span className="text-matcha-600">
-                                    ${calcPrecioOpcionesProducto(product.precio, opciones).toFixed(2)}
-                                  </span>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => confirmarAgregarAlCarrito(product)}
-                                  className="w-full btn-primary py-2 mt-2 text-sm"
-                                >
-                                  Agregar al Carrito
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              </div>
-            )
-          })}
+          <button
+            onClick={agregarProductoPersonalizado}
+            disabled={!nombreProductoPersonalizado.trim() || !precioProductoPersonalizado}
+            className="btn-primary py-2.5 px-4 text-sm disabled:opacity-50 shrink-0 inline-flex items-center gap-1.5 min-h-[42px]"
+            title="Agregar personalizado"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="hidden sm:inline">Agregar</span>
+          </button>
         </div>
 
-        {/* Carrito / Detalles de Pre-orden y Pre-órdenes */}
-        <div className="lg:col-span-1 space-y-6">
+        {/* Área con scroll propio: categorías o productos */}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain rounded-xl bg-white border border-gray-200 p-2">
+          {searchTerm ? (
+            productosFiltrados.length === 0 ? (
+              <div className="text-center py-10 text-gray-400 text-sm">Sin resultados</div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2">
+                {productosFiltrados.map((product) => renderProductTile(product))}
+              </div>
+            )
+          ) : !categoriaActiva ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2">
+              {categories.map((category) => {
+                const count = productosDeCategoria(category).length
+                return (
+                  <button
+                    key={category}
+                    type="button"
+                    onClick={() => abrirCategoria(category)}
+                    className="aspect-square sm:aspect-[4/3] rounded-xl border-2 border-gray-200 bg-gray-50 hover:border-matcha-500 hover:bg-matcha-50 active:scale-[0.98] transition-all p-3 flex flex-col items-center justify-center text-center"
+                  >
+                    <span className="font-semibold text-gray-900 text-sm sm:text-base leading-tight">{category}</span>
+                    <span className="text-xs text-gray-500 mt-1">{count} items</span>
+                  </button>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2 pt-1">
+                {/* Casilla volver también en la grilla */}
+                <button
+                  type="button"
+                  onClick={volverACategorias}
+                  className="min-h-[88px] rounded-xl border-2 border-dashed border-gray-300 bg-white hover:bg-gray-50 p-3 flex flex-col items-center justify-center text-gray-600 text-sm font-medium"
+                >
+                  <ArrowLeft className="w-5 h-5 mb-1" />
+                  Categorías
+                </button>
+                {productosDeCategoria(categoriaActiva).map((product) => renderProductTile(product))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+        {/* Ticket / orden — scroll propio */}
+        <div className="w-full max-w-[360px] sm:w-[340px] lg:w-[360px] shrink-0 min-h-0 flex flex-col overflow-y-auto overscroll-contain gap-2">
           {/* Carrito / Detalles de Pre-orden / Orden actual (incluye comanda lista para cobrar) */}
-          <div className="card sticky top-24">
+            <div className="card shrink-0 !p-3">
             {preordenSeleccionada ? (
               <>
                 {/* Vista de Pre-orden Seleccionada - Editable */}
-                <div className="mb-4">
+                <div className="mb-3">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <Package className="w-5 h-5 text-matcha-600" />
-                      <h2 className="text-lg font-semibold text-gray-900">
+                      <h2 className="text-base font-semibold text-gray-900">
                         Pre-orden #{preordenSeleccionada.id_preorden}
                       </h2>
                       <div className="flex items-center gap-1">
@@ -2300,10 +2148,10 @@ const PuntoVenta = () => {
             {preordenSeleccionada ? (
               <>
                 {/* Carrito Editable para Pre-orden */}
-                <div className="mb-4">
+                <div className="mb-3">
                   <div className="flex items-center gap-2 mb-2">
                     <ShoppingCart className="w-5 h-5 text-matcha-600" />
-                    <h2 className="text-lg font-semibold text-gray-900">Editar Pre-orden</h2>
+                    <h2 className="text-base font-semibold text-gray-900">Editar Pre-orden</h2>
                     {cart.length > 0 && (
                       <span className="bg-matcha-100 text-matcha-700 text-xs font-medium px-2 py-1 rounded-full">
                         {cart.reduce((sum, item) => sum + item.quantity, 0)}
@@ -2313,14 +2161,14 @@ const PuntoVenta = () => {
                 </div>
 
                 {cart.length === 0 ? (
-                  <div className="text-center py-12 text-gray-400">
-                    <ShoppingCart className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>El carrito está vacío</p>
+                  <div className="text-center py-6 text-gray-400">
+                    <ShoppingCart className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">El carrito está vacío</p>
                     <p className="text-xs mt-2">Agrega productos desde el menú</p>
                   </div>
                 ) : (
                   <>
-                    <div className="space-y-3 max-h-96 overflow-y-auto mb-4">
+                    <div className="space-y-2 mb-3">
                       {cart.map(item => {
                         const extrasNombres = item.extras?.map((id) => getNombreExtra(id)) || []
                         
@@ -2506,11 +2354,11 @@ const PuntoVenta = () => {
             ) : (
               <>
                 {/* Vista de Carrito Normal (incluye comanda lista para cobrar) */}
-                <div className="mb-4">
+                <div className="mb-3">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                     <ShoppingCart className="w-5 h-5 text-matcha-600" />
-                    <h2 className="text-lg font-semibold text-gray-900">
+                    <h2 className="text-base font-semibold text-gray-900">
                       {comandaTerminadaSeleccionada ? 'Para cobrar' : 'Orden Actual'}
                     </h2>
                     {comandaTerminadaSeleccionada && (
@@ -2584,18 +2432,18 @@ const PuntoVenta = () => {
                         </button>
                       )}
                     </div>
+                    </div>
                   </div>
-                  
                 </div>
 
             {cart.length === 0 ? (
-              <div className="text-center py-12 text-gray-400">
-                <ShoppingCart className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>El carrito está vacío</p>
+              <div className="text-center py-6 text-gray-400">
+                <ShoppingCart className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">El carrito está vacío</p>
               </div>
             ) : (
               <>
-                <div className="space-y-3 max-h-96 overflow-y-auto mb-4">
+                <div className="space-y-2 mb-3">
                   {cart.map(item => {
                     const extrasNombres = item.extras?.map((id) => getNombreExtra(id)) || []
                     
@@ -2824,19 +2672,21 @@ const PuntoVenta = () => {
                 </div>
               </>
             )}
+              </>
+            )}
           </div>
 
           {/* Comandas terminadas sin pagar */}
           {comandasTerminadasSinPagar.length > 0 && (
-            <div className="card mb-4">
-              <div className="flex items-center gap-2 mb-4">
+            <div className="card mb-2 !p-3">
+              <div className="flex items-center gap-2 mb-2">
                 <CheckCircle className="w-5 h-5 text-amber-600" />
-                <h2 className="text-lg font-semibold text-gray-900">Comandas listas sin pagar</h2>
+                <h2 className="text-base font-semibold text-gray-900">Comandas listas sin pagar</h2>
                 <span className="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-1 rounded-full">
                   {comandasTerminadasSinPagar.length}
                 </span>
               </div>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
+              <div className="space-y-2">
                 {comandasTerminadasSinPagar.map((comanda) => {
                   const itemsCount = comanda.detalles?.reduce((sum, d) => sum + d.cantidad, 0) || 0
                   const isSelected = comandaTerminadaSeleccionada?.id_comanda === comanda.id_comanda
@@ -2881,10 +2731,10 @@ const PuntoVenta = () => {
           )}
 
           {/* Pre-órdenes Pendientes */}
-          <div className="card">
-            <div className="flex items-center gap-2 mb-4">
+          <div className="card !p-3">
+            <div className="flex items-center gap-2 mb-2">
               <Package className="w-5 h-5 text-matcha-600" />
-              <h2 className="text-lg font-semibold text-gray-900">Pre-órdenes</h2>
+              <h2 className="text-base font-semibold text-gray-900">Pre-órdenes</h2>
               {preordenes.length > 0 && (
                 <span className="bg-matcha-100 text-matcha-700 text-xs font-medium px-2 py-1 rounded-full">
                   {preordenes.length}
@@ -2902,7 +2752,7 @@ const PuntoVenta = () => {
                 <p className="text-sm">No hay pre-órdenes pendientes</p>
               </div>
             ) : (
-              <div className="space-y-2 max-h-96 overflow-y-auto">
+              <div className="space-y-2">
                 {preordenes.map((preorden) => {
                   const itemsCount = preorden.detalles?.reduce((sum, d) => sum + d.cantidad, 0) || 0
                   const isSelected = preordenSeleccionada?.id_preorden === preorden.id_preorden
@@ -2968,16 +2818,138 @@ const PuntoVenta = () => {
               </div>
             )}
           </div>
-            </>
-            )}
+        </div>
+
+      {/* Modal opciones de producto (leche / extras / proteína) */}
+      {productoOpcionesModal && opcionesModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+          onClick={cerrarModalOpcionesProducto}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <div className="min-w-0 pr-2">
+                <h2 className="text-xl font-bold text-gray-900 truncate">{productoOpcionesModal.nombre}</h2>
+                <p className="text-sm text-gray-500 mt-0.5">Elige las opciones</p>
+              </div>
+              <button
+                type="button"
+                onClick={cerrarModalOpcionesProducto}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors shrink-0"
+              >
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-5">
+              {modalLlevaLeche && (
+                <div>
+                  <p className="text-sm font-medium text-gray-700 mb-2">Tipo de leche</p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {[
+                      { value: 'entera', label: 'Entera', extra: 0 },
+                      { value: 'deslactosada', label: 'Deslactosada', extra: LECHE_PRECIOS.deslactosada },
+                      { value: 'almendras', label: 'Almendras', extra: LECHE_PRECIOS.almendras },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => actualizarTipoLeche(productoOpcionesModal.id_producto, opt.value)}
+                        className={`min-h-[52px] px-4 py-3 rounded-xl border-2 text-left text-base font-medium transition-all ${
+                          opcionesModal.tipoLeche === opt.value
+                            ? 'border-matcha-500 bg-matcha-50 text-matcha-800'
+                            : 'border-gray-200 text-gray-800'
+                        }`}
+                      >
+                        {opt.label}
+                        {opt.extra > 0 ? ` (+$${opt.extra})` : ''}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {modalLlevaExtras && (
+                <div>
+                  <p className="text-sm font-medium text-gray-700 mb-2">Extras</p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {EXTRAS_DISPONIBLES.map((extra) => {
+                      const activo = (opcionesModal.extras || []).includes(extra.id)
+                      return (
+                        <button
+                          key={extra.id}
+                          type="button"
+                          onClick={() => toggleExtra(productoOpcionesModal.id_producto, extra.id)}
+                          className={`min-h-[52px] px-4 py-3 rounded-xl border-2 text-left text-base font-medium transition-all ${
+                            activo
+                              ? 'border-matcha-500 bg-matcha-50 text-matcha-800'
+                              : 'border-gray-200 text-gray-800'
+                          }`}
+                        >
+                          {extra.label} (+${extra.precio})
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {modalLlevaProteina && (
+                <div>
+                  <p className="text-sm font-medium text-gray-700 mb-2">Proteína</p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      actualizarTipoProteina(
+                        productoOpcionesModal.id_producto,
+                        tieneScoopProteina(opcionesModal.tipoProteina) ? null : 'scoop'
+                      )
+                    }
+                    className={`w-full min-h-[52px] px-4 py-3 rounded-xl border-2 text-left text-base font-medium transition-all ${
+                      tieneScoopProteina(opcionesModal.tipoProteina)
+                        ? 'border-matcha-500 bg-matcha-50 text-matcha-800'
+                        : 'border-gray-200 text-gray-800'
+                    }`}
+                  >
+                    Scoop proteína (+${PROTEINA_SCOOP_PRECIO})
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-gray-200 flex gap-3">
+              <button
+                type="button"
+                onClick={cerrarModalOpcionesProducto}
+                className="btn-outline flex-1 min-h-[48px] text-base"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => confirmarAgregarAlCarrito(productoOpcionesModal)}
+                className="btn-primary flex-1 min-h-[48px] text-base inline-flex items-center justify-center gap-2"
+              >
+                Agregar · ${calcPrecioOpcionesProducto(productoOpcionesModal.precio, opcionesModal).toFixed(2)}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Modal Finalizar Pedido */}
       {mostrarModalFinalizar && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+          onClick={() => setMostrarModalFinalizar(false)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-2xl font-bold text-gray-900">Finalizar Pedido</h2>
@@ -3163,8 +3135,19 @@ const PuntoVenta = () => {
 
       {/* Modal Guardar como Pre-orden */}
       {mostrarModalGuardarPreorden && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+          onClick={() => {
+            setMostrarModalGuardarPreorden(false)
+            setNombreCliente('')
+            setTipoServicio('comer-aqui')
+            setComentarios('')
+          }}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-2xl font-bold text-gray-900">Guardar como Pre-orden</h2>
@@ -3315,8 +3298,14 @@ const PuntoVenta = () => {
 
       {/* Modal Propina */}
       {mostrarModalPropina && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+          onClick={() => setMostrarModalPropina(false)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
               <h2 className="text-2xl font-bold text-gray-900">Seleccionar Propina</h2>
@@ -3454,8 +3443,14 @@ const PuntoVenta = () => {
 
       {/* Modal Descuento */}
       {mostrarModalDescuento && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+          onClick={() => setMostrarModalDescuento(false)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
               <h2 className="text-2xl font-bold text-gray-900">Aplicar Descuento</h2>
               <button
@@ -3575,8 +3570,18 @@ const PuntoVenta = () => {
 
       {/* Modal Cancelar Pre-orden */}
       {mostrarModalCancelar && preordenACancelar && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+          onClick={() => {
+            setMostrarModalCancelar(false)
+            setPasswordCancelar('')
+            setPreordenACancelar(null)
+          }}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-2xl font-bold text-red-600">¿Cancelar Pre-orden?</h2>

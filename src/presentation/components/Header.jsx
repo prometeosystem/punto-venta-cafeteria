@@ -3,17 +3,44 @@ import { Menu, Bell, Package, X, LogOut, AlertTriangle, DollarSign } from 'lucid
 import { useLayout } from '../context/LayoutContext'
 import { useAuth } from '../context/AuthContext'
 import { useNotifications } from '../context/NotificationContext'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
+import PrinterConnectionButton from './PrinterConnectionButton'
+import { usePrinterContext } from '../context/PrinterContext'
+
+const ROUTE_TITLES = {
+  '/dashboard': 'Dashboard',
+  '/punto-venta': 'Punto de Venta',
+  '/caja': 'Caja',
+  '/historial-caja': 'Historial de Caja',
+  '/movimientos-caja': 'Movimientos',
+  '/categorias-movimiento': 'Categorías de Movimiento',
+  '/barista': 'Barista',
+  '/productos': 'Productos',
+  '/inventario': 'Inventario',
+  '/loyabit': 'Loyabit',
+  '/empleados': 'Empleados',
+  '/reportes': 'Reportes',
+  '/contabilidad': 'Contabilidad',
+  '/bitacora': 'Bitácora',
+  '/configuracion': 'Configuración',
+  '/test-sonidos': 'Prueba de Sonidos',
+  '/pedidos': 'Pedidos',
+  '/clientes': 'Clientes',
+}
 
 const Header = () => {
   const { sidebarOpen, toggleSidebar } = useLayout()
   const { usuario, logout } = useAuth()
-  const { notifications, unreadCount, markAsRead, markAllAsRead, removeNotification } = useNotifications()
+  const { notifications, unreadCount, markAllAsRead, removeNotification } = useNotifications()
+  const printer = usePrinterContext()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const [showDropdown, setShowDropdown] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const notificationRef = useRef(null)
   const userDropdownRef = useRef(null)
+
+  const pageTitle = ROUTE_TITLES[pathname] || 'Punto de Cafetería'
 
   const handleLogout = () => {
     logout()
@@ -32,7 +59,6 @@ const Header = () => {
     return `${usuario.nombre || ''} ${usuario.apellido_paterno || ''}`.trim() || 'Usuario'
   }
 
-  // Cerrar dropdowns al hacer click fuera
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (notificationRef.current && !notificationRef.current.contains(event.target)) {
@@ -49,14 +75,11 @@ const Header = () => {
     }
   }, [])
 
-  // Manejar click en notificación
   const handleNotificationClick = (notification) => {
-    // Eliminar la notificación al hacer click
     removeNotification(notification.id)
-    
+
     if (notification.accion) {
       if (notification.accion.tipo === 'navegar') {
-        // Si hay parámetros de búsqueda, agregarlos a la URL como query params
         if (notification.accion.params?.search) {
           navigate(`${notification.accion.ruta}?search=${encodeURIComponent(notification.accion.params.search)}`)
         } else {
@@ -67,7 +90,6 @@ const Header = () => {
     }
   }
 
-  // Formatear fecha de notificación
   const formatNotificationDate = (fecha) => {
     if (!fecha) return ''
     const date = new Date(fecha)
@@ -81,32 +103,30 @@ const Header = () => {
     if (diffMins < 60) return `Hace ${diffMins} minuto${diffMins > 1 ? 's' : ''}`
     if (diffHours < 24) return `Hace ${diffHours} hora${diffHours > 1 ? 's' : ''}`
     if (diffDays < 7) return `Hace ${diffDays} día${diffDays > 1 ? 's' : ''}`
-    
+
     return date.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })
   }
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
       <div className="flex items-center justify-between px-4 lg:px-6 h-16">
-        {/* Botón menú y nombre (visible solo cuando el sidebar está cerrado) */}
-        {!sidebarOpen && (
-          <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          {!sidebarOpen && (
             <button
               onClick={toggleSidebar}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors shrink-0"
               aria-label="Abrir menú"
             >
               <Menu className="w-5 h-5 text-gray-600" />
             </button>
-            <span className="text-xl font-semibold text-coffee-800">
-              Punto de Cafetería
-            </span>
-          </div>
-        )}
+          )}
+          <h1 className="text-xl font-semibold text-coffee-800 truncate">
+            {pageTitle}
+          </h1>
+        </div>
 
-        {/* Acciones del usuario */}
-        <div className="flex items-center gap-3 ml-auto">
-          {/* Notificaciones */}
+        <div className="flex items-center gap-3 ml-auto shrink-0">
+          <PrinterConnectionButton printer={printer} />
           <div className="relative" ref={notificationRef}>
             <button
               onClick={() => setShowNotifications(!showNotifications)}
@@ -121,10 +141,8 @@ const Header = () => {
               )}
             </button>
 
-            {/* Dropdown de notificaciones */}
             {showNotifications && (
               <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[600px] flex flex-col">
-                {/* Header del dropdown */}
                 <div className="p-4 border-b border-gray-200 flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-gray-900">Notificaciones</h3>
                   <div className="flex items-center gap-2">
@@ -145,7 +163,6 @@ const Header = () => {
                   </div>
                 </div>
 
-                {/* Lista de notificaciones */}
                 <div className="overflow-y-auto flex-1">
                   {notifications.length === 0 ? (
                     <div className="p-8 text-center">
@@ -164,7 +181,7 @@ const Header = () => {
                         >
                           <div className="flex items-center gap-3">
                             <div className={`flex-shrink-0 w-12 h-12 rounded-lg flex items-center justify-center ${
-                              notification.tipo === 'comanda' ? 'bg-matcha-100' : 
+                              notification.tipo === 'comanda' ? 'bg-matcha-100' :
                               notification.tipo === 'inventario' ? (notification.estado === 'critical' ? 'bg-red-100' : 'bg-yellow-100') :
                               notification.tipo === 'preorden' ? 'bg-blue-100' :
                               notification.tipo === 'comanda-lista-cobrar' ? 'bg-amber-100' :
@@ -176,7 +193,7 @@ const Header = () => {
                                 }`} />
                               ) : notification.icono === 'alert-triangle' ? (
                                 <AlertTriangle className={`w-6 h-6 ${
-                                  notification.tipo === 'inventario' ? 
+                                  notification.tipo === 'inventario' ?
                                     (notification.estado === 'critical' ? 'text-red-600' : 'text-yellow-600') :
                                     'text-gray-600'
                                 }`} />
@@ -184,7 +201,7 @@ const Header = () => {
                                 <DollarSign className="w-6 h-6 text-amber-600" />
                               ) : (
                                 <Bell className={`w-6 h-6 ${
-                                  notification.tipo === 'comanda' ? 'text-matcha-600' : 
+                                  notification.tipo === 'comanda' ? 'text-matcha-600' :
                                   notification.tipo === 'preorden' ? 'text-blue-600' :
                                   'text-gray-600'
                                 }`} />
@@ -226,7 +243,7 @@ const Header = () => {
               </div>
             )}
           </div>
-          {/* Dropdown de usuario */}
+
           <div className="relative" ref={userDropdownRef}>
             <button
               onClick={() => setShowDropdown(!showDropdown)}
@@ -240,8 +257,7 @@ const Header = () => {
                 <div className="text-xs text-gray-500 capitalize">{usuario?.rol || 'Usuario'}</div>
               </div>
             </button>
-            
-            {/* Dropdown menu */}
+
             {showDropdown && (
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-20">
                 <div className="px-4 py-2 border-b border-gray-200">
@@ -265,5 +281,3 @@ const Header = () => {
 }
 
 export default Header
-
-

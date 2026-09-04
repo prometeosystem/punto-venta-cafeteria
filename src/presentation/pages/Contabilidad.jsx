@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { contabilidadService } from '../../application/services/contabilidadService'
-import { Calculator, Download, Loader2 } from 'lucide-react'
+import { Download, Loader2 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import Swal from 'sweetalert2'
 
@@ -90,11 +90,7 @@ const Contabilidad = () => {
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <Calculator className="w-8 h-8 text-matcha-500" />
-          <h1 className="text-2xl font-bold text-coffee-800">Contabilidad</h1>
-        </div>
+      <div className="flex items-center justify-end mb-6">
         <div className="flex gap-2">
           <button onClick={() => exportar('pdf')} className="flex items-center gap-1 text-sm border px-3 py-2 rounded">
             <Download className="w-4 h-4" /> PDF

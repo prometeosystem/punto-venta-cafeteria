@@ -3,6 +3,7 @@ import AppRouter from './router/AppRouter'
 import { LayoutProvider } from './context/LayoutContext'
 import { AuthProvider } from './context/AuthContext'
 import { NotificationProvider } from './context/NotificationContext'
+import { PrinterProvider } from './context/PrinterContext'
 
 const routerBasename = (import.meta.env.BASE_URL || '/').replace(/\/$/, '') || '/'
 
@@ -18,7 +19,9 @@ function App() {
       <AuthProvider>
         <LayoutProvider>
           <NotificationProvider>
-            <AppRouter />
+            <PrinterProvider>
+              <AppRouter />
+            </PrinterProvider>
           </NotificationProvider>
         </LayoutProvider>
       </AuthProvider>

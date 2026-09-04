@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Play, Volume2 } from 'lucide-react'
+import { Play } from 'lucide-react'
 
 const TestNotificationSounds = () => {
   const [playing, setPlaying] = useState(null)
@@ -278,16 +278,6 @@ const TestNotificationSounds = () => {
     <div className="min-h-screen bg-gradient-to-br from-matcha-50 to-coffee-50 p-8">
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-2xl shadow-xl p-8 space-y-6">
-          <div className="text-center space-y-2">
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center justify-center gap-3">
-              <Volume2 className="w-8 h-8 text-matcha-600" />
-              Prueba de Sonidos de Notificaciones
-            </h1>
-            <p className="text-gray-600">
-              Escucha los diferentes sonidos y elige el que prefieras para las notificaciones de stock
-            </p>
-          </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {soundOptions.map((sound) => (
               <div

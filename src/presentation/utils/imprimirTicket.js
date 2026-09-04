@@ -101,6 +101,7 @@ export function imprimirTicket(ticket) {
   <div class="center">
     <div class="brand">ZONA 2</div>
     <div class="muted">Cafetería</div>
+    <div class="muted">${escapeHtml(ticket.lugar || 'Zona 2 Coffee Recovery')}</div>
     <div class="muted">${escapeHtml(fecha)}</div>
   </div>
   <div class="sep"></div>
@@ -144,7 +145,7 @@ export function imprimirTicket(ticket) {
   }
   <div class="sep"></div>
   <div class="footer">
-    ¡Gracias por su compra!<br/>
+    ¡Gracias por su visita!<br/>
     Documento informativo — no fiscal
   </div>
   <script>

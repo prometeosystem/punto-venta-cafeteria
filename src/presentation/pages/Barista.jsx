@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { CheckCircle, Clock, User, Package, Loader2, Coffee, Play, AlertTriangle } from 'lucide-react'
+import { CheckCircle, Clock, User, Package, Loader2, Play, AlertTriangle } from 'lucide-react'
 import { useComandas } from '../hooks/useComandas'
 import { useProductos } from '../hooks/useProductos'
 import { useInventario } from '../hooks/useInventario'
@@ -477,14 +477,6 @@ const Barista = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-          <Coffee className="w-8 h-8 text-matcha-600" />
-          Barista
-        </h1>
-        <p className="text-gray-600 mt-1">Gestiona las comandas y prepáralas para entregar</p>
-      </div>
-
       {cargando && comandas.length === 0 ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-matcha-600" />
