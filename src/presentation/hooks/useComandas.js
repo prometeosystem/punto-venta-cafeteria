@@ -80,6 +80,21 @@ export const useComandas = () => {
     }
   }
 
+  const cancelarComanda = async (idComanda, autorizacion = null) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const response = await comandasService.cancelarComanda(idComanda, autorizacion)
+      return response
+    } catch (err) {
+      const errorMessage = err.response?.data?.detail || err.message || 'Error al cancelar la comanda'
+      setError(errorMessage)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const actualizarEstado = async (idComanda, nuevoEstado, permitirStockNegativo = false) => {
     setLoading(true)
     setError(null)
@@ -103,6 +118,7 @@ export const useComandas = () => {
     obtenerComandasTerminadasSinPagar,
     crearComanda,
     editarComanda,
+    cancelarComanda,
     actualizarEstado,
   }
 }

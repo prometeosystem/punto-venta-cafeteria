@@ -6,6 +6,8 @@ import { useProductos } from '../hooks/useProductos'
 import { useInventario } from '../hooks/useInventario'
 import Swal from 'sweetalert2'
 
+const INTERVALO_REFRESCO_MS = 15000
+
 const Barista = () => {
   const [comandas, setComandas] = useState([])
   const [cargando, setCargando] = useState(true) // Iniciar como true para la primera carga
@@ -86,11 +88,24 @@ const Barista = () => {
     // Escuchar los eventos personalizados
     window.addEventListener('pago-procesado', handlePagoProcesado)
     window.addEventListener('comanda-actualizada', handleComandaActualizada)
-    
+
+    // Los eventos solo llegan desde esta misma pestaña. Como el mesero manda
+    // órdenes desde otra tablet, sin sondeo el barista no las ve hasta salir
+    // y volver a entrar a la vista.
+    const intervalo = setInterval(() => cargarComandas(true), INTERVALO_REFRESCO_MS)
+
+    // Al volver a la pestaña, refrescar de inmediato en vez de esperar el ciclo.
+    const handleVisibilidad = () => {
+      if (document.visibilityState === 'visible') cargarComandas(true)
+    }
+    document.addEventListener('visibilitychange', handleVisibilidad)
+
     // Limpiar los listeners al desmontar
     return () => {
       window.removeEventListener('pago-procesado', handlePagoProcesado)
       window.removeEventListener('comanda-actualizada', handleComandaActualizada)
+      document.removeEventListener('visibilitychange', handleVisibilidad)
+      clearInterval(intervalo)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

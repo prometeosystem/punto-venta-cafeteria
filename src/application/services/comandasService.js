@@ -32,6 +32,14 @@ export const comandasService = {
     return response.data
   },
 
+  // Cancelar comanda: no la borra, la marca como cancelada y salda la venta
+  // con un descuento del 100%. `autorizacion` es el código o la contraseña de
+  // un administrador, y solo hace falta si el rol no es admin/superadmin.
+  cancelarComanda: async (idComanda, autorizacion = null) => {
+    const response = await api.post(`/api/comandas/cancelar_comanda/${idComanda}`, { autorizacion })
+    return response.data
+  },
+
   // Actualizar estado de comanda
   // permitirStockNegativo: si true, permite terminar comanda aunque haya stock insuficiente (inventario puede quedar negativo)
   actualizarEstadoComanda: async (idComanda, estado, permitirStockNegativo = false) => {

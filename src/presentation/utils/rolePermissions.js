@@ -5,7 +5,7 @@
 
 // Definir permisos por ruta
 // Vendedor: Punto de Ventas, Comandas y Loyabit
-// Cocina: solo Comandas e Inventario
+// Cocina: solo Comandas
 // Mesero: solo Punto de Ventas y Comandas (sin cobrar, ver puedeCobrar en PuntoVenta)
 // Administrador: todas las pantallas
 // Super Administrador: todas las pantallas
@@ -16,7 +16,7 @@ const routePermissions = {
   '/punto-venta': ['vendedor', 'mesero', 'administrador', 'superadministrador'],
   '/barista': ['vendedor', 'cocina', 'mesero', 'administrador', 'superadministrador'],
   '/productos': ['administrador', 'superadministrador'],
-  '/inventario': ['cocina', 'administrador', 'superadministrador'],
+  '/inventario': ['administrador', 'superadministrador'],
   '/loyabit': ['vendedor', 'administrador', 'superadministrador'],
   '/empleados': ['administrador', 'superadministrador'],
   '/reportes': ['administrador', 'superadministrador'],

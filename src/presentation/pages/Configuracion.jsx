@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Bell, CreditCard, Store, Users, Loader2, Tags, ChevronRight } from 'lucide-react'
+import { Bell, CreditCard, Store, Users, Loader2, Tags, ChevronRight, ShieldCheck } from 'lucide-react'
+import { configuracionService } from '../../application/services/configuracionService'
 import { useUsuarios } from '../hooks/useUsuarios'
 import { useVentas } from '../hooks/useVentas'
 import { useProductos } from '../hooks/useProductos'
@@ -30,6 +31,51 @@ const Configuracion = () => {
     usuariosActivos: 0
   })
   const [loading, setLoading] = useState(true)
+
+  // Código de autorización: el backend nunca devuelve el valor, solo si existe.
+  const [estadoCodigo, setEstadoCodigo] = useState(null)
+  const [codigoNuevo, setCodigoNuevo] = useState('')
+  const [guardandoCodigo, setGuardandoCodigo] = useState(false)
+
+  const cargarEstadoCodigo = async () => {
+    try {
+      setEstadoCodigo(await configuracionService.obtenerEstadoAutorizacion())
+    } catch {
+      setEstadoCodigo({ configurado: false, umbral_descuento: 15 })
+    }
+  }
+
+  useEffect(() => {
+    cargarEstadoCodigo()
+  }, [])
+
+  const guardarCodigo = async () => {
+    const codigo = codigoNuevo.trim()
+    if (codigo.length < 4) return
+    setGuardandoCodigo(true)
+    try {
+      await configuracionService.definirCodigoAutorizacion(codigo)
+      setCodigoNuevo('')
+      await cargarEstadoCodigo()
+      Swal.fire({
+        icon: 'success',
+        title: 'Código guardado',
+        text: 'Ya se puede usar para autorizar cancelaciones y descuentos.',
+        confirmButtonColor: '#10b981',
+        timer: 2200,
+      })
+    } catch (error) {
+      const detalle = error?.response?.data?.detail
+      Swal.fire({
+        icon: 'error',
+        title: 'No se pudo guardar',
+        text: typeof detalle === 'string' ? detalle : 'Revisa que tenga entre 4 y 20 caracteres.',
+        confirmButtonColor: '#10b981',
+      })
+    } finally {
+      setGuardandoCodigo(false)
+    }
+  }
 
   useEffect(() => {
     const cargarDatos = async () => {
@@ -122,6 +168,58 @@ const Configuracion = () => {
 
   return (
     <div className="space-y-6">
+      {/* Código de autorización */}
+      <div className="card">
+        <div className="flex items-center gap-3 mb-3">
+          <ShieldCheck className="w-5 h-5 text-matcha-600" />
+          <h2 className="text-lg font-semibold text-gray-900">
+            Código de autorización
+          </h2>
+          <span
+            className={`text-xs px-2 py-0.5 rounded-full ${
+              estadoCodigo?.configurado
+                ? 'bg-emerald-100 text-emerald-700'
+                : 'bg-amber-100 text-amber-700'
+            }`}
+          >
+            {estadoCodigo?.configurado ? 'Configurado' : 'Sin configurar'}
+          </span>
+        </div>
+        <p className="text-sm text-gray-600 mb-4">
+          Autoriza cancelar comandas y aplicar descuentos desde{' '}
+          {estadoCodigo?.umbral_descuento ?? 15}% cuando quien cobra no es administrador.
+          Los administradores no necesitan escribirlo, y su contraseña también funciona
+          como autorización.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Nuevo código
+            </label>
+            <input
+              type="password"
+              value={codigoNuevo}
+              onChange={(e) => setCodigoNuevo(e.target.value)}
+              placeholder="Entre 4 y 20 caracteres"
+              className="input-field w-full"
+              autoComplete="new-password"
+            />
+          </div>
+          <button
+            onClick={guardarCodigo}
+            disabled={guardandoCodigo || codigoNuevo.trim().length < 4}
+            className="px-4 py-2 rounded-lg bg-matcha-500 text-white text-sm font-medium hover:bg-matcha-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {guardandoCodigo && <Loader2 className="w-4 h-4 animate-spin" />}
+            {estadoCodigo?.configurado ? 'Cambiar código' : 'Guardar código'}
+          </button>
+        </div>
+        <p className="text-xs text-gray-500 mt-2">
+          Se guarda cifrado, así que no se puede consultar después: si se olvida, hay
+          que definir uno nuevo.
+        </p>
+      </div>
+
       {/* Categorías de movimiento */}
       <div className="card">
         <div className="flex items-center gap-3 mb-3">

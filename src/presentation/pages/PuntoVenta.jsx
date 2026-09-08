@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Plus, Minus, Trash2, ShoppingCart, ArrowLeft, Loader2, Package, Clock, User, CreditCard, X, Search, Trash, Coins, Percent, CheckCircle, Receipt, ChefHat } from 'lucide-react'
+import { Plus, Minus, Trash2, ShoppingCart, ArrowLeft, Loader2, Package, Clock, User, CreditCard, X, Search, Trash, Coins, Percent, CheckCircle, Receipt, ChefHat, Lock } from 'lucide-react'
 import { useProductos } from '../hooks/useProductos'
 import { useVentas } from '../hooks/useVentas'
 import { useComandas } from '../hooks/useComandas'
@@ -9,7 +9,8 @@ import { useAuth } from '../context/AuthContext'
 import { useCaja } from '../hooks/useCaja'
 import { imprimirTicket, itemsDesdeCarrito } from '../utils/imprimirTicket'
 import { obtenerMetodosPagoActivos } from '../utils/metodosPagoConfig'
-import { puedeCobrar } from '../utils/rolePermissions'
+import { isAdmin, puedeCobrar } from '../utils/rolePermissions'
+import ModalAutorizacion from '../components/ModalAutorizacion'
 import { usePrinterContext } from '../context/PrinterContext'
 import {
   EXTRAS_DISPONIBLES,
@@ -36,6 +37,12 @@ import Swal from 'sweetalert2'
  */
 const OVERLAY_MODAL =
   'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center p-4 overflow-y-auto'
+
+/**
+ * A partir de este porcentaje un descuento deja de ser cortesía y necesita
+ * autorización. El backend valida lo mismo, esto solo evita el viaje en vano.
+ */
+const UMBRAL_DESCUENTO_AUTORIZACION = 15
 
 /**
  * El método de pago es una selección, no la acción final. El verde sólido se
@@ -78,7 +85,7 @@ const PuntoVenta = () => {
 
   const { productos, loading: productosLoading } = useProductos()
   const { crearVenta, obtenerInfoTicketActual, procesarPagoVenta, loading: ventaLoading } = useVentas()
-  const { crearComanda, editarComanda, obtenerComanda, obtenerComandasTerminadasSinPagar, loading: comandaLoading } = useComandas()
+  const { crearComanda, editarComanda, obtenerComanda, obtenerComandasTerminadasSinPagar, cancelarComanda, loading: comandaLoading } = useComandas()
   const { obtenerPreordenes, procesarPago, actualizarPreorden, cancelarPreorden, crearPreorden, obtenerPreorden, loading: preordenesLoading } = usePreordenes()
   const { usuario } = useAuth()
   const { estado: estadoCaja, loading: cajaLoading } = useCaja(15000)
@@ -102,6 +109,14 @@ const PuntoVenta = () => {
   const [totalDescuento, setTotalDescuento] = useState(0) // monto en pesos a restar
   const [descuentoPersonalizado, setDescuentoPersonalizado] = useState('')
   const [tipoDescuentoPersonalizado, setTipoDescuentoPersonalizado] = useState('porcentaje')
+  // Descuento esperando autorización: {tipo, valor}
+  const [descuentoPendiente, setDescuentoPendiente] = useState(null)
+  // Código con el que se autorizó; viaja al backend al cobrar
+  const [autorizacionDescuento, setAutorizacionDescuento] = useState(null)
+
+  // Cancelación de la comanda cargada
+  const [mostrarModalCancelarComanda, setMostrarModalCancelarComanda] = useState(false)
+  const [cancelandoComanda, setCancelandoComanda] = useState(false)
 
   // Estado para enviar ticket por WhatsApp
   const [numeroWhatsApp, setNumeroWhatsApp] = useState('')
@@ -779,6 +794,7 @@ const PuntoVenta = () => {
           descuento_tipo: totalDescuento > 0 ? descuentoTipo : undefined,
           descuento_valor: totalDescuento > 0 ? descuentoValor : undefined,
           total_descuento: totalDescuento > 0 ? totalDescuento : undefined,
+          autorizacion: autorizacionDescuento || undefined,
           propina_porcentaje: montoPropina > 0 && propinaPorcentajeNumerico != null ? propinaPorcentajeNumerico : undefined,
           propina_monto: montoPropina > 0 ? montoPropina : undefined,
         }
@@ -842,6 +858,7 @@ const PuntoVenta = () => {
         descuento_tipo: totalDescuento > 0 ? descuentoTipo : null,
         descuento_valor: totalDescuento > 0 ? descuentoValor : null,
         total_descuento: totalDescuento > 0 ? totalDescuento : null,
+        autorizacion: autorizacionDescuento,
       })
       if (ventaResponse?.error) {
         throw new Error(ventaResponse.error || 'Error al crear la venta')
@@ -1003,6 +1020,7 @@ const PuntoVenta = () => {
         descuento_tipo: totalDescuento > 0 ? descuentoTipo : null,
         descuento_valor: totalDescuento > 0 ? descuentoValor : null,
         total_descuento: totalDescuento > 0 ? totalDescuento : null,
+        autorizacion: autorizacionDescuento,
         pagada: false,
       })
       if (ventaResponse?.error) {
@@ -1084,6 +1102,7 @@ const PuntoVenta = () => {
         descuento_tipo: totalDescuento > 0 ? descuentoTipo : undefined,
         descuento_valor: totalDescuento > 0 ? descuentoValor : undefined,
         total_descuento: totalDescuento > 0 ? totalDescuento : undefined,
+        autorizacion: autorizacionDescuento || undefined,
         propina_porcentaje: montoPropina > 0 && propinaPorcentajeNumerico != null ? propinaPorcentajeNumerico : undefined,
         propina_monto: montoPropina > 0 ? montoPropina : undefined,
       }
@@ -1595,32 +1614,54 @@ const PuntoVenta = () => {
     setMontoPropina(0)
   }
 
-  // Función para seleccionar descuento por porcentaje (5, 10, 15, 20)
-  const seleccionarDescuento = (porcentaje) => {
-    setDescuentoTipo('porcentaje')
-    setDescuentoValor(porcentaje)
+  /**
+   * Traduce cualquier descuento a porcentaje sobre el total sin descontar, así
+   * un descuento por monto tampoco puede saltarse el umbral de autorización.
+   */
+  const porcentajeEfectivo = (tipo, valor) => {
     const totalBase = calcularSubtotalConExtras()
-    setTotalDescuento((totalBase * porcentaje) / 100)
+    if (tipo === 'porcentaje') return valor
+    if (totalBase <= 0) return 0
+    return (Math.min(valor, totalBase) / totalBase) * 100
+  }
+
+  const descuentoNecesitaAutorizacion = (tipo, valor) =>
+    !isAdmin(usuario?.rol) && porcentajeEfectivo(tipo, valor) >= UMBRAL_DESCUENTO_AUTORIZACION
+
+  /** Aplica el descuento ya validado; `autorizacion` viaja luego con la venta. */
+  const aplicarDescuento = (tipo, valor, autorizacion = null) => {
+    const totalBase = calcularSubtotalConExtras()
+    setDescuentoTipo(tipo)
+    setDescuentoValor(valor)
+    setTotalDescuento(
+      tipo === 'porcentaje'
+        ? Math.min((totalBase * valor) / 100, totalBase)
+        : Math.min(valor, totalBase)
+    )
+    setAutorizacionDescuento(autorizacion)
+    setDescuentoPersonalizado('')
     setMostrarModalDescuento(false)
+  }
+
+  /** Pide autorización si hace falta y solo entonces aplica el descuento. */
+  const pedirDescuento = (tipo, valor) => {
+    if (descuentoNecesitaAutorizacion(tipo, valor)) {
+      setDescuentoPendiente({ tipo, valor })
+      return
+    }
+    aplicarDescuento(tipo, valor)
+  }
+
+  // Función para seleccionar descuento por porcentaje (5, 10, 15, 20, 50, 100)
+  const seleccionarDescuento = (porcentaje) => {
+    pedirDescuento('porcentaje', porcentaje)
   }
 
   // Función para aplicar descuento personalizado (porcentaje o monto)
   const aplicarDescuentoPersonalizado = () => {
     const valor = parseFloat(descuentoPersonalizado)
     if (isNaN(valor) || valor <= 0) return
-    if (tipoDescuentoPersonalizado === 'porcentaje') {
-      setDescuentoTipo('porcentaje')
-      setDescuentoValor(valor)
-      const totalBase = calcularSubtotalConExtras()
-      setTotalDescuento(Math.min((totalBase * valor) / 100, totalBase))
-    } else {
-      setDescuentoTipo('monto')
-      setDescuentoValor(valor)
-      const totalBase = calcularSubtotalConExtras()
-      setTotalDescuento(Math.min(valor, totalBase))
-    }
-    setDescuentoPersonalizado('')
-    setMostrarModalDescuento(false)
+    pedirDescuento(tipoDescuentoPersonalizado === 'porcentaje' ? 'porcentaje' : 'monto', valor)
   }
 
   // Función para remover descuento
@@ -1629,6 +1670,7 @@ const PuntoVenta = () => {
     setDescuentoValor(null)
     setTotalDescuento(0)
     setDescuentoPersonalizado('')
+    setAutorizacionDescuento(null)
   }
 
   // Función para parsear observaciones y extraer tipo de leche, extras y tipo de proteína
@@ -1747,6 +1789,58 @@ const PuntoVenta = () => {
     removerPropina()
     removerDescuento()
     subirPanelOrden()
+  }
+
+  // La comanda que se cancelaría: la que está en edición o la mesa seleccionada.
+  const comandaCancelable = comandaEnEdicion || comandaTerminadaSeleccionada
+
+  /**
+   * Cancela la comanda en el sistema, no solo en pantalla.
+   *
+   * Queda como 'cancelada' y su venta se salda con un descuento del 100%: no
+   * se borra nada y el inventario ya consumido se respeta.
+   */
+  const confirmarCancelarComanda = async (autorizacion) => {
+    if (!comandaCancelable) return
+    setCancelandoComanda(true)
+    try {
+      await cancelarComanda(comandaCancelable.id_comanda, autorizacion)
+      setMostrarModalCancelarComanda(false)
+      limpiarOrden()
+      setComandaEnEdicion(null)
+      await cargarComandasTerminadasSinPagar()
+      window.dispatchEvent(new CustomEvent('comanda-actualizada'))
+      await Swal.fire({
+        icon: 'success',
+        title: 'Comanda cancelada',
+        text: 'Quedó registrada como cancelada; el inventario no se modificó.',
+        confirmButtonColor: '#10b981',
+        timer: 2200,
+      })
+    } catch (error) {
+      const detalle = error?.response?.data?.detail
+      await Swal.fire({
+        icon: 'error',
+        title: 'No se pudo cancelar',
+        text: typeof detalle === 'string' ? detalle : 'Intenta de nuevo.',
+        confirmButtonColor: '#10b981',
+      })
+    } finally {
+      setCancelandoComanda(false)
+    }
+  }
+
+  /**
+   * El botón inferior cambia de significado según haya o no una comanda cargada:
+   * sin comanda solo limpia el panel, con comanda cancela de verdad. La "X" del
+   * encabezado siempre se queda con el comportamiento de solo soltar la mesa.
+   */
+  const accionCancelarOrden = () => {
+    if (comandaCancelable) {
+      setMostrarModalCancelarComanda(true)
+      return
+    }
+    limpiarOrden()
   }
 
   /** Guarda los productos agregados a la comanda abierta y los manda al barista. */
@@ -2845,10 +2939,10 @@ const PuntoVenta = () => {
                     </>
                   )}
                   <button
-                    onClick={limpiarOrden}
+                    onClick={accionCancelarOrden}
                     className="w-full py-2 rounded-lg border-2 border-red-200 text-red-600 font-medium hover:bg-red-50 hover:border-red-300 transition-colors"
                   >
-                    Cancelar Orden
+                    {comandaCancelable ? 'Cancelar Comanda' : 'Cancelar Orden'}
                   </button>
                   </>
                   )}
@@ -3727,50 +3821,28 @@ const PuntoVenta = () => {
               </button>
             </div>
             <div className="p-6 space-y-4">
-              <p className="text-sm text-gray-600 mb-4">
-                Selecciona un porcentaje o ingresa un monto fijo de descuento
-              </p>
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <button
-                  onClick={() => seleccionarDescuento(5)}
-                  className={`py-4 px-4 rounded-lg border-2 transition-all text-center ${
-                    descuentoTipo === 'porcentaje' && descuentoValor === 5
-                      ? 'border-amber-500 bg-amber-50'
-                      : 'border-gray-200 hover:border-amber-500 hover:bg-amber-50'
-                  }`}
-                >
-                  <div className="text-2xl font-bold text-gray-900">5%</div>
-                </button>
-                <button
-                  onClick={() => seleccionarDescuento(10)}
-                  className={`py-4 px-4 rounded-lg border-2 transition-all text-center ${
-                    descuentoTipo === 'porcentaje' && descuentoValor === 10
-                      ? 'border-amber-500 bg-amber-50'
-                      : 'border-gray-200 hover:border-amber-500 hover:bg-amber-50'
-                  }`}
-                >
-                  <div className="text-2xl font-bold text-gray-900">10%</div>
-                </button>
-                <button
-                  onClick={() => seleccionarDescuento(15)}
-                  className={`py-4 px-4 rounded-lg border-2 transition-all text-center ${
-                    descuentoTipo === 'porcentaje' && descuentoValor === 15
-                      ? 'border-amber-500 bg-amber-50'
-                      : 'border-gray-200 hover:border-amber-500 hover:bg-amber-50'
-                  }`}
-                >
-                  <div className="text-2xl font-bold text-gray-900">15%</div>
-                </button>
-                <button
-                  onClick={() => seleccionarDescuento(20)}
-                  className={`py-4 px-4 rounded-lg border-2 transition-all text-center ${
-                    descuentoTipo === 'porcentaje' && descuentoValor === 20
-                      ? 'border-amber-500 bg-amber-50'
-                      : 'border-gray-200 hover:border-amber-500 hover:bg-amber-50'
-                  }`}
-                >
-                  <div className="text-2xl font-bold text-gray-900">20%</div>
-                </button>
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                {[5, 10, 15, 20, 50, 100].map((porcentaje) => {
+                  const seleccionado = descuentoTipo === 'porcentaje' && descuentoValor === porcentaje
+                  const pideCodigo = descuentoNecesitaAutorizacion('porcentaje', porcentaje)
+                  return (
+                    <button
+                      key={porcentaje}
+                      onClick={() => seleccionarDescuento(porcentaje)}
+                      title={pideCodigo ? 'Requiere código de autorización' : undefined}
+                      className={`relative py-4 px-2 rounded-lg border-2 transition-all text-center ${
+                        seleccionado
+                          ? 'border-amber-500 bg-amber-50'
+                          : 'border-gray-200 hover:border-amber-500 hover:bg-amber-50'
+                      }`}
+                    >
+                      <div className="text-2xl font-bold text-gray-900">{porcentaje}%</div>
+                      {pideCodigo && (
+                        <Lock className="w-3.5 h-3.5 text-amber-600 absolute top-1.5 right-1.5" />
+                      )}
+                    </button>
+                  )
+                })}
               </div>
               <div className="border-t border-gray-200 pt-4">
                 <p className="text-sm text-gray-600 mb-3">O especifica un descuento personalizado:</p>
@@ -3920,6 +3992,47 @@ const PuntoVenta = () => {
           </div>
         </div>
       )}
+
+      {/* Autorización para descuentos altos */}
+      <ModalAutorizacion
+        abierto={Boolean(descuentoPendiente)}
+        titulo="Autorizar descuento"
+        mensaje={
+          descuentoPendiente
+            ? `Un descuento de ${
+                descuentoPendiente.tipo === 'porcentaje'
+                  ? `${descuentoPendiente.valor}%`
+                  : `$${Number(descuentoPendiente.valor).toFixed(2)}`
+              } necesita autorización.`
+            : ''
+        }
+        textoConfirmar="Aplicar descuento"
+        requiereCodigo
+        onConfirmar={(codigo) => {
+          aplicarDescuento(descuentoPendiente.tipo, descuentoPendiente.valor, codigo)
+          setDescuentoPendiente(null)
+        }}
+        onCancelar={() => setDescuentoPendiente(null)}
+      />
+
+      {/* Cancelación de la comanda cargada */}
+      <ModalAutorizacion
+        abierto={mostrarModalCancelarComanda}
+        titulo="Cancelar comanda"
+        mensaje={
+          comandaCancelable
+            ? `Se cancelará la comanda #${comandaCancelable.id_comanda}${
+                comandaCancelable.nombre_cliente ? ` de ${comandaCancelable.nombre_cliente}` : ''
+              }. Quedará registrada como cancelada y el inventario ya consumido no se devuelve.`
+            : ''
+        }
+        textoConfirmar="Sí, cancelar"
+        peligro
+        requiereCodigo={!isAdmin(usuario?.rol)}
+        procesando={cancelandoComanda}
+        onConfirmar={confirmarCancelarComanda}
+        onCancelar={() => setMostrarModalCancelarComanda(false)}
+      />
     </div>
   )
 }
