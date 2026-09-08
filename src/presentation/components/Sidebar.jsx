@@ -1,9 +1,12 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useLayout } from '../context/LayoutContext'
 import { useAuth } from '../context/AuthContext'
+import { usePrinterContext } from '../context/PrinterContext'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { hasRouteAccess } from '../utils/rolePermissions'
 import Logo from './Logo'
+import PrinterConnectionButton from './PrinterConnectionButton'
+import NotificationsBell from './NotificationsBell'
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -18,6 +21,10 @@ import {
   Wallet,
   ArrowLeftRight,
   Calculator,
+  PanelTop,
+  Maximize,
+  Minimize,
+  LogOut,
 } from 'lucide-react'
 
 import { User as UserIcon } from 'lucide-react'
@@ -27,7 +34,7 @@ const menuItems = [
   { path: '/punto-venta', icon: ShoppingCart, label: 'Punto de Venta' },
   { path: '/caja', icon: Wallet, label: 'Caja' },
   { path: '/movimientos-caja', icon: ArrowLeftRight, label: 'Movimientos' },
-  { path: '/barista', icon: Coffee, label: 'Barista' },
+  { path: '/barista', icon: Coffee, label: 'Comandas' },
   { path: '/productos', icon: Package, label: 'Productos' },
   { path: '/inventario', icon: Warehouse, label: 'Inventario' },
   { path: '/loyabit', icon: ExternalLink, label: 'Loyabit' },
@@ -38,10 +45,40 @@ const menuItems = [
   { path: '/configuracion', icon: Settings, label: 'Configuración' },
 ]
 
+const ICONO_SIDEBAR =
+  'p-2.5 rounded-lg text-gray-300 hover:bg-coffee-700 hover:text-white transition-colors'
+
 const Sidebar = () => {
-  const { sidebarOpen, toggleSidebar } = useLayout()
-  const { usuario } = useAuth()
+  const {
+    sidebarOpen,
+    toggleSidebar,
+    headerVisible,
+    toggleHeader,
+    isFullscreen,
+    toggleFullscreen,
+    fullscreenSupported,
+  } = useLayout()
+  const { usuario, logout } = useAuth()
+  const printer = usePrinterContext()
+  const navigate = useNavigate()
   const isMobile = useMediaQuery('(max-width: 1023px)')
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
+  }
+
+  const getInitials = () => {
+    if (!usuario) return 'U'
+    const nombre = usuario.nombre || ''
+    const apellido = usuario.apellido_paterno || ''
+    return `${nombre.charAt(0)}${apellido.charAt(0)}`.toUpperCase() || 'U'
+  }
+
+  const getFullName = () => {
+    if (!usuario) return 'Usuario'
+    return `${usuario.nombre || ''} ${usuario.apellido_paterno || ''}`.trim() || 'Usuario'
+  }
 
   // Filtrar items del menú según el rol del usuario
   const filteredMenuItems = menuItems.filter(item => {
@@ -117,10 +154,56 @@ const Sidebar = () => {
         </nav>
 
         {/* Footer del Sidebar */}
-        <div className="p-4 border-t border-coffee-700">
-          <div className="text-xs text-gray-400 text-center space-y-1">
-            <div>v1.6.5</div>
-            <div>Creado por Prothec</div>
+        <div className="px-4 pt-3 pb-2 border-t border-coffee-700">
+          {/* Controles que antes vivían en la barra superior */}
+          <div className="flex items-center gap-1 mb-2">
+            <PrinterConnectionButton printer={printer} iconOnly className="hover:bg-coffee-700" />
+
+            <NotificationsBell variant="sidebar" />
+
+            <button
+              onClick={toggleHeader}
+              className={ICONO_SIDEBAR}
+              title={headerVisible ? 'Ocultar barra superior' : 'Mostrar barra superior'}
+              aria-label={headerVisible ? 'Ocultar barra superior' : 'Mostrar barra superior'}
+            >
+              <PanelTop className="w-5 h-5" />
+            </button>
+
+            {fullscreenSupported && (
+              <button
+                onClick={toggleFullscreen}
+                className={ICONO_SIDEBAR}
+                title={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
+                aria-label={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
+              >
+                {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 shrink-0 bg-matcha-500 rounded-full flex items-center justify-center">
+              <span className="text-white font-semibold text-sm">{getInitials()}</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-white truncate" title={getFullName()}>
+                {getFullName()}
+              </div>
+              <div className="text-xs text-gray-400 capitalize truncate">{usuario?.rol || 'Usuario'}</div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="shrink-0 p-2 rounded-lg text-red-300 hover:bg-red-500/15 hover:text-red-200 transition-colors"
+              title="Cerrar sesión"
+              aria-label="Cerrar sesión"
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="text-[11px] text-gray-500 text-center mt-1.5">
+            v1.6.5 · Prothec
           </div>
         </div>
       </aside>

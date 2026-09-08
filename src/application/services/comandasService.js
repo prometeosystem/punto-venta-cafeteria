@@ -7,6 +7,12 @@ export const comandasService = {
     return response.data
   },
 
+  // Editar productos de una comanda: se envía la lista completa, no solo los cambios
+  editarComanda: async (idComanda, edicion) => {
+    const response = await api.put(`/api/comandas/editar_comanda/${idComanda}`, edicion)
+    return response.data
+  },
+
   // Ver comanda específica
   obtenerComanda: async (idComanda) => {
     const response = await api.get(`/api/comandas/ver_comanda/${idComanda}`)

@@ -2,9 +2,9 @@ import { Bluetooth, BluetoothConnected, BluetoothOff, Loader2, Printer } from 'l
 import Swal from 'sweetalert2'
 
 /**
- * Botón para conectar / reconectar / desconectar la PT-210.
+ * Botón para conectar / reconectar / desconectar la impresora térmica.
  */
-const PrinterConnectionButton = ({ printer }) => {
+const PrinterConnectionButton = ({ printer, className = '', iconOnly = false }) => {
   if (!printer) return null
 
   const {
@@ -25,7 +25,7 @@ const PrinterConnectionButton = ({ printer }) => {
       await Swal.fire({
         icon: 'warning',
         title: 'Bluetooth no disponible',
-        text: 'Usa Chrome o Edge en HTTPS o localhost para conectar la PT-210.',
+        text: 'Usa Chrome o Edge en HTTPS o localhost para conectar la impresora.',
         confirmButtonColor: '#10b981',
       })
       return
@@ -37,7 +37,7 @@ const PrinterConnectionButton = ({ printer }) => {
         title: 'Impresora conectada',
         text: device?.name
           ? `Dispositivo: ${device.name}. Se reconectará sola al recargar.`
-          : 'PT-210 lista. Se reconectará sola al recargar.',
+          : 'Impresora lista. Se reconectará sola al recargar.',
         showDenyButton: true,
         showCancelButton: true,
         confirmButtonText: 'Probar impresión',
@@ -74,7 +74,7 @@ const PrinterConnectionButton = ({ printer }) => {
       await Swal.fire({
         icon: 'error',
         title: 'No se conectó',
-        text: error || 'Enciende la PT-210, acércala y vuelve a intentar.',
+        text: error || 'Enciende la impresora, acércala y vuelve a intentar.',
         confirmButtonColor: '#10b981',
       })
     } else {
@@ -90,11 +90,11 @@ const PrinterConnectionButton = ({ printer }) => {
 
   const base =
     'inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors'
+  // Sin conexión siempre en rojo: imprimir es parte del cobro y enterarse
+  // hasta que falla el ticket es demasiado tarde.
   const classes = isConnected
     ? `${base} bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100`
-    : hasSavedDevice
-      ? `${base} bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100`
-      : `${base} bg-white text-gray-700 border-gray-200 hover:bg-gray-50`
+    : `${base} bg-red-50 text-red-700 border-red-200 hover:bg-red-100`
 
   const label = isConnecting
     ? 'Reconectando…'
@@ -104,12 +104,33 @@ const PrinterConnectionButton = ({ printer }) => {
         ? 'Reconectar'
         : 'Conectar'
 
+  if (iconOnly) {
+    const colorEstado = isConnected ? 'text-emerald-400' : 'text-red-400'
+
+    return (
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={isConnecting}
+        className={`p-2.5 rounded-lg transition-colors ${colorEstado} ${className}`}
+        title={`Impresora: ${label}`}
+        aria-label={`Impresora: ${label}`}
+      >
+        {isConnecting ? (
+          <Loader2 className="w-5 h-5 animate-spin" />
+        ) : (
+          <Printer className="w-5 h-5" />
+        )}
+      </button>
+    )
+  }
+
   return (
     <button
       type="button"
       onClick={handleClick}
       disabled={isConnecting}
-      className={classes}
+      className={`${classes} ${className}`}
       title={label}
     >
       {isConnecting ? (

@@ -1,6 +1,13 @@
 /**
  * Abre una ventana de impresión con el ticket de venta (formato 80mm).
  */
+import logoTicketUrl from '../../assets/logo-ticket.png'
+import { getNombreExtra } from './productOptionsConfig'
+
+// La ventana emergente arranca en about:blank, así que la ruta del logo tiene
+// que ser absoluta o no la resuelve.
+const logoAbsoluto = new URL(logoTicketUrl, window.location.origin).href
+
 const formatMoney = (n) =>
   new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(n) || 0)
 
@@ -27,6 +34,9 @@ const escapeHtml = (str) =>
  * @param {number} ticket.total
  */
 export function imprimirTicket(ticket) {
+  const esCuenta = ticket.tipo === 'cuenta'
+  const propinaSugerida = (Number(ticket.total) || 0) * 0.1
+  const mostrarSugerencia = esCuenta && !(Number(ticket.propina) > 0)
   const fecha =
     ticket.fecha ||
     new Date().toLocaleString('es-MX', {
@@ -62,7 +72,7 @@ export function imprimirTicket(ticket) {
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Ticket ${escapeHtml(ticket.numero ?? ticket.ticketId ?? '')}</title>
+  <title>${esCuenta ? 'Cuenta' : 'Ticket'} ${escapeHtml(ticket.numero ?? ticket.ticketId ?? '')}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -90,7 +100,8 @@ export function imprimirTicket(ticket) {
     .totals .label { text-align: left; }
     .totals .value { text-align: right; }
     .total-row { font-size: 14px; font-weight: 700; }
-    .footer { margin-top: 10px; text-align: center; font-size: 11px; }
+    .footer { margin-top: 10px; text-align: center; font-size: 11px; font-weight: 700; }
+    .logo { width: 22mm; max-width: 100%; display: inline-block; }
     @media print {
       @page { size: 80mm auto; margin: 0; }
       body { width: 80mm; padding: 3mm; }
@@ -99,18 +110,16 @@ export function imprimirTicket(ticket) {
 </head>
 <body>
   <div class="center">
-    <div class="brand">ZONA 2</div>
-    <div class="muted">Cafetería</div>
-    <div class="muted">${escapeHtml(ticket.lugar || 'Zona 2 Coffee Recovery')}</div>
-    <div class="muted">${escapeHtml(fecha)}</div>
+    <img class="logo" src="${logoAbsoluto}" alt="Zona 2 Coffee Recovery" />
   </div>
   <div class="sep"></div>
   <div>
+    <div class="muted">${escapeHtml(fecha)}</div>
     ${ticket.numero != null ? `<div><span class="bold">Ticket #</span>${escapeHtml(ticket.numero)}</div>` : ''}
     ${ticket.ticketId ? `<div class="muted">${escapeHtml(ticket.ticketId)}</div>` : ''}
     ${ticket.cliente ? `<div><span class="bold">Cliente:</span> ${escapeHtml(ticket.cliente)}</div>` : ''}
     ${ticket.tipoServicio ? `<div><span class="bold">Servicio:</span> ${escapeHtml(tipoServicioLabel[ticket.tipoServicio] || ticket.tipoServicio)}</div>` : ''}
-    ${ticket.metodoPago ? `<div><span class="bold">Pago:</span> ${escapeHtml(String(ticket.metodoPago).toUpperCase())}</div>` : ''}
+    ${ticket.metodoPago && !esCuenta ? `<div><span class="bold">Pago:</span> ${escapeHtml(String(ticket.metodoPago).toUpperCase())}</div>` : ''}
     ${ticket.cajero ? `<div><span class="bold">Atendió:</span> ${escapeHtml(ticket.cajero)}</div>` : ''}
   </div>
   <div class="sep"></div>
@@ -137,6 +146,14 @@ export function imprimirTicket(ticket) {
       <td class="label">TOTAL</td>
       <td class="value">${formatMoney(ticket.total)}</td>
     </tr>
+    ${
+      mostrarSugerencia
+        ? `<tr>
+      <td class="label">Propina sugerida 10%</td>
+      <td class="value">${formatMoney(propinaSugerida)}</td>
+    </tr>`
+        : ''
+    }
   </table>
   ${
     ticket.comentarios
@@ -145,8 +162,7 @@ export function imprimirTicket(ticket) {
   }
   <div class="sep"></div>
   <div class="footer">
-    ¡Gracias por su visita!<br/>
-    Documento informativo — no fiscal
+    Gracias por su visita
   </div>
   <script>
     window.onload = function () {
@@ -169,6 +185,39 @@ export function imprimirTicket(ticket) {
   return { ok: true }
 }
 
+const LECHE_TICKET = {
+  deslactosada: 'Deslactosada',
+  almendras: 'Almendras',
+}
+
+const PREPARACION_TICKET = {
+  heladas: 'Fría',
+  frapeadas: 'Frapeada',
+}
+
+/**
+ * Renglón de opciones que va debajo del producto en el ticket.
+ * Se arma desde los campos estructurados; `observaciones` ya trae esa misma
+ * información en prosa, así que solo sirve de respaldo cuando no vienen.
+ */
+function detalleOpciones(item) {
+  const partes = []
+  if (item.tipoLeche && item.tipoLeche !== 'entera') {
+    partes.push(LECHE_TICKET[item.tipoLeche] || item.tipoLeche)
+  }
+  if (item.extras?.length) {
+    partes.push(item.extras.map(getNombreExtra).join(', '))
+  }
+  if (item.tipoProteina) {
+    partes.push('Scoop proteína')
+  }
+  if (item.tipoPreparacion) {
+    partes.push(PREPARACION_TICKET[item.tipoPreparacion] || item.tipoPreparacion)
+  }
+  if (partes.length) return partes.join(' - ')
+  return item.observaciones || null
+}
+
 /**
  * Construye items de ticket a partir del carrito del POS.
  */
@@ -176,18 +225,12 @@ export function itemsDesdeCarrito(cart = []) {
   return cart.map((item) => {
     const precio = parseFloat(item.precio) || 0
     const cantidad = item.quantity || 1
-    const partesObs = []
-    if (item.observaciones) partesObs.push(item.observaciones)
-    if (item.tipoPreparacion) partesObs.push(item.tipoPreparacion)
-    if (item.tipoLeche) partesObs.push(`Leche: ${item.tipoLeche}`)
-    if (item.tipoProteina) partesObs.push(`Proteína: ${item.tipoProteina}`)
-    if (item.extras?.length) partesObs.push(`Extras: ${item.extras.join(', ')}`)
     return {
       nombre: item.nombre || item.producto_nombre || 'Producto',
       cantidad,
       precio,
       subtotal: precio * cantidad,
-      observaciones: partesObs.length ? partesObs.join(' · ') : null,
+      observaciones: detalleOpciones(item),
     }
   })
 }

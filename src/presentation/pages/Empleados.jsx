@@ -113,6 +113,8 @@ const Empleados = () => {
         return 'bg-green-100 text-green-700'
       case 'cocina':
         return 'bg-orange-100 text-orange-700'
+      case 'mesero':
+        return 'bg-amber-100 text-amber-700'
       case 'administrador':
         return 'bg-purple-100 text-purple-700'
       case 'superadministrador':
@@ -126,6 +128,7 @@ const Empleados = () => {
     const labels = {
       vendedor: 'Vendedor',
       cocina: 'Cocina',
+      mesero: 'Mesero',
       administrador: 'Administrador',
       superadministrador: 'Super Administrador',
     }
@@ -603,16 +606,6 @@ const Empleados = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-4">
-        <button 
-          onClick={abrirModalCrear}
-          className="btn-primary flex items-center gap-2"
-        >
-          <Plus className="w-5 h-5" />
-          Nuevo Empleado
-        </button>
-      </div>
-
       {/* Estadísticas */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat, index) => {
@@ -634,17 +627,26 @@ const Empleados = () => {
         })}
       </div>
 
-      {/* Búsqueda */}
+      {/* Búsqueda y acciones */}
       <div className="card">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Buscar empleados..."
-            className="input pl-10"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+          <div className="relative flex-1 w-full md:w-auto">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar empleados..."
+              className="input pl-10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <button
+            onClick={abrirModalCrear}
+            className="btn-primary flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Nuevo Empleado
+          </button>
         </div>
       </div>
 
@@ -851,6 +853,7 @@ const Empleados = () => {
                   >
                     <option value="vendedor">Vendedor</option>
                     <option value="cocina">Cocina</option>
+                    <option value="mesero">Mesero</option>
                     <option value="administrador">Administrador</option>
                     <option value="superadministrador">Super Administrador</option>
                   </select>

@@ -19,7 +19,7 @@ const saveDevice = (device) => {
   if (!device?.id) return
   localStorage.setItem(
     STORAGE_KEY,
-    JSON.stringify({ id: device.id, name: device.name || 'PT-210' })
+    JSON.stringify({ id: device.id, name: device.name || 'Impresora' })
   )
 }
 
@@ -58,7 +58,7 @@ async function setupWriteCharacteristic(gattServer) {
 }
 
 /**
- * Bluetooth PT-210 con persistencia y reconexión automática.
+ * Impresora Bluetooth (BLE) con persistencia y reconexión automática.
  */
 export const useBluetooth = () => {
   const [device, setDevice] = useState(null)
@@ -106,7 +106,7 @@ export const useBluetooth = () => {
     reconnectAttemptRef.current = 0
     clearReconnectTimer()
     saveDevice(bluetoothDevice)
-    setSavedInfo({ id: bluetoothDevice.id, name: bluetoothDevice.name || 'PT-210' })
+    setSavedInfo({ id: bluetoothDevice.id, name: bluetoothDevice.name || 'Impresora' })
     wantConnectedRef.current = true
   }, [])
 

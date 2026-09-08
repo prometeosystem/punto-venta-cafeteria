@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { CheckCircle, Clock, User, Package, Loader2, Play, AlertTriangle } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { CheckCircle, Clock, User, Package, Loader2, Plus } from 'lucide-react'
 import { useComandas } from '../hooks/useComandas'
 import { useProductos } from '../hooks/useProductos'
 import { useInventario } from '../hooks/useInventario'
@@ -9,6 +10,7 @@ const Barista = () => {
   const [comandas, setComandas] = useState([])
   const [cargando, setCargando] = useState(true) // Iniciar como true para la primera carga
   const [esPrimeraCarga, setEsPrimeraCarga] = useState(true)
+  const navigate = useNavigate()
   const { obtenerComandas, actualizarEstado, loading } = useComandas()
   const { productos } = useProductos()
   const { insumos } = useInventario()
@@ -93,62 +95,13 @@ const Barista = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Función para formatear fecha
-  const formatFecha = (fechaString) => {
+  // En barista solo importa la hora: la comanda siempre es del turno actual
+  const formatHora = (fechaString) => {
     if (!fechaString) return ''
-    const fecha = new Date(fechaString)
-    return fecha.toLocaleString('es-MX', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
+    return new Date(fechaString).toLocaleTimeString('es-MX', {
       hour: '2-digit',
       minute: '2-digit',
     })
-  }
-
-  // Función para iniciar preparación
-  const iniciarPreparacion = async (idComanda) => {
-    try {
-      const result = await Swal.fire({
-        title: '¿Iniciar preparación?',
-        text: 'Esta comanda pasará a estado "en preparación"',
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#10b981',
-        cancelButtonColor: '#6b7280',
-        confirmButtonText: 'Sí, iniciar',
-        cancelButtonText: 'Cancelar',
-      })
-
-      if (result.isConfirmed) {
-        await actualizarEstado(idComanda, 'en_preparacion')
-        
-        // ✅ Refrescar la lista después de actualizar el estado
-        await cargarComandas(true)
-        
-        // Notificar a otras instancias que se actualizó una comanda
-        window.dispatchEvent(new CustomEvent('comanda-actualizada'))
-        
-        Swal.fire({
-          icon: 'success',
-          title: '¡Preparación iniciada!',
-          text: 'La comanda está en preparación',
-          confirmButtonColor: '#10b981',
-          timer: 2000,
-        })
-      }
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error('Error al iniciar preparación:', error)
-      }
-      const errorMsg = error.response?.data?.detail || error.response?.data?.error || error.message || 'Error al iniciar preparación'
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: errorMsg,
-        confirmButtonColor: '#10b981',
-      })
-    }
   }
 
   // Función auxiliar para obtener nombre del insumo por ID
@@ -447,36 +400,8 @@ const Barista = () => {
     return producto?.nombre || `Producto #${idProducto}`
   }
 
-  // Obtener color del estado
-  const getEstadoColor = (estado) => {
-    switch (estado) {
-      case 'pendiente':
-        return 'bg-yellow-100 text-yellow-700'
-      case 'en_preparacion':
-        return 'bg-blue-100 text-blue-700'
-      case 'terminada':
-        return 'bg-green-100 text-green-700'
-      default:
-        return 'bg-gray-100 text-gray-700'
-    }
-  }
-
-  // Obtener etiqueta del estado
-  const getEstadoLabel = (estado) => {
-    switch (estado) {
-      case 'pendiente':
-        return 'Pendiente'
-      case 'en_preparacion':
-        return 'En Preparación'
-      case 'terminada':
-        return 'Terminada'
-      default:
-        return estado
-    }
-  }
-
   return (
-    <div className="space-y-6">
+    <div>
       {cargando && comandas.length === 0 ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-matcha-600" />
@@ -488,227 +413,182 @@ const Barista = () => {
           <p className="text-gray-400 text-sm mt-2">Las comandas pagadas aparecerán aquí</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
           {comandas.map((comanda) => {
             const itemsCount = comanda.detalles?.reduce((sum, d) => sum + d.cantidad, 0) || 0
-            const estaEnPreparacion = comanda.estado === 'en_preparacion'
-            
+            // Si ya se entregó parte, lo pendiente es una segunda ronda: hay que distinguirla
+            const tieneEntregados = comanda.detalles?.some((d) => d.entregado)
+            const tipoServicio = comanda.preorden?.tipo_servicio || comanda.venta?.tipo_servicio
+            const comentarios = comanda.preorden?.comentarios || comanda.venta?.comentarios
+            const tipoLecheGlobal = comanda.preorden?.tipo_leche || comanda.venta?.tipo_leche
+            const mostrarLecheGlobal =
+              tipoLecheGlobal &&
+              !comanda.detalles?.some(
+                (d) => d.observaciones && (d.observaciones.includes('Leche') || d.observaciones.includes('Extras:'))
+              )
+
             return (
               <div
                 key={comanda.id_comanda}
-                className="card hover:shadow-lg transition-shadow duration-200"
+                className="card !p-3 flex flex-col hover:shadow-lg transition-shadow duration-200"
               >
-                {/* Header de la comanda */}
-                <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
-                  <div className="flex items-center justify-start gap-2">
-                    <div className="flex items-center gap-2">
-                      <h1 className="text-xl bg-matcha-50 rounded-full p-2 w-10 h-10 flex items-center justify-center text-dark font-semibold">
-                        {comanda.numero_dia ?? comanda.id_comanda}
-                      </h1>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <User className="w-5 h-5 text-matcha-600" />
-                      <span className="text-base font-semibold text-gray-900">
-                        {comanda.preorden?.nombre_cliente || comanda.venta?.nombre_cliente || ''}
+                {/* Encabezado: número, cliente y estado en una sola franja */}
+                <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+                  <span className="shrink-0 bg-matcha-100 text-matcha-800 rounded-lg w-9 h-9 flex items-center justify-center text-base font-bold">
+                    {comanda.numero_dia ?? comanda.id_comanda}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 truncate flex items-center gap-1">
+                      <User className="w-3.5 h-3.5 text-matcha-600 shrink-0" />
+                      {comanda.preorden?.nombre_cliente || comanda.venta?.nombre_cliente || 'Sin nombre'}
+                    </p>
+                    <p className="text-[11px] text-gray-500 flex items-center gap-1">
+                      <Clock className="w-3 h-3 shrink-0" />
+                      {formatHora(comanda.fecha_creacion || comanda.fecha_venta)}
+                      <span>·</span>
+                      <span>{itemsCount} items</span>
+                      <span>·</span>
+                      <span className="font-medium text-gray-700">
+                        ${parseFloat(comanda.total || 0).toFixed(2)}
                       </span>
-                    </div>
+                    </p>
                   </div>
-                  
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getEstadoColor(comanda.estado)}`}>
-                      {getEstadoLabel(comanda.estado)}
-                    </span>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    {tipoServicio && (
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                          tipoServicio === 'comer-aqui'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-purple-100 text-purple-700'
+                        }`}
+                      >
+                        {tipoServicio === 'comer-aqui' ? 'Comer aquí' : 'Para llevar'}
+                      </span>
+                    )}
                     {(comanda.venta_pagada === 0 || comanda.venta_pagada === false) && (
-                      <span className="px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-900 border border-red-400">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-800 border border-red-300">
                         Sin pagar
                       </span>
                     )}
                   </div>
+                  <button
+                    onClick={() => navigate('/punto-venta', { state: { editarComandaId: comanda.id_comanda } })}
+                    className="shrink-0 p-2 rounded-lg border-2 border-blue-500/50 text-blue-600 hover:bg-blue-500/10 transition-colors"
+                    title="Agregar más productos a esta comanda"
+                    aria-label="Agregar productos a la comanda"
+                  >
+                    <Plus className="w-4 h-4" strokeWidth={3} />
+                  </button>
                 </div>
 
-                {/* Venta y fecha */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-600">Venta #</span>
-                      <span className="text-xs font-medium text-gray-900">{comanda.id_venta}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      <Clock className="w-3 h-3" />
-                      <span>{formatFecha(comanda.fecha_creacion || comanda.fecha_venta)}</span>
-                    </div>
+                {mostrarLecheGlobal && (
+                  <div className="pt-2">
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                        tipoLecheGlobal?.toLowerCase() === 'deslactosada'
+                          ? 'bg-orange-200 text-orange-900 border border-orange-400'
+                          : 'bg-gray-100 text-gray-700'
+                      }`}
+                    >
+                      Leche: {tipoLecheGlobal}
+                    </span>
                   </div>
+                )}
 
-                
-                {/* Información del cliente y venta */}
-                <div className="mb-4 pt-1 pb-4 border-b border-gray-200 space-y-2">
-                  {/* Tipo de servicio (de pre-orden o venta) */}
-                  {(comanda.preorden?.tipo_servicio || comanda.venta?.tipo_servicio) && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500">Servicio:</span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        (comanda.preorden?.tipo_servicio || comanda.venta?.tipo_servicio) === 'comer-aqui' 
-                          ? 'bg-blue-100 text-blue-700' 
-                          : 'bg-purple-100 text-purple-700'
-                      }`}>
-                        {(comanda.preorden?.tipo_servicio || comanda.venta?.tipo_servicio) === 'comer-aqui' ? 'Comer aquí' : 'Para llevar'}
-                      </span>
-                    </div>
-                  )}
-
-                  
-                  
-                  {/* Información de leche global - Solo mostrar si NO hay items con observaciones individuales */}
-                  {((comanda.preorden?.tipo_leche || comanda.venta?.tipo_leche) || 
-                    (comanda.preorden?.extra_leche || comanda.venta?.extra_leche)) && 
-                    !comanda.detalles?.some(d => d.observaciones && (d.observaciones.includes('Leche') || d.observaciones.includes('Extras:'))) && (
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {(comanda.preorden?.tipo_leche || comanda.venta?.tipo_leche) && (
-                        <span className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
-                          (comanda.preorden?.tipo_leche || comanda.venta?.tipo_leche)?.toLowerCase() === 'deslactosada'
-                            ? 'bg-orange-200 text-orange-900 border-2 border-orange-400'
-                            : 'bg-gray-100 text-gray-700'
-                        }`}>
-                          Leche: {comanda.preorden?.tipo_leche || comanda.venta?.tipo_leche}
-                        </span>
-                      )}
-                      {(comanda.preorden?.extra_leche || comanda.venta?.extra_leche) && (
-                        <span className="text-xs text-gray-600">
-                          Extra: ${parseFloat(comanda.preorden?.extra_leche || comanda.venta?.extra_leche || 0).toFixed(2)}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                  
-                  {/* Comentarios (de pre-orden o venta) */}
-                  {(comanda.preorden?.comentarios || comanda.venta?.comentarios) && (
-                    <div className="p-2 bg-yellow-50 rounded-lg border border-yellow-200">
-                      <p className="text-xs font-medium text-yellow-800 mb-1">Comentarios:</p>
-                      <p className="text-xs text-yellow-700 italic">
-                        {comanda.preorden?.comentarios || comanda.venta?.comentarios}
-                      </p>
-                    </div>
-                  )}
-                  
-                  
-                </div>
-
-                {/* Items de la comanda */}
-                <div className="mb-4 space-y-2 max-h-64 overflow-y-auto">
-                  <p className="text-sm font-medium text-gray-700 mb-2">Items ({itemsCount}):</p>
+                {/* Items: una fila por producto, sin card individual */}
+                <div className="flex-1 min-h-0 max-h-72 overflow-y-auto divide-y divide-gray-100 py-1">
                   {comanda.detalles?.map((detalle, index) => {
-                    // Separar observaciones para mostrar mejor
                     const observaciones = detalle.observaciones ? detalle.observaciones.split(' - ') : []
                     const tipoLecheObs = observaciones.find(obs => obs.includes('Leche'))
                     const extrasObs = observaciones.find(obs => obs.includes('Extras:'))
                     const tipoProteinaObs = observaciones.find(obs => obs.includes('Proteína:') || obs.includes('Proteina:') || obs.includes('Scoop:'))
-                    const tipoPreparacion = detalle.tipo_preparacion // Obtener tipo de preparación del detalle
-                    
+                    const tipoPreparacion = detalle.tipo_preparacion
+                    const otrasObs = observaciones.filter(obs =>
+                      !obs.includes('Leche') &&
+                      !obs.includes('Extras:') &&
+                      !obs.includes('Preparación:') &&
+                      !obs.includes('Scoop:') &&
+                      !obs.includes('Proteína:') &&
+                      !obs.includes('Proteina:')
+                    )
+                    const tieneDetalles = tipoPreparacion || tipoLecheObs || extrasObs || tipoProteinaObs || otrasObs.length > 0
+
+                    const yaEntregado = Boolean(detalle.entregado)
+
                     return (
                       <div
                         key={index}
-                        className="p-3 bg-gray-50 rounded-lg border border-gray-200"
+                        className={`flex items-start gap-2 py-1.5 ${yaEntregado ? 'opacity-50' : ''}`}
                       >
-                        <div className="flex items-start justify-between mb-2">
-                          <p className="font-medium text-gray-900 text-sm">
+                        <span className={`shrink-0 text-sm font-bold tabular-nums ${yaEntregado ? 'text-gray-400' : 'text-gray-800'}`}>
+                          {detalle.cantidad}×
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-medium leading-snug ${yaEntregado ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
                             {detalle.producto_nombre || obtenerNombreProducto(detalle.id_producto)}
                           </p>
-                          <p className="text-sm font-semibold text-gray-900 ml-2">
-                            x{detalle.cantidad}
-                          </p>
-                        </div>
-                        {(tipoPreparacion || tipoLecheObs || extrasObs || tipoProteinaObs) && (
-                          <div className="mt-2 space-y-1 flex flex-wrap gap-1">
-                            {/* Etiqueta de tipo de preparación (frío/frapeada) */}
-                            {tipoPreparacion && (
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${
-                                tipoPreparacion === 'heladas'
-                                  ? 'bg-cyan-100 text-cyan-700 border-cyan-300'
-                                  : 'bg-orange-100 text-orange-700 border-orange-300'
-                              }`}>
-                                {tipoPreparacion === 'heladas' ? 'Frío' : 'Frapeada'}
-                              </span>
-                            )}
-                            {tipoLecheObs && (
-                              <div className="flex items-center gap-1">
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-300">
+                          {tieneEntregados && !yaEntregado && (
+                            <span className="inline-block mt-0.5 px-1.5 py-px rounded text-[10px] font-bold bg-green-100 text-green-800 border border-green-300">
+                              NUEVO
+                            </span>
+                          )}
+                          {tieneDetalles && (
+                            <div className="flex flex-wrap gap-1 mt-0.5">
+                              {tipoPreparacion && (
+                                <span className={`px-1.5 py-px rounded text-[10px] font-semibold border ${
+                                  tipoPreparacion === 'heladas'
+                                    ? 'bg-cyan-100 text-cyan-700 border-cyan-300'
+                                    : 'bg-orange-100 text-orange-700 border-orange-300'
+                                }`}>
+                                  {tipoPreparacion === 'heladas' ? 'Frío' : 'Frapeada'}
+                                </span>
+                              )}
+                              {tipoLecheObs && (
+                                <span className="px-1.5 py-px rounded text-[10px] font-semibold bg-blue-100 text-blue-700 border border-blue-300">
                                   {tipoLecheObs}
                                 </span>
-                              </div>
-                            )}
-                            {tipoProteinaObs && (
-                              <div className="flex items-center gap-1">
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 border border-yellow-300">
+                              )}
+                              {tipoProteinaObs && (
+                                <span className="px-1.5 py-px rounded text-[10px] font-semibold bg-yellow-100 text-yellow-700 border border-yellow-300">
                                   {tipoProteinaObs}
                                 </span>
-                              </div>
-                            )}
-                            {extrasObs && (
-                              <div className="flex items-center gap-1 flex-wrap">
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 border border-purple-300">
+                              )}
+                              {extrasObs && (
+                                <span className="px-1.5 py-px rounded text-[10px] font-semibold bg-purple-100 text-purple-700 border border-purple-300">
                                   {extrasObs.replace('Extras: ', '')}
                                 </span>
-                              </div>
-                            )}
-                            {/* Mostrar otras observaciones que no sean tipo de leche, extras, proteína o preparación */}
-                            {observaciones.filter(obs => 
-                              !obs.includes('Leche') && 
-                              !obs.includes('Extras:') && 
-                              !obs.includes('Preparación:') && 
-                              !obs.includes('Scoop:') &&
-                              !obs.includes('Proteína:') &&
-                              !obs.includes('Proteina:')
-                            ).map((obs, obsIndex) => (
-                              <div key={obsIndex} className="flex items-center gap-1">
-                                <span className="text-xs text-gray-600 italic">{obs}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                              )}
+                              {otrasObs.map((obs, obsIndex) => (
+                                <span key={obsIndex} className="text-[10px] text-gray-600 italic">
+                                  {obs}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )
                   })}
                 </div>
 
-                {/* Total */}
-                <div className="mb-4 pb-4 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <span className="text-lg font-semibold text-gray-900">Total:</span>
-                    <span className="text-xl font-bold text-matcha-600">
-                      ${parseFloat(comanda.total || 0).toFixed(2)}
-                    </span>
-                  </div>
-                </div>
+                {comentarios && (
+                  <p className="mt-1 px-2 py-1 bg-yellow-50 border border-yellow-200 rounded text-[11px] text-yellow-800 italic">
+                    {comentarios}
+                  </p>
+                )}
 
-                {/* Botones de acción */}
-                <div className="space-y-2">
-                  {!estaEnPreparacion && (
-                    <button
-                      onClick={() => iniciarPreparacion(comanda.id_comanda)}
-                      disabled={loading}
-                      className="btn-outline w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {loading ? (
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                      ) : (
-                        <>
-                          <Play className="w-5 h-5" />
-                          Iniciar Preparación
-                        </>
-                      )}
-                    </button>
-                  )}
+                <div className="flex justify-end mt-2">
                   <button
                     onClick={() => marcarComoTerminada(comanda.id_comanda)}
                     disabled={loading}
-                    className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-7 py-2 rounded-lg border-2 border-matcha-500 bg-matcha-500/15 text-matcha-700 hover:bg-matcha-500/25 active:bg-matcha-500/35 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Marcar como listo y entregado; la mesa queda abierta en el punto de venta"
+                    aria-label="Marcar comanda como lista"
                   >
                     {loading ? (
                       <Loader2 className="w-5 h-5 animate-spin" />
                     ) : (
-                      <>
-                        <CheckCircle className="w-5 h-5" />
-                        Terminado
-                      </>
+                      <CheckCircle className="w-5 h-5" />
                     )}
                   </button>
                 </div>

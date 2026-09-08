@@ -35,6 +35,36 @@ export const useComandas = () => {
     }
   }
 
+  const obtenerComanda = async (idComanda) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const data = await comandasService.obtenerComanda(idComanda)
+      return data
+    } catch (err) {
+      const errorMessage = err.response?.data?.detail || err.message || 'Error al obtener la comanda'
+      setError(errorMessage)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const editarComanda = async (idComanda, edicion) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const response = await comandasService.editarComanda(idComanda, edicion)
+      return response
+    } catch (err) {
+      const errorMessage = err.response?.data?.detail || err.message || 'Error al editar comanda'
+      setError(errorMessage)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const obtenerComandasTerminadasSinPagar = async () => {
     setLoading(true)
     setError(null)
@@ -68,9 +98,11 @@ export const useComandas = () => {
   return {
     loading,
     error,
+    obtenerComanda,
     obtenerComandas,
     obtenerComandasTerminadasSinPagar,
     crearComanda,
+    editarComanda,
     actualizarEstado,
   }
 }

@@ -4,14 +4,17 @@
  */
 
 // Definir permisos por ruta
-// Vendedor: Punto de Ventas, Barista (Comandas) y Loyabit
-// Barista (cocina): solo Barista e Inventario
+// Vendedor: Punto de Ventas, Comandas y Loyabit
+// Cocina: solo Comandas e Inventario
+// Mesero: solo Punto de Ventas y Comandas (sin cobrar, ver puedeCobrar en PuntoVenta)
 // Administrador: todas las pantallas
 // Super Administrador: todas las pantallas
 const routePermissions = {
-  '/dashboard': ['vendedor', 'cocina', 'administrador', 'superadministrador'],
-  '/punto-venta': ['vendedor', 'administrador', 'superadministrador'],
-  '/barista': ['vendedor', 'cocina', 'administrador', 'superadministrador'],
+  // El dashboard son gráficas de ventas: es información de negocio, igual que
+  // los reportes, y el backend ya restringe esos endpoints a admin.
+  '/dashboard': ['administrador', 'superadministrador'],
+  '/punto-venta': ['vendedor', 'mesero', 'administrador', 'superadministrador'],
+  '/barista': ['vendedor', 'cocina', 'mesero', 'administrador', 'superadministrador'],
   '/productos': ['administrador', 'superadministrador'],
   '/inventario': ['cocina', 'administrador', 'superadministrador'],
   '/loyabit': ['vendedor', 'administrador', 'superadministrador'],
@@ -78,10 +81,23 @@ export const isAdmin = (rol) => {
   return normalizedRol === 'administrador' || normalizedRol === 'superadministrador'
 }
 
+/**
+ * Verifica si un rol puede cobrar (efectivo, tarjeta, procesar venta).
+ * El mesero arma órdenes y las manda a comandas, pero el cobro es de caja.
+ * El backend lo respalda: procesar_pago no acepta al rol mesero.
+ * @param {string} rol - El rol del usuario
+ * @returns {boolean}
+ */
+export const puedeCobrar = (rol) => {
+  if (!rol) return false
+  return rol.toLowerCase() !== 'mesero'
+}
+
 export default {
   hasRouteAccess,
   getAllowedRoutes,
   isAdmin,
+  puedeCobrar,
   routePermissions,
 }
 

@@ -1,9 +1,9 @@
 import { useCallback } from 'react'
 import { useBluetooth } from './useBluetooth'
-import { generateCafeTicketBytes, generateTestPrintBytes } from '../utils/escposService'
+import { generateCafeTicketBytesAsync, generateTestPrintBytes } from '../utils/escposService'
 
 /**
- * Impresión térmica ESC/POS vía Bluetooth (PT-210).
+ * Impresión térmica ESC/POS vía Bluetooth.
  */
 export const usePrinter = () => {
   const bluetooth = useBluetooth()
@@ -14,7 +14,7 @@ export const usePrinter = () => {
         const ok = await bluetooth.reconnect()
         if (!ok) throw new Error('Impresora no conectada')
       }
-      const bytes = generateCafeTicketBytes(ticketData)
+      const bytes = await generateCafeTicketBytesAsync(ticketData)
       await bluetooth.write(bytes)
       return true
     },

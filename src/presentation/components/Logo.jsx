@@ -8,9 +8,9 @@ const Logo = ({ className = '' }) => {
       </div>
       <div className="flex flex-col">
         <h1 className="text-xl font-bold text-white">
-        Mi Cafetería        </h1>
+        Zona 2        </h1>
         <p className="text-xs text-gray-400">
-          Sistema de Gestión
+          Coffee Recovery
         </p>
       </div>
     </div>

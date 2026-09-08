@@ -26,7 +26,7 @@ const RoleProtectedRoute = ({ children, requiredRoles }) => {
   const getFirstAllowedRoute = (rol) => {
     const allowedRoutes = getAllowedRoutes(rol)
     // Priorizar ciertas rutas según el rol
-    if (rol?.toLowerCase() === 'vendedor') {
+    if (rol?.toLowerCase() === 'vendedor' || rol?.toLowerCase() === 'mesero') {
       return allowedRoutes.find(route => route === '/punto-venta') || allowedRoutes[0] || '/punto-venta'
     } else if (rol?.toLowerCase() === 'cocina') {
       return allowedRoutes.find(route => route === '/barista') || allowedRoutes[0] || '/barista'

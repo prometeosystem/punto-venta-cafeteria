@@ -39,7 +39,7 @@ const RoleBasedRedirect = () => {
   // Priorizar ciertas rutas según el rol
   let defaultRoute = '/dashboard'
   
-  if (rol?.toLowerCase() === 'vendedor') {
+  if (rol?.toLowerCase() === 'vendedor' || rol?.toLowerCase() === 'mesero') {
     defaultRoute = allowedRoutes.find(route => route === '/punto-venta') || allowedRoutes[0] || '/punto-venta'
   } else if (rol?.toLowerCase() === 'cocina') {
     defaultRoute = allowedRoutes.find(route => route === '/barista') || allowedRoutes[0] || '/barista'
