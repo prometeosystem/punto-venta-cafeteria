@@ -47,5 +47,17 @@ export const usuariosService = {
     const response = await api.get('/api/usuarios/estadisticas')
     return response.data
   },
+
+  // Código con el que el empleado entra desde la tablet
+  definirCodigo: async (idUsuario, codigo) => {
+    const response = await api.put(`/api/usuarios/${idUsuario}/codigo`, { codigo })
+    return response.data
+  },
+
+  // Sin código el usuario deja de aparecer en la pantalla de inicio
+  quitarCodigo: async (idUsuario) => {
+    const response = await api.delete(`/api/usuarios/${idUsuario}/codigo`)
+    return response.data
+  },
 }
 

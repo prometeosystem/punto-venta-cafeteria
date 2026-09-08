@@ -5,9 +5,9 @@ import { configuracionService } from '../../application/services/configuracionSe
 /**
  * Modal de confirmación que opcionalmente exige autorización.
  *
- * Admin y superadmin solo confirman; el resto debe escribir el código
- * compartido o la contraseña de algún administrador. Se alinea arriba porque
- * en tablet el teclado taparía un modal centrado.
+ * Admin y superadmin solo confirman; el resto necesita que un administrador
+ * escriba su código de acceso, el mismo con el que inicia sesión. Se alinea
+ * arriba porque en tablet el teclado taparía un modal centrado.
  */
 const ModalAutorizacion = ({
   abierto,
@@ -46,7 +46,7 @@ const ModalAutorizacion = ({
       return
     }
     if (!valor.trim()) {
-      setError('Escribe el código o la contraseña de un administrador')
+      setError('Pide a un administrador que escriba su código')
       return
     }
     setVerificando(true)
@@ -56,7 +56,7 @@ const ModalAutorizacion = ({
       onConfirmar(valor.trim())
     } catch (e) {
       const detalle = e?.response?.data?.detail
-      setError(typeof detalle === 'string' ? detalle : 'Código o contraseña incorrectos')
+      setError(typeof detalle === 'string' ? detalle : 'Código incorrecto')
     } finally {
       setVerificando(false)
     }
@@ -111,12 +111,12 @@ const ModalAutorizacion = ({
                   setError('')
                 }}
                 onKeyDown={(e) => e.key === 'Enter' && confirmar()}
-                placeholder="Código o contraseña de administrador"
+                placeholder="Código de administrador"
                 className="input-field w-full text-lg"
                 disabled={ocupado}
               />
               <p className="text-xs text-gray-500 mt-1">
-                También sirve la contraseña de cualquier administrador.
+                Es el mismo código con el que un administrador inicia sesión.
               </p>
             </div>
           )}

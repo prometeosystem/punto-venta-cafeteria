@@ -133,7 +133,6 @@ const Bitacora = () => {
     { value: 'ventas', label: 'Ventas' },
     { value: 'comandas', label: 'Comandas' },
     { value: 'inventario', label: 'Inventario' },
-    { value: 'preordenes', label: 'Pre-órdenes' },
     { value: 'clientes', label: 'Clientes' },
     { value: 'autenticacion', label: 'Autenticación' }
   ]

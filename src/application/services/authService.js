@@ -1,5 +1,13 @@
 import api from '../../infrastructure/api'
 
+const guardarSesion = (data) => {
+  if (data.access_token) {
+    localStorage.setItem('token', data.access_token)
+    localStorage.setItem('usuario', JSON.stringify(data.usuario))
+  }
+  return data
+}
+
 export const authService = {
   // Login
   login: async (correo, contrasena) => {
@@ -7,14 +15,21 @@ export const authService = {
       correo,
       contrasena,
     })
-    
-    // Guardar token y usuario
-    if (response.data.access_token) {
-      localStorage.setItem('token', response.data.access_token)
-      localStorage.setItem('usuario', JSON.stringify(response.data.usuario))
-    }
-    
+    return guardarSesion(response.data)
+  },
+
+  // Tarjetas de la pantalla de inicio. No requiere sesión.
+  usuariosParaLogin: async () => {
+    const response = await api.get('/api/login/usuarios')
     return response.data
+  },
+
+  loginConCodigo: async (idUsuario, codigo) => {
+    const response = await api.post('/api/login/codigo', {
+      id_usuario: idUsuario,
+      codigo,
+    })
+    return guardarSesion(response.data)
   },
 
   // Obtener usuario actual

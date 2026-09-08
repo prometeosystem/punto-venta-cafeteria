@@ -32,16 +32,16 @@ import { User as UserIcon } from 'lucide-react'
 const menuItems = [
   { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { path: '/punto-venta', icon: ShoppingCart, label: 'Punto de Venta' },
-  { path: '/caja', icon: Wallet, label: 'Caja' },
-  { path: '/movimientos-caja', icon: ArrowLeftRight, label: 'Movimientos' },
   { path: '/barista', icon: Coffee, label: 'Comandas' },
   { path: '/productos', icon: Package, label: 'Productos' },
   { path: '/inventario', icon: Warehouse, label: 'Inventario' },
-  { path: '/loyabit', icon: ExternalLink, label: 'Loyabit' },
   { path: '/empleados', icon: UserIcon, label: 'Empleados' },
-  { path: '/reportes', icon: BarChart3, label: 'Reportes' },
+  { path: '/caja', icon: Wallet, label: 'Caja' },
+  { path: '/movimientos-caja', icon: ArrowLeftRight, label: 'Movimientos' },
   { path: '/contabilidad', icon: Calculator, label: 'Contabilidad' },
+  { path: '/reportes', icon: BarChart3, label: 'Reportes' },
   { path: '/bitacora', icon: FileText, label: 'Bitácora' },
+  { path: '/loyabit', icon: ExternalLink, label: 'Loyabit' },
   { path: '/configuracion', icon: Settings, label: 'Configuración' },
 ]
 

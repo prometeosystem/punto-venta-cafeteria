@@ -106,10 +106,6 @@ const ToastNotification = ({ notification, onClose, onNavigate, duration = 5000,
     } else if (notification.icono === 'dollar-sign') {
       return <DollarSign className="w-5 h-5 text-amber-600" />
     }
-    // Icono para pre-órdenes debe ser azul
-    if (notification.tipo === 'preorden') {
-      return <Bell className="w-5 h-5 text-blue-600" />
-    }
     return <Bell className={`w-5 h-5 ${notification.tipo === 'comanda' ? 'text-matcha-600' : 'text-gray-600'}`} />
   }
 
@@ -118,8 +114,6 @@ const ToastNotification = ({ notification, onClose, onNavigate, duration = 5000,
       return 'bg-white border-matcha-200'
     } else if (notification.tipo === 'inventario') {
       return notification.estado === 'critical' ? 'bg-white border-red-200' : 'bg-white border-yellow-200'
-    } else if (notification.tipo === 'preorden') {
-      return 'bg-white border-blue-200'
     } else if (notification.tipo === 'comanda-lista-cobrar') {
       return 'bg-white border-amber-200'
     }
@@ -144,7 +138,6 @@ const ToastNotification = ({ notification, onClose, onNavigate, duration = 5000,
           <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${
             notification.tipo === 'comanda' ? 'bg-matcha-100' : 
             notification.tipo === 'inventario' ? (notification.estado === 'critical' ? 'bg-red-100' : 'bg-yellow-100') :
-            notification.tipo === 'preorden' ? 'bg-blue-100' :
             'bg-gray-100'
           }`}>
             {getIcon()}

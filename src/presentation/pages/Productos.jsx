@@ -1,10 +1,20 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Plus, Search, Edit, Trash2, Loader2, X, Package } from 'lucide-react'
 import { useProductos } from '../hooks/useProductos'
 import { useInventario } from '../hooks/useInventario'
 import { recetasService } from '../../application/services/recetasService'
+import { opcionesProductoService } from '../../application/services/opcionesProductoService'
+import { notificarOpcionesActualizadas } from '../hooks/useOpcionesProducto'
 import Swal from 'sweetalert2'
 import ImageCropModal from '../components/ImageCropModal'
+
+// Estos tres grupos además se guardan como banderas en sus tablas propias,
+// porque el resto del sistema todavía las consulta.
+const GRUPOS_CON_BANDERA = {
+  leche: 'lleva_leche',
+  extras: 'lleva_extras',
+  proteina: 'lleva_proteina',
+}
 
 const Productos = () => {
   const [searchTerm, setSearchTerm] = useState('')
@@ -60,6 +70,46 @@ const Productos = () => {
   const { productos, loading, crearProducto, editarProducto, eliminarProducto, obtenerProductos, obtenerProducto } = useProductos()
   const { insumos, obtenerInsumos } = useInventario()
 
+  // Grupos de opciones que se pueden marcar en cada producto. Vienen del
+  // catálogo para que al crear un grupo nuevo en Configuración aparezca aquí
+  // sin tocar código.
+  const [gruposOpcion, setGruposOpcion] = useState([])
+  const [gruposMarcados, setGruposMarcados] = useState([])
+
+  useEffect(() => {
+    opcionesProductoService
+      .listarGrupos(true)
+      .then((lista) => setGruposOpcion(Array.isArray(lista) ? lista : []))
+      .catch((error) => console.error('Error al cargar los grupos de opciones:', error))
+  }, [])
+
+  const alternarGrupo = useCallback((idGrupo) => {
+    setGruposMarcados((prev) =>
+      prev.includes(idGrupo) ? prev.filter((id) => id !== idGrupo) : [...prev, idGrupo]
+    )
+  }, [])
+
+  /**
+   * Guarda qué grupos ofrece el producto. Va aparte del alta porque el punto de
+   * venta lee la asignación, no las banderas: si esto falla, el producto se
+   * guardó pero sus opciones no, y hay que decirlo en vez de callarlo.
+   */
+  const guardarGrupos = async (idProducto) => {
+    try {
+      await opcionesProductoService.asignarGruposAProducto(idProducto, gruposMarcados)
+      // El punto de venta recarga sus opciones sin refrescar la página
+      notificarOpcionesActualizadas()
+    } catch (error) {
+      console.error('Error al guardar los grupos del producto:', error)
+      await Swal.fire({
+        icon: 'warning',
+        title: 'El producto se guardó, pero sus opciones no',
+        text: error?.response?.data?.detail || 'Vuelve a abrir el producto e inténtalo de nuevo.',
+        confirmButtonColor: '#10b981',
+      })
+    }
+  }
+
   // Filtrar productos
   const filteredProducts = productos.filter((product) => {
     const matchesSearch = product.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -94,6 +144,14 @@ const Productos = () => {
               lleva_extras: productoCompleto.lleva_extras !== undefined ? productoCompleto.lleva_extras : prev.lleva_extras,
               lleva_proteina: productoCompleto.lleva_proteina !== undefined ? productoCompleto.lleva_proteina : prev.lleva_proteina,
             }))
+          }
+
+          // Qué grupos de opciones tiene marcados hoy este producto
+          try {
+            const asignaciones = await opcionesProductoService.gruposPorProducto()
+            setGruposMarcados(asignaciones?.[productoEditando.id_producto] || [])
+          } catch (error) {
+            console.error('Error al cargar los grupos del producto:', error)
           }
           
           // Si el producto tiene recetas, mapearlas al formato del formulario
@@ -171,6 +229,7 @@ const Productos = () => {
     setEliminarImagen(false)
     setMostrarCropModal(false)
     setRecetas([])
+    setGruposMarcados([])
     setMostrarFormularioReceta(false)
     setMostrarModalProducto(true)
   }
@@ -237,9 +296,15 @@ const Productos = () => {
       formDataToSend.append('categoria', formData.categoria.trim())
       formDataToSend.append('precio', precio.toString())
       formDataToSend.append('activo', formData.activo.toString())
-      formDataToSend.append('lleva_leche', formData.lleva_leche.toString())
-      formDataToSend.append('lleva_extras', formData.lleva_extras.toString())
-      formDataToSend.append('lleva_proteina', formData.lleva_proteina.toString())
+
+      // Las banderas se derivan de los grupos marcados, no al revés: la casilla
+      // y la asignación son lo mismo, y así no pueden quedar en desacuerdo.
+      const clavesMarcadas = new Set(
+        gruposOpcion.filter((g) => gruposMarcados.includes(g.id_grupo)).map((g) => g.clave)
+      )
+      Object.entries(GRUPOS_CON_BANDERA).forEach(([clave, bandera]) => {
+        formDataToSend.append(bandera, clavesMarcadas.has(clave).toString())
+      })
 
       // ⚠️ CRÍTICO: SIEMPRE enviar recetas como string JSON
       // Convertir recetas del estado al formato del backend
@@ -305,7 +370,9 @@ const Productos = () => {
         if (resultado?.recetas_actualizadas !== undefined) {
           console.log(`Recetas actualizadas: ${resultado.recetas_actualizadas}`)
         }
-        
+
+        await guardarGrupos(productoEditando.id_producto)
+
         await Swal.fire({
           icon: 'success',
           title: '¡Producto actualizado!',
@@ -315,7 +382,10 @@ const Productos = () => {
         })
       } else {
         // Crear nuevo producto
-        await crearProducto(formDataToSend)
+        const creado = await crearProducto(formDataToSend)
+        if (creado?.id_producto) {
+          await guardarGrupos(creado.id_producto)
+        }
         await Swal.fire({
           icon: 'success',
           title: '¡Producto creado!',
@@ -813,52 +883,56 @@ const Productos = () => {
                     </div>
                   </div>
 
-                  {/* Lleva Leche */}
+                  {/* Grupos de opciones que se ofrecerán al vender este producto */}
                   <div>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.lleva_leche}
-                        onChange={(e) => setFormData({ ...formData, lleva_leche: e.target.checked })}
-                        className="w-4 h-4 text-matcha-600 rounded"
-                      />
-                      <span className="text-sm font-medium text-gray-700">Lleva Leche</span>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Opciones que ofrece
                     </label>
-                    <p className="text-xs text-gray-500 mt-1 ml-6">
-                      Marca esta opción si el producto contiene leche
+                    <p className="text-xs text-gray-500 mb-2">
+                      Al agregar el producto en el punto de venta sólo aparecerán los grupos
+                      marcados aquí. Sus opciones y precios se editan en Configuración.
                     </p>
-                  </div>
 
-                  {/* Lleva Extras */}
-                  <div>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.lleva_extras}
-                        onChange={(e) => setFormData({ ...formData, lleva_extras: e.target.checked })}
-                        className="w-4 h-4 text-matcha-600 rounded"
-                      />
-                      <span className="text-sm font-medium text-gray-700">Lleva Extras</span>
-                    </label>
-                    <p className="text-xs text-gray-500 mt-1 ml-6">
-                      Marca esta opción si el producto permite agregar extras (Tocino, huevo, jamón, chorizo)
-                    </p>
-                  </div>
-
-                  {/* Lleva Proteína */}
-                  <div>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.lleva_proteina}
-                        onChange={(e) => setFormData({ ...formData, lleva_proteina: e.target.checked })}
-                        className="w-4 h-4 text-matcha-600 rounded"
-                      />
-                      <span className="text-sm font-medium text-gray-700">Lleva Proteína/Creatina</span>
-                    </label>
-                    <p className="text-xs text-gray-500 mt-1 ml-6">
-                      Marca esta opción si el producto permite seleccionar proteína normal o isolatada
-                    </p>
+                    {gruposOpcion.length === 0 ? (
+                      <p className="text-xs text-gray-400">Cargando grupos...</p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {gruposOpcion.map((grupo) => {
+                          const marcado = gruposMarcados.includes(grupo.id_grupo)
+                          const opciones = (grupo.opciones || []).filter((o) => o.activo)
+                          return (
+                            <label
+                              key={grupo.id_grupo}
+                              className={`flex items-start gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${
+                                marcado
+                                  ? 'border-matcha-400 bg-matcha-50'
+                                  : 'border-gray-200 hover:bg-gray-50'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={marcado}
+                                onChange={() => alternarGrupo(grupo.id_grupo)}
+                                className="w-4 h-4 mt-0.5 text-matcha-600 rounded"
+                              />
+                              <span className="min-w-0">
+                                <span className="text-sm font-medium text-gray-700">
+                                  {grupo.nombre}
+                                </span>
+                                <span className="ml-2 text-[11px] text-gray-400">
+                                  {grupo.seleccion === 'unica' ? 'elige una' : 'varias'}
+                                </span>
+                                <span className="block text-xs text-gray-500 truncate">
+                                  {opciones.length
+                                    ? opciones.map((o) => o.nombre).join(', ')
+                                    : 'Sin opciones configuradas'}
+                                </span>
+                              </span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
 

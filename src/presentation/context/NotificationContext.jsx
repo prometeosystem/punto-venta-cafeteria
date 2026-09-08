@@ -1,6 +1,5 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { inventarioService } from '../../application/services/inventarioService'
-import { preordenesService } from '../../application/services/preordenesService'
 import { useAuth } from './AuthContext'
 
 const NotificationContext = createContext()
@@ -17,8 +16,6 @@ export const NotificationProvider = ({ children }) => {
   const { usuario } = useAuth() // Obtener usuario autenticado
   const [notifications, setNotifications] = useState([])
   const [toastNotifications, setToastNotifications] = useState([]) // Notificaciones toast temporales
-  const preordenIdsNotificadasRef = useRef(new Set()) // Almacenar IDs de pre-órdenes ya notificadas
-
   // Reproducir sonido de notificación (similar a campanita de hotel o iPhone)
   const playNotificationSound = useCallback(() => {
     try {
@@ -199,79 +196,6 @@ export const NotificationProvider = ({ children }) => {
     }
   }, [])
 
-  // Reproducir sonido de pre-orden (Ding-Dong Suave)
-  const playPreordenSound = useCallback(() => {
-    try {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)()
-
-      // Verificar si el AudioContext necesita ser reanudado (requiere interacción del usuario)
-      if (audioContext.state === 'suspended') {
-        audioContext.resume().catch(() => {
-          // Silenciosamente ignorar errores de AudioContext
-        })
-      }
-      const now = audioContext.currentTime
-      
-      // Primer "ding"
-      const oscillator1 = audioContext.createOscillator()
-      const gainNode1 = audioContext.createGain()
-      oscillator1.type = 'sine'
-      oscillator1.frequency.value = 523.25 // C5
-      
-      gainNode1.gain.setValueAtTime(0, now)
-      gainNode1.gain.linearRampToValueAtTime(0.35, now + 0.05)
-      gainNode1.gain.exponentialRampToValueAtTime(0.01, now + 0.25)
-      
-      oscillator1.connect(gainNode1)
-      gainNode1.connect(audioContext.destination)
-      oscillator1.start(now)
-      oscillator1.stop(now + 0.25)
-      
-      // Segundo "dong" (más bajo)
-      const oscillator2 = audioContext.createOscillator()
-      const gainNode2 = audioContext.createGain()
-      oscillator2.type = 'sine'
-      oscillator2.frequency.value = 392.00 // G4
-      
-      gainNode2.gain.setValueAtTime(0, now + 0.2)
-      gainNode2.gain.linearRampToValueAtTime(0.35, now + 0.25)
-      gainNode2.gain.exponentialRampToValueAtTime(0.01, now + 0.5)
-      
-      oscillator2.connect(gainNode2)
-      gainNode2.connect(audioContext.destination)
-      oscillator2.start(now + 0.2)
-      oscillator2.stop(now + 0.5)
-      
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error('Error al reproducir sonido de pre-orden:', error)
-      }
-    }
-
-    // Fallback a un sonido simple
-    try {
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)()
-        const oscillator = audioContext.createOscillator()
-        const gainNode = audioContext.createGain()
-        
-        oscillator.connect(gainNode)
-        gainNode.connect(audioContext.destination)
-        
-        oscillator.frequency.value = 600
-        oscillator.type = 'sine'
-        
-        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5)
-        
-        oscillator.start(audioContext.currentTime)
-        oscillator.stop(audioContext.currentTime + 0.5)
-      } catch (fallbackError) {
-        if (import.meta.env.DEV) {
-          console.error('Error en fallback del sonido de pre-orden:', fallbackError)
-      }
-    }
-  }, [])
-
   // Eliminar notificación toast
   const removeToastNotification = useCallback((notificationId) => {
     setToastNotifications(prev => prev.filter(notif => notif.id !== notificationId))
@@ -297,14 +221,11 @@ export const NotificationProvider = ({ children }) => {
     if (notification.tipo === 'inventario') {
       // Batería Baja iPhone (Auténtico) para alertas de stock
       playErrorSound()
-    } else if (notification.tipo === 'preorden') {
-      // Ding-Dong Suave para pre-órdenes de clientes
-      playPreordenSound()
     } else {
       // Notificación Normal (Campanita) para comandas
       playNotificationSound()
     }
-  }, [playNotificationSound, playErrorSound, playPreordenSound])
+  }, [playNotificationSound, playErrorSound])
 
   // Marcar notificación como leída
   const markAsRead = useCallback((notificationId) => {
@@ -520,108 +441,6 @@ export const NotificationProvider = ({ children }) => {
       clearInterval(intervalo)
     }
   }, [verificarInsumosStock, usuario])
-
-  // Detectar pre-órdenes nuevas desde la web (polling cada 10 segundos)
-  useEffect(() => {
-    const verificarPreordenesNuevas = async () => {
-      // Solo verificar si hay un usuario autenticado
-      if (!usuario) {
-        return
-      }
-      
-      try {
-        // Obtener pre-órdenes con origen='web' y estado='preorden'
-        const todasPreordenes = await preordenesService.obtenerPreordenes()
-        
-        if (!Array.isArray(todasPreordenes)) return
-        
-        // Filtrar solo pre-órdenes web con estado 'preorden'
-        const preordenesWeb = todasPreordenes.filter(
-          preorden => preorden.origen === 'web' && preorden.estado === 'preorden'
-        )
-        
-        // Detectar nuevas pre-órdenes
-        setNotifications(prevNotifications => {
-          const nuevasNotificaciones = [...prevNotifications]
-          const nuevasToastNotificaciones = []
-          let hayNuevas = false
-          
-          preordenesWeb.forEach((preorden) => {
-            // Verificar si ya existe una notificación para esta pre-orden (evitar duplicados)
-            const existeNotificacion = prevNotifications.some(
-              n => n.tipo === 'preorden' && 
-                   n.preordenId === preorden.id_preorden && 
-                   !n.leida
-            )
-            
-            // Verificar si ya está en el conjunto de IDs notificadas (evitar notificaciones repetidas en la misma sesión)
-            const yaNotificada = preordenIdsNotificadasRef.current.has(preorden.id_preorden)
-            
-            if (!existeNotificacion && !yaNotificada) {
-              const itemsCount = preorden.detalles?.reduce((sum, d) => sum + d.cantidad, 0) || 0
-              
-              const nuevaNotificacion = {
-                id: Date.now() + Math.random(), // ID único
-                tipo: 'preorden',
-                titulo: 'Nueva Pre-orden',
-                mensaje: `Pre-orden #${preorden.id_preorden} de ${preorden.nombre_cliente || 'Cliente'} (${itemsCount} ${itemsCount === 1 ? 'item' : 'items'})`,
-                accion: {
-                  tipo: 'navegar',
-                  ruta: '/punto-venta',
-                  params: { preorden_id: preorden.id_preorden }
-                },
-                icono: 'bell',
-                preordenId: preorden.id_preorden,
-                leida: false,
-                fecha: new Date().toISOString()
-              }
-              
-              nuevasNotificaciones.unshift(nuevaNotificacion)
-              nuevasToastNotificaciones.push(nuevaNotificacion)
-              
-              // Agregar a conjunto de IDs notificadas
-              preordenIdsNotificadasRef.current.add(preorden.id_preorden)
-              hayNuevas = true
-            }
-          })
-          
-          // Agregar nuevas notificaciones toast
-          if (nuevasToastNotificaciones.length > 0) {
-            setToastNotifications(prev => [...prev, ...nuevasToastNotificaciones])
-          }
-          
-          // Reproducir sonido solo si hay nuevas pre-órdenes
-          if (hayNuevas) {
-            setTimeout(() => playPreordenSound(), 0)
-          }
-          
-          return nuevasNotificaciones
-        })
-      } catch (error) {
-        // Solo mostrar error si no es un error de autenticación (401)
-        // Los errores 401 son esperados cuando el usuario no está autenticado
-        if (error.response?.status !== 401) {
-          console.error('Error al verificar pre-órdenes nuevas:', error)
-        }
-      }
-    }
-    
-    // Solo verificar si hay un usuario autenticado
-    if (usuario) {
-      // Verificar inmediatamente al montar
-      verificarPreordenesNuevas()
-      
-      // Configurar intervalo para verificar cada 10 segundos
-      const intervaloPreordenes = setInterval(() => {
-        verificarPreordenesNuevas()
-      }, 10 * 1000) // 10 segundos
-
-      return () => {
-        clearInterval(intervaloPreordenes)
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playPreordenSound, usuario])
 
   const value = {
     notifications,

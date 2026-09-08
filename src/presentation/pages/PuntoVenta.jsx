@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Plus, Minus, Trash2, ShoppingCart, ArrowLeft, Loader2, Package, Clock, User, CreditCard, X, Search, Trash, Coins, Percent, CheckCircle, Receipt, ChefHat, Lock } from 'lucide-react'
+import { Plus, Minus, Trash2, ShoppingCart, ArrowLeft, Loader2, X, Search, Coins, Percent, Check, CheckCircle, Receipt, ChefHat, Lock } from 'lucide-react'
 import { useProductos } from '../hooks/useProductos'
 import { useVentas } from '../hooks/useVentas'
 import { useComandas } from '../hooks/useComandas'
-import { usePreordenes } from '../hooks/usePreordenes'
 import { useAuth } from '../context/AuthContext'
 import { useCaja } from '../hooks/useCaja'
 import { imprimirTicket, itemsDesdeCarrito } from '../utils/imprimirTicket'
@@ -13,23 +12,54 @@ import { isAdmin, puedeCobrar } from '../utils/rolePermissions'
 import ModalAutorizacion from '../components/ModalAutorizacion'
 import { usePrinterContext } from '../context/PrinterContext'
 import {
-  EXTRAS_DISPONIBLES,
-  LECHE_PRECIOS,
   PROTEINA_SCOOP_PRECIO,
-  calcOpcionesItemTotal,
-  calcPrecioExtras,
-  calcPrecioLeche,
   buildItemObservaciones,
   calcPrecioOpcionesProducto,
-  calcPrecioProteina,
   desglosarExtrasCarrito,
+  getClavesDelGrupo,
+  getExtrasDisponibles,
+  getGruposDeProducto,
+  getLechesDisponibles,
   getNombreExtra,
   getNombreProteina,
+  hayAsignacionesCargadas,
   parseObservacionesProducto,
+  productoLlevaLeche,
+  productoLlevaProteina,
   sortMenuCategories,
   tieneScoopProteina,
 } from '../utils/productOptionsConfig'
+import { useOpcionesProducto } from '../hooks/useOpcionesProducto'
 import Swal from 'sweetalert2'
+
+/**
+ * Qué opciones ofrece un producto. Manda la asignación de grupos; mientras no
+ * se haya cargado se usan las banderas que trae el propio producto, que pueden
+ * llegar como booleano, entero o cadena según el endpoint.
+ */
+const opcionesDelProducto = (product) => {
+  if (!product) return { llevaLeche: false, llevaExtras: false, llevaProteina: false, grupos: [] }
+
+  const bandera = (v) => v === true || v === 1 || v === '1'
+  const id = product.id_producto
+
+  if (hayAsignacionesCargadas()) {
+    const grupos = getGruposDeProducto(id)
+    return {
+      llevaLeche: Boolean(productoLlevaLeche(id)),
+      llevaProteina: Boolean(productoLlevaProteina(id)),
+      llevaExtras: grupos.length > 0,
+      grupos,
+    }
+  }
+
+  return {
+    llevaLeche: bandera(product.lleva_leche),
+    llevaExtras: bandera(product.lleva_extras),
+    llevaProteina: bandera(product.lleva_proteina) || product.categoria === 'runner_proteina',
+    grupos: [],
+  }
+}
 
 /**
  * Los modales se alinean arriba en lugar de al centro: en tablet el teclado
@@ -66,15 +96,11 @@ const PuntoVenta = () => {
   const [metodoPago, setMetodoPago] = useState(null)
   const [idCliente, setIdCliente] = useState(null)
   const [procesando, setProcesando] = useState(false)
-  const [preordenSeleccionada, setPreordenSeleccionada] = useState(null)
-  const [preordenes, setPreordenes] = useState([])
-  const [cargandoPreordenes, setCargandoPreordenes] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [highlightedProduct, setHighlightedProduct] = useState(null)
   const [mostrarModalFinalizar, setMostrarModalFinalizar] = useState(false)
   const [mostrarModalNombreCliente, setMostrarModalNombreCliente] = useState(false)
   const [nombreClienteTemp, setNombreClienteTemp] = useState('')
-  const [mostrarModalGuardarPreorden, setMostrarModalGuardarPreorden] = useState(false)
   const [nombreCliente, setNombreCliente] = useState('')
   const [tipoServicio, setTipoServicio] = useState('comer-aqui')
   const [comentarios, setComentarios] = useState('')
@@ -84,16 +110,14 @@ const PuntoVenta = () => {
   const [opcionesProductos, setOpcionesProductos] = useState({}) // { productId: { tipoLeche: 'entera', extras: [], tipoProteina: null } }
 
   const { productos, loading: productosLoading } = useProductos()
+  // Deja el catálogo de extras y leches listo para los cálculos de precio
+  useOpcionesProducto()
   const { crearVenta, obtenerInfoTicketActual, procesarPagoVenta, loading: ventaLoading } = useVentas()
   const { crearComanda, editarComanda, obtenerComanda, obtenerComandasTerminadasSinPagar, cancelarComanda, loading: comandaLoading } = useComandas()
-  const { obtenerPreordenes, procesarPago, actualizarPreorden, cancelarPreorden, crearPreorden, obtenerPreorden, loading: preordenesLoading } = usePreordenes()
   const { usuario } = useAuth()
   const { estado: estadoCaja, loading: cajaLoading } = useCaja(15000)
   const [metodosPagoActivos, setMetodosPagoActivos] = useState(() => obtenerMetodosPagoActivos())
   const [numeroTicket, setNumeroTicket] = useState(null)
-  const [mostrarModalCancelar, setMostrarModalCancelar] = useState(false)
-  const [passwordCancelar, setPasswordCancelar] = useState('')
-  const [preordenACancelar, setPreordenACancelar] = useState(null)
   
   // Estados para propina
   const [mostrarModalPropina, setMostrarModalPropina] = useState(false)
@@ -117,6 +141,9 @@ const PuntoVenta = () => {
   // Cancelación de la comanda cargada
   const [mostrarModalCancelarComanda, setMostrarModalCancelarComanda] = useState(false)
   const [cancelandoComanda, setCancelandoComanda] = useState(false)
+
+  // Efectivo con el que paga el cliente, para calcular el cambio
+  const [montoRecibido, setMontoRecibido] = useState('')
 
   // Estado para enviar ticket por WhatsApp
   const [numeroWhatsApp, setNumeroWhatsApp] = useState('')
@@ -173,34 +200,6 @@ const PuntoVenta = () => {
     }
   }
 
-  // Cargar pre-órdenes pendientes
-  useEffect(() => {
-    const cargarPreordenes = async () => {
-      try {
-        setCargandoPreordenes(true)
-        // Opción 1: Sin parámetro (backend retorna solo preorden y en_caja)
-        const todasPreordenes = await obtenerPreordenes()
-        
-        // Opción 2: Filtro adicional en frontend como seguridad
-        // Incluir pre-órdenes con estado 'pagada' y origen 'sistema' para permitir edición
-        const preordenesFiltradas = (todasPreordenes || []).filter(preorden => 
-          preorden.estado === 'preorden' || preorden.estado === 'en_caja' || (preorden.estado === 'pagada' && preorden.origen === 'sistema')
-        )
-        
-        setPreordenes(preordenesFiltradas)
-      } catch (error) {
-        console.error('Error al cargar pre-órdenes:', error)
-      } finally {
-        setCargandoPreordenes(false)
-      }
-    }
-    cargarPreordenes()
-    // Refrescar cada 10 segundos
-    const interval = setInterval(cargarPreordenes, 10000)
-    return () => clearInterval(interval)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
   // Cargar comandas terminadas sin pagar
   const cargarComandasTerminadasSinPagar = async () => {
     try {
@@ -239,8 +238,7 @@ const PuntoVenta = () => {
       setCart(convertirComandaTerminadaACarrito(comanda))
       setComandaEnEdicion(comanda)
       setComandaTerminadaSeleccionada(null)
-      setPreordenSeleccionada(null)
-      setNombreCliente(comanda.venta_nombre_cliente || comanda.preorden?.nombre_cliente || '')
+      setNombreCliente(comanda.venta_nombre_cliente || comanda.pedido?.nombre_cliente || '')
       setTipoServicio(comanda.venta_tipo_servicio === 'para-llevar' ? 'para-llevar' : 'comer-aqui')
       setMetodoPago(null)
       setPropinaPorcentaje(null)
@@ -324,25 +322,8 @@ const PuntoVenta = () => {
   }
   
   const handleProductClick = (product) => {
-    const llevaLeche = Boolean(
-      product.lleva_leche === true || 
-      product.lleva_leche === 1 ||
-      product.lleva_leche === "1"
-    )
-    
-    const llevaExtras = Boolean(
-      product.lleva_extras === true || 
-      product.lleva_extras === 1 ||
-      product.lleva_extras === "1"
-    )
-    
-    const llevaProteina = Boolean(
-      product.lleva_proteina === true || 
-      product.lleva_proteina === 1 ||
-      product.lleva_proteina === "1" ||
-      product.categoria === 'runner_proteina'
-    )
-    
+    const { llevaLeche, llevaExtras, llevaProteina } = opcionesDelProducto(product)
+
     // Si no tiene opciones, agregar directamente al carrito
     if (!llevaLeche && !llevaExtras && !llevaProteina) {
       addToCart({
@@ -390,26 +371,8 @@ const PuntoVenta = () => {
   const confirmarAgregarAlCarrito = (product) => {
     const productId = product.id_producto
     const opciones = opcionesProductos[productId] || { tipoLeche: 'entera', extras: [], tipoProteina: null }
-    
-    const llevaLeche = Boolean(
-      product.lleva_leche === true || 
-      product.lleva_leche === 1 ||
-      product.lleva_leche === "1"
-    )
-    
-    const llevaExtras = Boolean(
-      product.lleva_extras === true || 
-      product.lleva_extras === 1 ||
-      product.lleva_extras === "1"
-    )
-    
-    const llevaProteina = Boolean(
-      product.lleva_proteina === true || 
-      product.lleva_proteina === 1 ||
-      product.lleva_proteina === "1" ||
-      product.categoria === 'runner_proteina'
-    )
-    
+    const { llevaLeche, llevaExtras, llevaProteina } = opcionesDelProducto(product)
+
     addToCart(
       {
         ...product,
@@ -454,14 +417,22 @@ const PuntoVenta = () => {
     }))
   }
   
-  const toggleExtra = (productId, extraId) => {
+  const toggleExtra = (productId, extraId, grupo = null) => {
     const opciones = opcionesProductos[productId] || { tipoLeche: 'entera', extras: [] }
     const extrasActuales = opciones.extras || []
-    
-    const nuevosExtras = extrasActuales.includes(extraId)
-      ? extrasActuales.filter(id => id !== extraId)
-      : [...extrasActuales, extraId]
-    
+
+    let nuevosExtras
+    if (extrasActuales.includes(extraId)) {
+      nuevosExtras = extrasActuales.filter((id) => id !== extraId)
+    } else if (grupo?.seleccion === 'unica') {
+      // En un grupo de opción única (por ejemplo Hazlo Combo: jugo o fruta)
+      // elegir una reemplaza a la que estuviera seleccionada del mismo grupo.
+      const hermanas = new Set(grupo.opciones?.map((o) => o.id) || getClavesDelGrupo(grupo.clave))
+      nuevosExtras = [...extrasActuales.filter((id) => !hermanas.has(id)), extraId]
+    } else {
+      nuevosExtras = [...extrasActuales, extraId]
+    }
+
     setOpcionesProductos({
       ...opcionesProductos,
       [productId]: {
@@ -647,6 +618,7 @@ const PuntoVenta = () => {
       return
     }
 
+    setMontoRecibido('')
     setMostrarModalFinalizar(true)
   }
 
@@ -689,7 +661,7 @@ const PuntoVenta = () => {
     const referencia = comanda || comandaTerminadaSeleccionada
     const ticket = {
       negocio: 'ZONA 2',
-      lugar: 'Coffee Recovery',
+      lugar: 'Brunch and Run',
       tipo: 'cuenta',
       numero: referencia?.numero_dia ?? referencia?.numero_pedido_dia ?? numeroTicket,
       cliente: comanda
@@ -705,13 +677,21 @@ const PuntoVenta = () => {
       total: totalDespuesDescuento + propina,
     }
 
+    await enviarTicketAImpresora(ticket, 'Cuenta impresa', 'Entrégala al cliente.')
+  }
+
+  /**
+   * Manda el ticket a la impresora térmica y, si falla o no hay conexión,
+   * ofrece la impresión por el navegador.
+   */
+  const enviarTicketAImpresora = async (ticket, tituloExito, textoExito) => {
     if (printer.isConnected) {
       try {
         await printer.printTicket(ticket)
         await Swal.fire({
           icon: 'success',
-          title: 'Cuenta impresa',
-          text: 'Entrégala al cliente.',
+          title: tituloExito,
+          text: textoExito,
           timer: 1600,
           showConfirmButton: false,
         })
@@ -812,6 +792,7 @@ const PuntoVenta = () => {
         setNombreCliente('')
         setTipoServicio('comer-aqui')
         setMetodoPago(null)
+        setMontoRecibido('')
         setPropinaPorcentaje(null)
         setMontoPropina(0)
         removerDescuento()
@@ -922,6 +903,7 @@ const PuntoVenta = () => {
       // Limpiar carrito y resetear
       setCart([])
       setMetodoPago(null)
+      setMontoRecibido('')
       setIdCliente(null)
       setNombreCliente('')
       setTipoServicio('comer-aqui')
@@ -944,12 +926,6 @@ const PuntoVenta = () => {
       // Notificar a otras pantallas (como Barista) que se procesó un pago
       window.dispatchEvent(new CustomEvent('pago-procesado'))
       
-      // Recargar pre-órdenes (usando endpoint sin parámetros)
-      const todasPreordenes = await obtenerPreordenes()
-      const preordenesFiltradas = (todasPreordenes || []).filter(preorden => 
-        preorden.estado === 'preorden' || preorden.estado === 'en_caja' || (preorden.estado === 'pagada' && preorden.origen === 'sistema')
-      )
-      setPreordenes(preordenesFiltradas)
     } catch (error) {
       console.error('Error al procesar venta:', error)
       const errorMsg = extraerMensajeError(error, 'Error al procesar la venta')
@@ -1137,346 +1113,40 @@ const PuntoVenta = () => {
     }
   }
 
-  // Función para abrir modal de guardar como pre-orden
-  const abrirModalGuardarPreorden = () => {
-    if (cart.length === 0) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Carrito vacío',
-        text: 'No puedes guardar una pre-orden sin productos',
-        confirmButtonColor: '#10b981',
-      })
-      return
-    }
-    setMostrarModalGuardarPreorden(true)
-  }
-
-  // Función para guardar orden normal como pre-orden
-  const guardarComoPreorden = async () => {
-    if (cart.length === 0) {
-      await Swal.fire({
-        icon: 'warning',
-        title: 'Carrito vacío',
-        text: 'No puedes guardar una pre-orden sin productos',
-        confirmButtonColor: '#10b981',
-      })
-      return
-    }
-
-    if (!nombreCliente || nombreCliente.trim() === '') {
-      await Swal.fire({
-        icon: 'warning',
-        title: 'Nombre requerido',
-        text: 'Por favor ingresa el nombre del cliente para crear la pre-orden',
-        confirmButtonColor: '#10b981',
-      })
-      return
-    }
-
-    setMostrarModalGuardarPreorden(false)
-    setProcesando(true)
-    try {
-      // Calcular total con extras
-      const { extraLeche, extraExtras, extraProteina } = desglosarExtrasCarrito(cart)
-      
-      // Crear detalles de la pre-orden desde el carrito
-      const detalles = cart.map(item => ({
-        id_producto: item.id_producto || item.originalId || item.id,
-        cantidad: item.quantity,
-        observaciones: buildItemObservaciones(item),
-        tipo_preparacion: item.tipoPreparacion || null
-      }))
-      
-      // Crear la pre-orden (se crea con estado 'preorden' por defecto)
-      const preordenCreada = await crearPreorden({
-        nombre_cliente: nombreCliente.trim(),
-        tipo_servicio: tipoServicio,
-        comentarios: comentarios || null,
-        detalles: detalles,
-        extra_leche: extraLeche > 0 ? extraLeche : null,
-        extra_extras: (extraExtras + extraProteina) > 0 ? (extraExtras + extraProteina) : null
-      })
-      
-      if (preordenCreada?.error) {
-        throw new Error(preordenCreada.error)
-      }
-      
-      // Obtener la pre-orden completa con detalles
-      let preordenCompleta = await obtenerPreorden(preordenCreada.id_preorden)
-      
-      // Actualizar el estado a 'en_caja' para que esté lista para editar/procesar
-      const preordenActualizada = await actualizarPreorden(preordenCompleta.id_preorden, {
-        estado: 'en_caja'
-      })
-      
-      if (preordenActualizada?.error) {
-        // Si falla la actualización, usar la pre-orden sin actualizar
-        console.warn('No se pudo actualizar el estado a en_caja:', preordenActualizada.error)
-      } else {
-        // Usar la pre-orden actualizada
-        preordenCompleta = preordenActualizada
-      }
-      
-      // Seleccionar la pre-orden recién creada
-      await seleccionarPreorden(preordenCompleta)
-      
-      // Actualizar la lista de pre-órdenes
-      const todasPreordenes = await obtenerPreordenes()
-      const preordenesFiltradas = (todasPreordenes || []).filter(p => 
-        p.estado === 'preorden' || p.estado === 'en_caja' || (p.estado === 'pagada' && p.origen === 'sistema')
-      )
-      setPreordenes(preordenesFiltradas)
-      
-      // Limpiar campos después de guardar
-      setNombreCliente('')
-      setTipoServicio('comer-aqui')
-      setComentarios('')
-      
-      await Swal.fire({
-        icon: 'success',
-        title: 'Pre-orden creada',
-        text: 'La orden se ha guardado como pre-orden correctamente',
-        confirmButtonColor: '#10b981',
-        timer: 2000,
-      })
-    } catch (error) {
-      console.error('Error al guardar como pre-orden:', error)
-      const errorMsg = extraerMensajeError(error, 'Error al guardar la pre-orden')
-      await Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: errorMsg,
-        confirmButtonColor: '#10b981',
-      })
-    } finally {
-      setProcesando(false)
-    }
-  }
-
-  // Función para guardar cambios en la pre-orden
-  const guardarCambiosPreorden = async () => {
-    if (!preordenSeleccionada) return
-    
-    if (cart.length === 0) {
-      await Swal.fire({
-        icon: 'warning',
-        title: 'Carrito vacío',
-        text: 'No puedes guardar una pre-orden sin productos',
-        confirmButtonColor: '#10b981',
-      })
-      return
-    }
-
-    setProcesando(true)
-    try {
-      // Calcular total con extras
-      const { extraLeche, extraExtras, extraProteina } = desglosarExtrasCarrito(cart)
-      
-      const detalles = cart.map(item => ({
-        id_producto: item.id_producto || item.originalId || item.id,
-        cantidad: item.quantity,
-        observaciones: buildItemObservaciones(item),
-        tipo_preparacion: item.tipoPreparacion || null
-      }))
-      
-      // Si es una orden del sistema (pagada con origen sistema), convertirla en pre-orden
-      // cambiando el estado a 'en_caja' y el origen a 'web'
-      const esOrdenDelSistema = preordenSeleccionada.estado === 'pagada' && preordenSeleccionada.origen === 'sistema'
-      
-      // Preparar datos de actualización
-      const datosActualizacion = {
-        nombre_cliente: nombreCliente || preordenSeleccionada.nombre_cliente,
-        tipo_servicio: tipoServicio,
-        comentarios: comentarios,
-        detalles: detalles,
-        extra_leche: extraLeche > 0 ? extraLeche : null,
-        extra_extras: (extraExtras + extraProteina) > 0 ? (extraExtras + extraProteina) : null
-      }
-      
-      // Si es orden del sistema, convertirla en pre-orden
-      if (esOrdenDelSistema) {
-        datosActualizacion.estado = 'en_caja'
-        datosActualizacion.origen = 'web'
-      }
-      
-      // Actualizar la pre-orden
-      const preordenActualizada = await actualizarPreorden(preordenSeleccionada.id_preorden, datosActualizacion)
-      
-      if (preordenActualizada?.error) {
-        throw new Error(preordenActualizada.error)
-      }
-      
-      // Actualizar la preorden seleccionada con los datos actualizados
-      setPreordenSeleccionada(preordenActualizada)
-      
-      // Actualizar la lista de pre-órdenes
-      const todasPreordenes = await obtenerPreordenes()
-      const preordenesFiltradas = (todasPreordenes || []).filter(p => 
-        p.estado === 'preorden' || p.estado === 'en_caja' || (p.estado === 'pagada' && p.origen === 'sistema')
-      )
-      setPreordenes(preordenesFiltradas)
-      
-      await Swal.fire({
-        icon: 'success',
-        title: 'Cambios guardados',
-        text: 'La pre-orden se ha actualizado correctamente',
-        confirmButtonColor: '#10b981',
-        timer: 2000,
-      })
-    } catch (error) {
-      console.error('Error al guardar cambios:', error)
-      const errorMsg = extraerMensajeError(error, 'Error al guardar los cambios')
-      await Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: errorMsg,
-        confirmButtonColor: '#10b981',
-      })
-    } finally {
-      setProcesando(false)
-    }
-  }
-
-  // Función para procesar pago de pre-orden
-  const procesarPagoPreorden = async () => {
-    if (!preordenSeleccionada) return
-    if (!metodoPago) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Método de pago requerido',
-        text: 'Por favor selecciona un método de pago',
-        confirmButtonColor: '#10b981',
-      })
-      return
-    }
-    if (cart.length === 0) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Carrito vacío',
-        text: 'No puedes procesar el pago sin productos en el carrito',
-        confirmButtonColor: '#10b981',
-      })
-      return
-    }
-
-    const cajaOk = await verificarCajaParaCobro()
-    if (!cajaOk) return
-
-    setProcesando(true)
-    try {
-      // Sincronizar el carrito actual (incluyendo productos extras agregados) a la pre-orden
-      // antes de procesar el pago, para que todos los productos se envíen a las comandas
-      const { extraLeche, extraExtras, extraProteina } = desglosarExtrasCarrito(cart)
-
-      const detallesParaPreorden = cart.map(item => ({
-        id_producto: item.id_producto || item.originalId || item.id,
-        cantidad: item.quantity,
-        observaciones: buildItemObservaciones(item),
-        tipo_preparacion: item.tipoPreparacion || null
-      }))
-
-      const preordenConCartActualizado = await actualizarPreorden(preordenSeleccionada.id_preorden, {
-        nombre_cliente: nombreCliente || preordenSeleccionada.nombre_cliente,
-        tipo_servicio: tipoServicio,
-        comentarios: comentarios,
-        detalles: detallesParaPreorden,
-        extra_leche: extraLeche > 0 ? extraLeche : null,
-        extra_extras: (extraExtras + extraProteina) > 0 ? (extraExtras + extraProteina) : null,
-        estado: 'en_caja'
-      })
-
-      if (preordenConCartActualizado?.error) {
-        throw new Error(preordenConCartActualizado.error)
-      }
-      setPreordenSeleccionada(preordenConCartActualizado)
-
-      // Procesar el pago (la pre-orden ya tiene los detalles actualizados del carrito incluyendo extras)
-      const pagoData = {
-        metodo_pago: metodoPago,
-      }
-      if (idCliente && !isNaN(Number(idCliente))) {
-        pagoData.id_cliente = Number(idCliente)
-      }
-      
-      // Agregar datos de propina si existe
-      if (propinaPorcentaje && montoPropina > 0) {
-        pagoData.propina_porcentaje = propinaPorcentajeNumerico
-        pagoData.propina_monto = montoPropina
-      }
-      
-      const resultado = await procesarPago(preordenSeleccionada.id_preorden, pagoData)
-
-      // Verificar respuesta exitosa
-      if (resultado.message === "Pago procesado correctamente") {
-        console.log('Pago procesado:', {
-          id_venta: resultado.id_venta,
-          id_comanda: resultado.id_comanda,
-          estado_preorden: resultado.estado_preorden // Estado actualizado
-        })
-
-        // Emitir evento para notificación de comanda creada (si hay id_comanda)
-        if (resultado.id_comanda) {
-          const numeroPedidoDia = resultado.numero_pedido_dia ?? resultado.numeroPedidoDia
-          window.dispatchEvent(new CustomEvent('comanda-creada', {
-            detail: {
-              id_comanda: resultado.id_comanda,
-              id_venta: resultado.id_venta,
-              ticket_id: resultado.ticket_id || preordenSeleccionada.ticket_id || null,
-              numero_pedido_dia: numeroPedidoDia ?? null,
-            }
-          }))
-        }
-
-        await Swal.fire({
-          icon: 'success',
-          title: '¡Pago procesado!',
-          text: 'El pago se procesó correctamente.',
-          timer: 1800,
-          showConfirmButton: false,
-        })
-        
-        // Notificar a otras pantallas (como Barista) que se procesó un pago
-        window.dispatchEvent(new CustomEvent('pago-procesado'))
-        
-        // Limpiar selección y carrito
-        setPreordenSeleccionada(null)
-        setCart([])
-        setMetodoPago(null)
-        setIdCliente(null)
-        setNombreCliente('')
-        setTipoServicio('comer-aqui')
-        setComentarios('')
-        setPropinaPorcentaje(null)
-        setMontoPropina(0)
-        
-        // Refrescar pre-órdenes (la orden pagada desaparecerá automáticamente)
-        const todasPreordenes = await obtenerPreordenes()
-        const preordenesFiltradas = (todasPreordenes || []).filter(preorden => 
-          preorden.estado === 'preorden' || preorden.estado === 'en_caja' || (preorden.estado === 'pagada' && preorden.origen === 'sistema')
-        )
-        setPreordenes(preordenesFiltradas)
-      } else {
-        throw new Error(resultado.error || 'Error inesperado al procesar el pago')
-      }
-    } catch (error) {
-      console.error('Error al procesar pago:', error)
-      const errorMsg = extraerMensajeError(error, 'Error al procesar el pago')
-      await Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: errorMsg,
-        confirmButtonColor: '#10b981',
-      })
-    } finally {
-      setProcesando(false)
-    }
-  }
-
-  // Función para calcular subtotal con extras (sin propina)
   const calcularSubtotalConExtras = () => {
     const subtotal = cart.reduce((sum, item) => sum + precioItem(item) * (Number(item.quantity) || 0), 0)
     const { extraLeche, extraExtras, extraProteina } = desglosarExtrasCarrito(cart)
     return subtotal + extraLeche + extraExtras + extraProteina
+  }
+
+  /**
+   * Totales de la orden en pantalla. La propina se calcula sobre el importe ya
+   * descontado, igual que al cobrar y al imprimir.
+   */
+  const resumenOrden = () => {
+    const { extraLeche, extraExtras, extraProteina } = desglosarExtrasCarrito(cart)
+    const totalConExtras = total + extraLeche + extraExtras + extraProteina
+    const totalDespuesDescuento = Math.max(0, totalConExtras - totalDescuento)
+    const propina =
+      typeof propinaPorcentaje === 'number'
+        ? (totalDespuesDescuento * propinaPorcentaje) / 100
+        : propinaPorcentaje === 'personalizado'
+          ? montoPropina || 0
+          : 0
+    return {
+      extraLeche,
+      extraExtras,
+      extraProteina,
+      descuento: totalDescuento,
+      propina,
+      propinaLabel:
+        propinaPorcentaje === 'personalizado'
+          ? 'Propina (personalizado)'
+          : typeof propinaPorcentaje === 'number'
+            ? `Propina (${propinaPorcentaje}%)`
+            : 'Propina',
+      totalFinal: totalDespuesDescuento + propina,
+    }
   }
 
   // Función para manejar selección de propina
@@ -1676,46 +1346,7 @@ const PuntoVenta = () => {
   // Función para parsear observaciones y extraer tipo de leche, extras y tipo de proteína
   const parsearObservaciones = (observaciones) => parseObservacionesProducto(observaciones)
 
-  // Función para convertir detalles de preorden a items del carrito
-  const convertirDetallesACarrito = (detalles) => {
-    const itemsCarrito = []
-    
-    detalles.forEach((detalle) => {
-      const producto = productos.find(p => p.id_producto === detalle.id_producto)
-      if (!producto) return
-      
-      // Parsear observaciones para extraer tipo de leche, extras, tipo de proteína y tipo de preparación
-      const { tipoLeche, extras, tipoProteina, tipoPreparacion } = parsearObservaciones(detalle.observaciones)
-      
-      // Crear ID único (incluyendo tipoProteina)
-      const tipoLecheHash = tipoLeche || 'none'
-      const extrasHash = extras && extras.length > 0 
-        ? extras.sort().join(',') 
-        : 'none'
-      const tipoProteinaHash = tipoProteina || 'none'
-      const uniqueId = `${producto.id_producto}-${tipoLecheHash}-${extrasHash}-${tipoProteinaHash}`
-      
-      const cartItem = {
-        ...producto,
-        id: uniqueId,
-        originalId: producto.id_producto,
-        nombre: producto.nombre,
-        precio: parseFloat(producto.precio),
-        tipoLeche: tipoLeche,
-        extras: extras || [],
-        tipoProteina: tipoProteina,
-        tipoPreparacion: detalle.tipo_preparacion || tipoPreparacion || null,
-        quantity: detalle.cantidad
-      }
-      cartItem.observaciones = buildItemObservaciones(cartItem)
-      
-      itemsCarrito.push(cartItem)
-    })
-    
-    return itemsCarrito
-  }
-
-  // Convertir comanda terminada sin pagar a items del carrito (para mostrarlos en Orden actual con propina/descuento/modal)
+  // Convierte los detalles de una comanda en items del carrito
   const convertirComandaTerminadaACarrito = (comanda) => {
     if (!comanda?.detalles?.length) return []
     const itemsCarrito = []
@@ -1757,7 +1388,6 @@ const PuntoVenta = () => {
     setNombreCliente(comanda.venta_nombre_cliente || '')
     setTipoServicio(comanda.venta_tipo_servicio === 'para-llevar' ? 'para-llevar' : 'comer-aqui')
     setComandaTerminadaSeleccionada(comanda)
-    setPreordenSeleccionada(null)
     setMetodoPago(null)
     setPropinaPorcentaje(null)
     setMontoPropina(0)
@@ -1786,6 +1416,7 @@ const PuntoVenta = () => {
     setTipoServicio('comer-aqui')
     setComentarios('')
     setMetodoPago(null)
+    setMontoRecibido('')
     removerPropina()
     removerDescuento()
     subirPanelOrden()
@@ -1911,137 +1542,6 @@ const PuntoVenta = () => {
     }
   }
 
-  // Función para seleccionar pre-orden
-  const seleccionarPreorden = async (preorden) => {
-    // Si la pre-orden está en estado "preorden" o "pagada" (con origen sistema), actualizarla a "en_caja"
-    // Esto permite editar órdenes creadas directamente en el sistema
-    if (preorden.estado === 'preorden' || (preorden.estado === 'pagada' && preorden.origen === 'sistema')) {
-      try {
-        // Actualizar el estado a "en_caja" en el backend
-        const preordenActualizada = await actualizarPreorden(preorden.id_preorden, {
-          estado: 'en_caja'
-        })
-        
-        // Verificar si hubo error en la respuesta
-        if (preordenActualizada?.error) {
-          throw new Error(preordenActualizada.error)
-        }
-        
-        // Usar la pre-orden actualizada
-        preorden = preordenActualizada
-        
-        // Actualizar la lista de pre-órdenes para reflejar el cambio
-        const todasPreordenes = await obtenerPreordenes()
-        const preordenesFiltradas = (todasPreordenes || []).filter(p => 
-          p.estado === 'preorden' || p.estado === 'en_caja' || (p.estado === 'pagada' && p.origen === 'sistema')
-        )
-        setPreordenes(preordenesFiltradas)
-      } catch (error) {
-        console.error('Error al actualizar estado de pre-orden:', error)
-        const errorMsg = error.response?.data?.error || error.message || 'Error al actualizar estado'
-        await Swal.fire({
-          icon: 'warning',
-          title: 'Aviso',
-          text: `No se pudo actualizar el estado a "en caja": ${errorMsg}`,
-          confirmButtonColor: '#10b981',
-        })
-      }
-    }
-    
-    // Convertir detalles de preorden a items del carrito editable
-    if (preorden.detalles && preorden.detalles.length > 0) {
-      const itemsCarrito = convertirDetallesACarrito(preorden.detalles)
-      setCart(itemsCarrito)
-    } else {
-      setCart([])
-    }
-    
-    // Establecer información adicional de la preorden
-    setNombreCliente(preorden.nombre_cliente || '')
-    setTipoServicio(preorden.tipo_servicio || 'comer-aqui')
-    setComentarios(preorden.comentarios || '')
-    
-    // Limpiar propina al seleccionar nueva pre-orden
-    setPropinaPorcentaje(null)
-    setMontoPropina(0)
-    
-    // Guardar referencia a la preorden seleccionada
-    setPreordenSeleccionada(preorden)
-  }
-
-  // Función para abrir modal de cancelar pre-orden
-  const abrirModalCancelar = (preorden) => {
-    setPreordenACancelar(preorden)
-    setPasswordCancelar('')
-    setMostrarModalCancelar(true)
-  }
-
-  // Función para cancelar pre-orden
-  const confirmarCancelarPreorden = async () => {
-    if (!preordenACancelar) return
-    
-    if (!passwordCancelar) {
-      await Swal.fire({
-        icon: 'warning',
-        title: 'Contraseña requerida',
-        text: 'Por favor ingresa tu contraseña para confirmar',
-        confirmButtonColor: '#10b981',
-      })
-      return
-    }
-
-    setProcesando(true)
-    try {
-      const resultado = await cancelarPreorden(preordenACancelar.id_preorden, passwordCancelar)
-      
-      if (resultado?.error) {
-        throw new Error(resultado.error)
-      }
-      
-      await Swal.fire({
-        icon: 'success',
-        title: 'Pre-orden cancelada',
-        text: 'La pre-orden ha sido cancelada correctamente',
-        confirmButtonColor: '#10b981',
-        timer: 2000,
-      })
-      
-      // Cerrar modal
-      setMostrarModalCancelar(false)
-      setPasswordCancelar('')
-      setPreordenACancelar(null)
-      
-      // Si la pre-orden cancelada estaba seleccionada, limpiar selección
-      if (preordenSeleccionada?.id_preorden === preordenACancelar.id_preorden) {
-        setPreordenSeleccionada(null)
-        setCart([])
-        setMetodoPago(null)
-        setPropinaPorcentaje(null)
-        setMontoPropina(0)
-      }
-      
-      // Refrescar pre-órdenes
-      const todasPreordenes = await obtenerPreordenes()
-      const preordenesFiltradas = (todasPreordenes || []).filter(preorden => 
-        preorden.estado === 'preorden' || preorden.estado === 'en_caja' || (preorden.estado === 'pagada' && preorden.origen === 'sistema')
-      )
-      setPreordenes(preordenesFiltradas)
-    } catch (error) {
-      console.error('Error al cancelar pre-orden:', error)
-      const errorMsg = extraerMensajeError(error, 'Error al cancelar la pre-orden')
-      await Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: errorMsg,
-        confirmButtonColor: '#10b981',
-      })
-    } finally {
-      setProcesando(false)
-    }
-  }
-
-  // El mesero toma la orden y la manda a comandas, pero el cobro es de caja.
-  // El backend lo respalda: procesar_pago rechaza al rol mesero.
   const puedeCobrarOrden = puedeCobrar(usuario?.rol)
 
   // Propina y descuento se calculan sobre el total, así que no tienen sentido
@@ -2053,17 +1553,6 @@ const PuntoVenta = () => {
       : `p-2 rounded-lg transition-colors hover:bg-gray-100 ${activo ? claseActiva : 'text-gray-600'}`
 
   // Función para formatear fecha
-  const formatFecha = (fechaString) => {
-    if (!fechaString) return ''
-    const fecha = new Date(fechaString)
-    return fecha.toLocaleString('es-MX', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  }
 
   const productosDeCategoria = (category) =>
     productos.filter((p) => p.categoria === category && p.activo)
@@ -2090,9 +1579,7 @@ const PuntoVenta = () => {
 
   // Función para seleccionar producto desde búsqueda
   const seleccionarProductoDesdeBusqueda = (producto) => {
-    const llevaLeche = Boolean(producto.lleva_leche === true || producto.lleva_leche === 1 || producto.lleva_leche === '1')
-    const llevaExtras = Boolean(producto.lleva_extras === true || producto.lleva_extras === 1 || producto.lleva_extras === '1')
-    const llevaProteina = Boolean(producto.lleva_proteina === true || producto.lleva_proteina === 1 || producto.lleva_proteina === '1' || producto.categoria === 'runner_proteina')
+    const { llevaLeche, llevaExtras, llevaProteina } = opcionesDelProducto(producto)
 
     if (!llevaLeche && !llevaExtras && !llevaProteina) {
       // Producto sin opciones: agregar directamente al carrito
@@ -2167,20 +1654,17 @@ const PuntoVenta = () => {
   const opcionesModal = productoExpandido
     ? (opcionesProductos[productoExpandido] || { tipoLeche: 'entera', extras: [], tipoProteina: null })
     : null
-  const modalLlevaLeche = productoOpcionesModal
-    ? Boolean(productoOpcionesModal.lleva_leche === true || productoOpcionesModal.lleva_leche === 1 || productoOpcionesModal.lleva_leche === '1')
-    : false
-  const modalLlevaExtras = productoOpcionesModal
-    ? Boolean(productoOpcionesModal.lleva_extras === true || productoOpcionesModal.lleva_extras === 1 || productoOpcionesModal.lleva_extras === '1')
-    : false
-  const modalLlevaProteina = productoOpcionesModal
-    ? Boolean(
-        productoOpcionesModal.lleva_proteina === true ||
-          productoOpcionesModal.lleva_proteina === 1 ||
-          productoOpcionesModal.lleva_proteina === '1' ||
-          productoOpcionesModal.categoria === 'runner_proteina'
-      )
-    : false
+  const opcionesDelModal = opcionesDelProducto(productoOpcionesModal)
+  const modalLlevaLeche = opcionesDelModal.llevaLeche
+  const modalLlevaExtras = opcionesDelModal.llevaExtras
+  const modalLlevaProteina = opcionesDelModal.llevaProteina
+  // Cada grupo asignado al producto se pinta como una sección propia ("Extras",
+  // "Agrega Power", "Toppings"). Sin grupos cargados se cae a la lista completa.
+  const gruposDelModal = opcionesDelModal.grupos.length
+    ? opcionesDelModal.grupos
+    : modalLlevaExtras
+      ? [{ clave: 'extras', nombre: 'Extras', seleccion: 'multiple', opciones: getExtrasDisponibles() }]
+      : []
 
   return (
     <div className="h-full min-h-0 pt-3 px-2 pb-2 flex flex-col landscape:flex-row gap-2 overflow-hidden">
@@ -2292,291 +1776,9 @@ const PuntoVenta = () => {
           ref={panelOrdenRef}
           className="w-full flex-none min-h-0 max-h-[50%] landscape:w-[340px] landscape:max-w-[360px] landscape:max-h-none lg:landscape:w-[360px] flex flex-col overflow-y-auto overscroll-contain gap-2"
         >
-          {/* Carrito / Detalles de Pre-orden / Orden actual (incluye comanda lista para cobrar) */}
+          {/* Orden actual (incluye la comanda de una mesa abierta lista para cobrar) */}
             <div className="card shrink-0 !p-3">
-            {preordenSeleccionada ? (
-              <>
-                {/* Vista de Pre-orden Seleccionada - Editable */}
-                <div className="mb-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <Package className="w-5 h-5 text-matcha-600" />
-                      <h2 className="text-base font-semibold text-gray-900">
-                        Pre-orden #{preordenSeleccionada.id_preorden}
-                      </h2>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => setMostrarModalPropina(true)}
-                          disabled={ordenVacia}
-                          className={claseIconoOrden(propinaPorcentaje, 'text-matcha-600 bg-matcha-50')}
-                          title={ordenVacia ? 'Agrega productos para asignar propina' : etiquetaPropina()}
-                        >
-                          <Coins className="w-6 h-6" />
-                        </button>
-                        {propinaPorcentaje && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              removerPropina()
-                            }}
-                            className="p-1.5 rounded-lg hover:bg-red-100 transition-colors text-red-600"
-                            title="Quitar propina"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => setMostrarModalDescuento(true)}
-                          disabled={ordenVacia}
-                          className={claseIconoOrden(totalDescuento > 0, 'text-amber-600 bg-amber-50')}
-                          title={ordenVacia ? 'Agrega productos para aplicar descuento' : (totalDescuento > 0 ? `Descuento ${descuentoTipo === 'porcentaje' ? descuentoValor + '%' : '$' + totalDescuento.toFixed(2)}` : 'Agregar descuento')}
-                        >
-                          <Percent className="w-6 h-6" />
-                        </button>
-                        {totalDescuento > 0 && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              removerDescuento()
-                            }}
-                            className="p-1.5 rounded-lg hover:bg-red-100 transition-colors text-red-600"
-                            title="Quitar descuento"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setPreordenSeleccionada(null)
-                        setCart([])
-                        setMetodoPago(null)
-                        setNombreCliente('')
-                        setTipoServicio('comer-aqui')
-                        setComentarios('')
-                        setPropinaPorcentaje(null)
-                        setMontoPropina(0)
-                        removerDescuento()
-                      }}
-                      className="p-1 rounded hover:bg-gray-100 transition-colors"
-                    >
-                      <X className="w-4 h-4 text-gray-600" />
-                    </button>
-                  </div>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 mb-3">
-                    <div className="flex items-center gap-2 text-sm text-blue-700">
-                      <User className="w-4 h-4" />
-                      <span className="font-medium">{preordenSeleccionada.nombre_cliente || 'Sin nombre'}</span>
-                      <span className="text-blue-500">•</span>
-                      <span className="text-xs">{formatFecha(preordenSeleccionada.fecha_creacion)}</span>
-                    </div>
-                  </div>
-                </div>
-              </>
-            ) : null}
             
-            {preordenSeleccionada ? (
-              <>
-                {/* Carrito Editable para Pre-orden */}
-                <div className="mb-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <ShoppingCart className="w-5 h-5 text-matcha-600" />
-                    <h2 className="text-base font-semibold text-gray-900">Editar Pre-orden</h2>
-                    {cart.length > 0 && (
-                      <span className="bg-matcha-100 text-matcha-700 text-xs font-medium px-2 py-1 rounded-full">
-                        {cart.reduce((sum, item) => sum + item.quantity, 0)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {cart.length === 0 ? (
-                  <div className="text-center py-6 text-gray-400">
-                    <ShoppingCart className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">El carrito está vacío</p>
-                    <p className="text-xs mt-2">Agrega productos desde el menú</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="space-y-2 mb-3">
-                      {cart.map(item => {
-                        const extrasNombres = item.extras?.map((id) => getNombreExtra(id)) || []
-                        
-                        const getNombreTipoLeche = (tipo) => {
-                          if (tipo === 'deslactosada') return 'Deslactosada'
-                          if (tipo === 'almendras') return 'Almendras'
-                          return null
-                        }
-                        const tipoLecheNombre = getNombreTipoLeche(item.tipoLeche)
-                        
-                        return (
-                          <div
-                            key={item.id}
-                            className="flex items-start justify-between p-3 bg-gray-50 rounded-lg"
-                          >
-                            <div className="flex-1">
-                              <p className="font-medium text-gray-900 text-sm">
-                                {item.nombre || item.name}
-                              </p>
-                              <div className="flex flex-wrap gap-2 mt-2">
-                                {/* Etiqueta de tipo de preparación (frío/frapeada) */}
-                                {item.tipoPreparacion && (
-                                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
-                                    item.tipoPreparacion === 'heladas'
-                                      ? 'bg-cyan-100 text-cyan-700 border-cyan-300'
-                                      : 'bg-orange-100 text-orange-700 border-orange-300'
-                                  }`}>
-                                    {item.tipoPreparacion === 'heladas' ? 'Frío' : 'Frapeada'}
-                                  </span>
-                                )}
-                                {item.tipoProteina && (
-                                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 border border-yellow-300">
-                                    Scoop: {getNombreProteina(item.tipoProteina)}
-                                  </span>
-                                )}
-                                {tipoLecheNombre && (
-                                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-300">
-                                    Leche: {tipoLecheNombre}
-                                  </span>
-                                )}
-                                {extrasNombres.map((nombre, index) => (
-                                  <span 
-                                    key={index}
-                                    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 border border-purple-300"
-                                  >
-                                    {nombre}
-                                  </span>
-                                ))}
-                              </div>
-                              <p className="text-sm text-gray-500 mt-2">
-                                ${precioItem(item).toFixed(2)} c/u
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-2 ml-2">
-                              <button
-                                onClick={() => updateQuantity(item.id, -1)}
-                                className="p-1 rounded hover:bg-gray-200 transition-colors"
-                              >
-                                <Minus className="w-4 h-4 text-gray-600" />
-                              </button>
-                              <span className="w-8 text-center font-medium text-gray-900">
-                                {item.quantity}
-                              </span>
-                              <button
-                                onClick={() => updateQuantity(item.id, 1)}
-                                className="p-1 rounded hover:bg-gray-200 transition-colors"
-                              >
-                                <Plus className="w-4 h-4 text-gray-600" />
-                              </button>
-                              <button
-                                onClick={() => removeFromCart(item.id)}
-                                className="p-1 rounded hover:bg-red-100 transition-colors ml-2"
-                              >
-                                <Trash2 className="w-4 h-4 text-red-600" />
-                              </button>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-
-                    <div className="border-t border-gray-200 pt-4 space-y-3">
-                      {/* Calcular total con extras y propina */}
-                      {(() => {
-                        const subtotal = cart.reduce((sum, item) => sum + precioItem(item) * (Number(item.quantity) || 0), 0)
-                        const { extraLeche, extraExtras, extraProteina } = desglosarExtrasCarrito(cart)
-                        const totalConExtras = subtotal + extraLeche + extraExtras + extraProteina
-                        const descuentoActual = totalDescuento
-                        const totalDespuesDescuento = Math.max(0, totalConExtras - descuentoActual)
-                        const montoPropinaActual = (propinaPorcentaje != null && typeof propinaPorcentaje === 'number')
-                          ? (totalDespuesDescuento * propinaPorcentaje) / 100
-                          : (propinaPorcentaje === 'personalizado' ? (montoPropina || 0) : 0)
-                        const totalFinal = totalDespuesDescuento + montoPropinaActual
-                        const propinaLabel = propinaPorcentaje === 'personalizado' ? 'Propina (personalizado)' : (typeof propinaPorcentaje === 'number' ? `Propina (${propinaPorcentaje}%)` : 'Propina')
-                        
-                        return (
-                          <>
-                            <div className="flex items-center justify-between text-gray-600">
-                              <span>Subtotal:</span>
-                              <span>${subtotal.toFixed(2)}</span>
-                            </div>
-                            {extraLeche > 0 && (
-                              <div className="flex items-center justify-between text-gray-600">
-                                <span>Extra Leche:</span>
-                                <span>+${extraLeche.toFixed(2)}</span>
-                              </div>
-                            )}
-                            {extraExtras > 0 && (
-                              <div className="flex items-center justify-between text-gray-600">
-                                <span>Extras:</span>
-                                <span>+${extraExtras.toFixed(2)}</span>
-                              </div>
-                            )}
-                            {descuentoActual > 0 && (
-                              <div className="flex items-center justify-between text-amber-600">
-                                <span>Descuento ({descuentoTipo === 'porcentaje' ? descuentoValor + '%' : '$' + descuentoActual.toFixed(2)}):</span>
-                                <span>-${descuentoActual.toFixed(2)}</span>
-                              </div>
-                            )}
-                            {montoPropinaActual > 0 && (
-                              <div className="flex items-center justify-between text-gray-600">
-                                <span>{propinaLabel}:</span>
-                                <span>+${Number(montoPropinaActual).toFixed(2)}</span>
-                              </div>
-                            )}
-                            <div className="flex items-center justify-between text-lg font-bold text-gray-900 pt-2 border-t border-gray-200">
-                              <span>Total:</span>
-                              <span className="text-matcha-600">
-                                ${Number(totalFinal).toFixed(2)}
-                              </span>
-                            </div>
-                          </>
-                        )
-                      })()}
-
-                      {/* Botón Guardar Cambios */}
-                      <button
-                        onClick={guardarCambiosPreorden}
-                        disabled={procesando || preordenesLoading}
-                        className="btn-outline w-full py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                      >
-                        {(procesando || preordenesLoading) && (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        )}
-                        Guardar Cambios
-                      </button>
-
-                      {/* Método de pago */}
-                      <div className={`grid gap-3 ${metodosPagoActivos.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
-                        {metodosPagoActivos.map((metodo) => (
-                          <button
-                            key={metodo.id}
-                            onClick={() => setMetodoPago(metodo.id)}
-                            className={claseMetodoPago(metodoPago === metodo.id)}
-                          >
-                            {metodo.boton}
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Botón procesar pago */}
-                      <button
-                        onClick={procesarPagoPreorden}
-                        disabled={procesando || preordenesLoading || !metodoPago}
-                        className="btn-primary w-full py-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                      >
-                        {(procesando || preordenesLoading) && (
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                        )}
-                        <CreditCard className="w-5 h-5" />
-                        Procesar Pago
-                      </button>
-                    </div>
-                  </>
-                )}
-              </>
-            ) : (
               <>
                 {/* Vista de Carrito Normal (incluye comanda lista para cobrar) */}
                 <div className="mb-3">
@@ -2886,18 +2088,6 @@ const PuntoVenta = () => {
 
                   {!comandaTerminadaSeleccionada && (
                     <>
-                  {/* Botón Guardar como Pre-orden */}
-                  <button
-                    onClick={abrirModalGuardarPreorden}
-                    disabled={procesando || preordenesLoading}
-                    className="btn-outline w-full py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {(procesando || preordenesLoading) && (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    )}
-                    Pre-orden
-                  </button>
-
                   {/* Enviar sin pagar: preparar primero, cobrar cuando esté lista */}
                   <button
                     onClick={() => enviarSinPagar()}
@@ -2950,7 +2140,6 @@ const PuntoVenta = () => {
               </>
             )}
               </>
-            )}
           </div>
 
           {/* Mesas abiertas: ya se entregó lo pedido pero la cuenta sigue viva */}
@@ -3016,95 +2205,6 @@ const PuntoVenta = () => {
               </div>
             </div>
           )}
-
-          {/* Pre-órdenes Pendientes */}
-          <div className="card !p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <Package className="w-5 h-5 text-matcha-600" />
-              <h2 className="text-base font-semibold text-gray-900">Pre-órdenes</h2>
-              {preordenes.length > 0 && (
-                <span className="bg-matcha-100 text-matcha-700 text-xs font-medium px-2 py-1 rounded-full">
-                  {preordenes.length}
-                </span>
-              )}
-            </div>
-
-            {cargandoPreordenes ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-matcha-600" />
-              </div>
-            ) : preordenes.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
-                <Package className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No hay pre-órdenes pendientes</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {preordenes.map((preorden) => {
-                  const itemsCount = preorden.detalles?.reduce((sum, d) => sum + d.cantidad, 0) || 0
-                  const isSelected = preordenSeleccionada?.id_preorden === preorden.id_preorden
-                  return (
-                    <div
-                      key={preorden.id_preorden}
-                      className={`w-full p-3 rounded-lg border-2 transition-all ${
-                        isSelected
-                          ? 'border-matcha-500 bg-matcha-50'
-                          : 'border-gray-200 hover:border-matcha-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      <button
-                        onClick={() => seleccionarPreorden(preorden)}
-                        className="w-full text-left"
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex-1">
-                            <p className="font-semibold text-gray-900 text-sm">
-                              #{preorden.id_preorden}
-                            </p>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {formatFecha(preorden.fecha_creacion)}
-                            </p>
-                          </div>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            preorden.estado === 'en_caja' || (preorden.estado === 'pagada' && preorden.origen === 'sistema')
-                              ? 'bg-yellow-100 text-yellow-700'
-                              : 'bg-blue-100 text-blue-700'
-                          }`}>
-                            {preorden.estado === 'en_caja' || (preorden.estado === 'pagada' && preorden.origen === 'sistema') ? 'En Caja' : 'Pre-orden'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between mt-2">
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <User className="w-4 h-4" />
-                            <span className="truncate">{preorden.nombre_cliente}</span>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-bold text-matcha-600 text-sm">
-                              ${parseFloat(preorden.total || 0).toFixed(2)}
-                            </p>
-                            <p className="text-xs text-gray-500">{itemsCount} items</p>
-                          </div>
-                        </div>
-                      </button>
-                      {/* Botón cancelar disponible para todos, pero requiere contraseña de admin/superadmin */}
-                        <div className="mt-2 pt-2 border-t border-gray-200">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              abrirModalCancelar(preorden)
-                            }}
-                            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded transition-colors"
-                          >
-                            <Trash className="w-4 h-4" />
-                            Cancelar Pre-orden
-                          </button>
-                        </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
         </div>
 
       {/* Modal opciones de producto (leche / extras / proteína) */}
@@ -3136,11 +2236,7 @@ const PuntoVenta = () => {
                 <div>
                   <p className="text-sm font-medium text-gray-700 mb-2">Tipo de leche</p>
                   <div className="grid grid-cols-1 gap-2">
-                    {[
-                      { value: 'entera', label: 'Entera', extra: 0 },
-                      { value: 'deslactosada', label: 'Deslactosada', extra: LECHE_PRECIOS.deslactosada },
-                      { value: 'almendras', label: 'Almendras', extra: LECHE_PRECIOS.almendras },
-                    ].map((opt) => (
+                    {getLechesDisponibles().map((opt) => (
                       <button
                         key={opt.value}
                         type="button"
@@ -3159,30 +2255,56 @@ const PuntoVenta = () => {
                 </div>
               )}
 
-              {modalLlevaExtras && (
-                <div>
-                  <p className="text-sm font-medium text-gray-700 mb-2">Extras</p>
-                  <div className="grid grid-cols-1 gap-2">
-                    {EXTRAS_DISPONIBLES.map((extra) => {
-                      const activo = (opcionesModal.extras || []).includes(extra.id)
-                      return (
-                        <button
-                          key={extra.id}
-                          type="button"
-                          onClick={() => toggleExtra(productoOpcionesModal.id_producto, extra.id)}
-                          className={`min-h-[52px] px-4 py-3 rounded-xl border-2 text-left text-base font-medium transition-all ${
-                            activo
-                              ? 'border-matcha-500 bg-matcha-50 text-matcha-800'
-                              : 'border-gray-200 text-gray-800'
-                          }`}
-                        >
-                          {extra.label} (+${extra.precio})
-                        </button>
-                      )
-                    })}
+              {gruposDelModal.map((grupo) => {
+                const eligeUna = grupo.seleccion === 'unica'
+                return (
+                  <div key={grupo.clave}>
+                    <div className="flex items-baseline gap-2 mb-2">
+                      <p className="text-sm font-medium text-gray-700">{grupo.nombre}</p>
+                      <span className="text-xs text-gray-400">
+                        {eligeUna ? 'Elige una' : 'Puedes elegir varias'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2">
+                      {grupo.opciones.map((opcion) => {
+                        const activo = (opcionesModal.extras || []).includes(opcion.id)
+                        return (
+                          <button
+                            key={opcion.id}
+                            type="button"
+                            onClick={() =>
+                              toggleExtra(productoOpcionesModal.id_producto, opcion.id, grupo)
+                            }
+                            className={`min-h-[52px] px-4 py-3 rounded-xl border-2 flex items-center gap-3 text-left text-base font-medium transition-all ${
+                              activo
+                                ? 'border-matcha-500 bg-matcha-50 text-matcha-800'
+                                : 'border-gray-200 text-gray-800'
+                            }`}
+                          >
+                            {/* Redondo si sólo cabe una, cuadrado si caben varias */}
+                            <span
+                              className={`w-5 h-5 shrink-0 border-2 flex items-center justify-center ${
+                                eligeUna ? 'rounded-full' : 'rounded'
+                              } ${activo ? 'border-matcha-600' : 'border-gray-300'}`}
+                            >
+                              {activo &&
+                                (eligeUna ? (
+                                  <span className="w-2.5 h-2.5 rounded-full bg-matcha-600" />
+                                ) : (
+                                  <Check className="w-3.5 h-3.5 text-matcha-600" strokeWidth={3} />
+                                ))}
+                            </span>
+                            <span>
+                              {opcion.label}
+                              {opcion.precio > 0 ? ` (+$${opcion.precio})` : ''}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
+                )
+              })}
 
               {modalLlevaProteina && (
                 <div>
@@ -3237,15 +2359,6 @@ const PuntoVenta = () => {
             className="bg-white rounded-lg shadow-xl max-w-sm w-full mt-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <h2 className="text-lg font-bold text-gray-900">Enviar a comandas</h2>
-              <button
-                onClick={() => setMostrarModalNombreCliente(false)}
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-600" />
-              </button>
-            </div>
             <form
               className="p-4 space-y-3"
               onSubmit={(e) => {
@@ -3266,6 +2379,25 @@ const PuntoVenta = () => {
                   placeholder="Con qué nombre identificamos la mesa"
                   className="input"
                 />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { valor: 'comer-aqui', texto: 'Comer aquí' },
+                  { valor: 'para-llevar', texto: 'Para llevar' },
+                ].map((opcion) => (
+                  <button
+                    key={opcion.valor}
+                    type="button"
+                    onClick={() => setTipoServicio(opcion.valor)}
+                    className={`py-2.5 px-3 rounded-lg border-2 text-sm transition-all ${
+                      tipoServicio === opcion.valor
+                        ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    {opcion.texto}
+                  </button>
+                ))}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -3310,33 +2442,8 @@ const PuntoVenta = () => {
             className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-900">Finalizar Pedido</h2>
-              <button
-                onClick={() => setMostrarModalFinalizar(false)}
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-600" />
-              </button>
-            </div>
-
             {/* Contenido */}
-            <div className="p-6 space-y-4">
-              {/* Nombre del Cliente */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-0 required">
-                  Nombre del Cliente <span className="text-gray-400"></span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ej: Juan Pérez"
-                  value={nombreCliente}
-                  onChange={(e) => setNombreCliente(e.target.value)}
-                  className="input w-full"
-                />
-              </div>
-
+            <div className="p-4 space-y-4">
               {/* Enviar ticket por WhatsApp */}
               {/*
               <div>
@@ -3362,49 +2469,6 @@ const PuntoVenta = () => {
               </div>
               */}
 
-              {/* Tipo de Servicio */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tipo de Servicio
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => setTipoServicio('comer-aqui')}
-                    className={`py-3 px-4 rounded-lg border-2 transition-all ${
-                      tipoServicio === 'comer-aqui'
-                        ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    Comer Aquí
-                  </button>
-                  <button
-                    onClick={() => setTipoServicio('para-llevar')}
-                    className={`py-3 px-4 rounded-lg border-2 transition-all ${
-                      tipoServicio === 'para-llevar'
-                        ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    Para Llevar
-                  </button>
-                </div>
-              </div>
-
-              {/* Comentarios */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Comentarios <span className="text-gray-400">(Opcional)</span>
-                </label>
-                <textarea
-                  placeholder="Instrucciones especiales, sin azúcar, etc."
-                  value={comentarios}
-                  onChange={(e) => setComentarios(e.target.value)}
-                  rows={3}
-                  className="input w-full resize-none"
-                />
-              </div>
-
               {/* Totales */}
               <div className="border-t border-gray-200 pt-4 space-y-2">
                 <div className="flex items-center justify-between text-gray-600">
@@ -3413,53 +2477,43 @@ const PuntoVenta = () => {
                 </div>
                 {/* Calcular extras, descuento, propina y total final */}
                 {(() => {
-                  const { extraLeche: extraLecheTotal, extraExtras: extraExtrasTotal, extraProteina: extraProteinaTotal } =
-                    desglosarExtrasCarrito(cart)
-                  
-                  const totalConExtras = total + extraLecheTotal + extraExtrasTotal + extraProteinaTotal
-                  const totalDespuesDescuento = Math.max(0, totalConExtras - totalDescuento)
-                  const montoPropinaResumen = (propinaPorcentaje != null && typeof propinaPorcentaje === 'number')
-                    ? (totalDespuesDescuento * propinaPorcentaje) / 100
-                    : (propinaPorcentaje === 'personalizado' ? (montoPropina || 0) : 0)
-                  const totalFinalResumen = totalDespuesDescuento + montoPropinaResumen
-                  const propinaLabelResumen = propinaPorcentaje === 'personalizado' ? 'Propina (personalizado)' : (typeof propinaPorcentaje === 'number' ? `Propina (${propinaPorcentaje}%)` : 'Propina')
-                  
+                  const resumen = resumenOrden()
                   return (
                     <>
-                      {extraLecheTotal > 0 && (
+                      {resumen.extraLeche > 0 && (
                         <div className="flex items-center justify-between text-gray-600">
                           <span>Extra Leche:</span>
-                          <span>+${extraLecheTotal.toFixed(2)}</span>
+                          <span>+${resumen.extraLeche.toFixed(2)}</span>
                         </div>
                       )}
-                      {extraExtrasTotal > 0 && (
+                      {resumen.extraExtras > 0 && (
                         <div className="flex items-center justify-between text-gray-600">
                           <span>Extras:</span>
-                          <span>+${extraExtrasTotal.toFixed(2)}</span>
+                          <span>+${resumen.extraExtras.toFixed(2)}</span>
                         </div>
                       )}
-                      {extraProteinaTotal > 0 && (
+                      {resumen.extraProteina > 0 && (
                         <div className="flex items-center justify-between text-gray-600">
                           <span>Proteína:</span>
-                          <span>+${extraProteinaTotal.toFixed(2)}</span>
+                          <span>+${resumen.extraProteina.toFixed(2)}</span>
                         </div>
                       )}
-                      {totalDescuento > 0 && (
+                      {resumen.descuento > 0 && (
                         <div className="flex items-center justify-between text-amber-600">
-                          <span>Descuento ({descuentoTipo === 'porcentaje' ? descuentoValor + '%' : '$' + totalDescuento.toFixed(2)}):</span>
-                          <span>-${totalDescuento.toFixed(2)}</span>
+                          <span>Descuento ({descuentoTipo === 'porcentaje' ? descuentoValor + '%' : '$' + resumen.descuento.toFixed(2)}):</span>
+                          <span>-${resumen.descuento.toFixed(2)}</span>
                         </div>
                       )}
-                      {montoPropinaResumen > 0 && (
+                      {resumen.propina > 0 && (
                         <div className="flex items-center justify-between text-gray-600">
-                          <span>{propinaLabelResumen}:</span>
-                          <span>+${Number(montoPropinaResumen).toFixed(2)}</span>
+                          <span>{resumen.propinaLabel}:</span>
+                          <span>+${resumen.propina.toFixed(2)}</span>
                         </div>
                       )}
                       <div className="flex items-center justify-between text-lg font-bold text-gray-900 pt-2 border-t border-gray-200">
                         <span>Total:</span>
                         <span className="text-matcha-600">
-                          ${Number(totalFinalResumen).toFixed(2)}
+                          ${resumen.totalFinal.toFixed(2)}
                         </span>
                       </div>
                     </>
@@ -3467,7 +2521,39 @@ const PuntoVenta = () => {
                 })()}
               </div>
 
-              
+              {/* Cambio: solo tiene sentido cuando el cliente paga con billetes */}
+              {metodoPago === 'efectivo' && (() => {
+                const totalACobrar = resumenOrden().totalFinal
+                const recibido = parseFloat(montoRecibido)
+                const cambio = Number.isFinite(recibido) ? recibido - totalACobrar : null
+                return (
+                  <div className="border-t border-gray-200 pt-4 space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Paga con <span className="text-gray-400">(Opcional)</span>
+                    </label>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      step="0.01"
+                      placeholder={`Ej: ${Math.ceil(totalACobrar / 50) * 50}`}
+                      value={montoRecibido}
+                      onChange={(e) => setMontoRecibido(e.target.value)}
+                      className="input w-full"
+                    />
+                    {cambio != null && (
+                      <div
+                        className={`flex items-center justify-between text-lg font-bold ${
+                          cambio < 0 ? 'text-red-600' : 'text-gray-900'
+                        }`}
+                      >
+                        <span>{cambio < 0 ? 'Faltan:' : 'Cambio:'}</span>
+                        <span>${Math.abs(cambio).toFixed(2)}</span>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
 
             {/* Footer */}
@@ -3487,169 +2573,6 @@ const PuntoVenta = () => {
                   <Loader2 className="w-5 h-5 animate-spin" />
                 )}
                 Confirmar Pedido
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Guardar como Pre-orden */}
-      {mostrarModalGuardarPreorden && (
-        <div
-          className={OVERLAY_MODAL}
-          onClick={() => {
-            setMostrarModalGuardarPreorden(false)
-            setNombreCliente('')
-            setTipoServicio('comer-aqui')
-            setComentarios('')
-          }}
-        >
-          <div
-            className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-900">Guardar como Pre-orden</h2>
-              <button
-                onClick={() => {
-                  setMostrarModalGuardarPreorden(false)
-                  setNombreCliente('')
-                  setTipoServicio('comer-aqui')
-                  setComentarios('')
-                }}
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-600" />
-              </button>
-            </div>
-
-            {/* Contenido */}
-            <div className="p-6 space-y-6">
-              {/* Nombre del Cliente */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nombre del Cliente <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ej: Juan Pérez"
-                  value={nombreCliente}
-                  onChange={(e) => setNombreCliente(e.target.value)}
-                  className="input w-full"
-                  autoFocus
-                />
-              </div>
-
-              {/* Tipo de Servicio */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tipo de Servicio
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => setTipoServicio('comer-aqui')}
-                    className={`py-3 px-4 rounded-lg border-2 transition-all ${
-                      tipoServicio === 'comer-aqui'
-                        ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    Comer Aquí
-                  </button>
-                  <button
-                    onClick={() => setTipoServicio('para-llevar')}
-                    className={`py-3 px-4 rounded-lg border-2 transition-all ${
-                      tipoServicio === 'para-llevar'
-                        ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    Para Llevar
-                  </button>
-                </div>
-              </div>
-
-              {/* Comentarios */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Comentarios <span className="text-gray-400">(Opcional)</span>
-                </label>
-                <textarea
-                  placeholder="Instrucciones especiales, sin azúcar, etc."
-                  value={comentarios}
-                  onChange={(e) => setComentarios(e.target.value)}
-                  rows={3}
-                  className="input w-full resize-none"
-                />
-              </div>
-
-              {/* Totales */}
-              <div className="border-t border-gray-200 pt-4 space-y-2">
-                <div className="flex items-center justify-between text-gray-600">
-                  <span>Subtotal:</span>
-                  <span>${total.toFixed(2)}</span>
-                </div>
-                {(() => {
-                  const { extraLeche: extraLecheTotal, extraExtras: extraExtrasTotal, extraProteina: extraProteinaTotal } =
-                    desglosarExtrasCarrito(cart)
-                  
-                  const totalConExtras = total + extraLecheTotal + extraExtrasTotal + extraProteinaTotal
-                  
-                  return (
-                    <>
-                      {extraLecheTotal > 0 && (
-                        <div className="flex items-center justify-between text-gray-600">
-                          <span>Extra Leche:</span>
-                          <span>+${extraLecheTotal.toFixed(2)}</span>
-                        </div>
-                      )}
-                      {extraExtrasTotal > 0 && (
-                        <div className="flex items-center justify-between text-gray-600">
-                          <span>Extras:</span>
-                          <span>+${extraExtrasTotal.toFixed(2)}</span>
-                        </div>
-                      )}
-                      {extraProteinaTotal > 0 && (
-                        <div className="flex items-center justify-between text-gray-600">
-                          <span>Proteína:</span>
-                          <span>+${extraProteinaTotal.toFixed(2)}</span>
-                        </div>
-                      )}
-                      <div className="flex items-center justify-between text-lg font-bold text-gray-900 pt-2 border-t border-gray-200">
-                        <span>Total:</span>
-                        <span className="text-matcha-600">
-                          ${totalConExtras.toFixed(2)}
-                        </span>
-                      </div>
-                    </>
-                  )
-                })()}
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="p-6 border-t border-gray-200 flex gap-3">
-              <button
-                onClick={() => {
-                  setMostrarModalGuardarPreorden(false)
-                  setNombreCliente('')
-                  setTipoServicio('comer-aqui')
-                  setComentarios('')
-                }}
-                className="btn-outline flex-1"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={guardarComoPreorden}
-                disabled={procesando}
-                className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {procesando && (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                )}
-                Guardar Pre-orden
               </button>
             </div>
           </div>
@@ -3900,93 +2823,6 @@ const PuntoVenta = () => {
                 className="btn-outline w-full"
               >
                 Cerrar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Cancelar Pre-orden */}
-      {mostrarModalCancelar && preordenACancelar && (
-        <div
-          className={OVERLAY_MODAL}
-          onClick={() => {
-            setMostrarModalCancelar(false)
-            setPasswordCancelar('')
-            setPreordenACancelar(null)
-          }}
-        >
-          <div
-            className="bg-white rounded-lg shadow-xl max-w-md w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-red-600">¿Cancelar Pre-orden?</h2>
-              <button
-                onClick={() => {
-                  setMostrarModalCancelar(false)
-                  setPasswordCancelar('')
-                  setPreordenACancelar(null)
-                }}
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-600" />
-              </button>
-            </div>
-
-            {/* Contenido */}
-            <div className="p-6 space-y-4">
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <div className="text-sm text-red-700 space-y-1">
-                  <p><span className="font-medium">Pre-orden #:</span> {preordenACancelar.id_preorden}</p>
-                  <p><span className="font-medium">Cliente:</span> {preordenACancelar.nombre_cliente || 'Sin nombre'}</p>
-                  <p><span className="font-medium">Total:</span> ${parseFloat(preordenACancelar.total || 0).toFixed(2)}</p>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Contraseña de Administrador<span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="password"
-                  placeholder="Ingresa la contraseña de un administrador"
-                  value={passwordCancelar}
-                  onChange={(e) => setPasswordCancelar(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      confirmarCancelarPreorden()
-                    }
-                  }}
-                  className="input w-full"
-                  autoFocus
-                />
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="p-6 border-t border-gray-200 flex gap-3">
-              <button
-                onClick={() => {
-                  setMostrarModalCancelar(false)
-                  setPasswordCancelar('')
-                  setPreordenACancelar(null)
-                }}
-                className="btn-outline flex-1"
-                disabled={procesando}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={confirmarCancelarPreorden}
-                disabled={procesando || !passwordCancelar}
-                className="btn-primary flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {procesando && (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                )}
-                Confirmar
               </button>
             </div>
           </div>

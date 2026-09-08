@@ -433,9 +433,9 @@ const Barista = () => {
             const itemsCount = comanda.detalles?.reduce((sum, d) => sum + d.cantidad, 0) || 0
             // Si ya se entregó parte, lo pendiente es una segunda ronda: hay que distinguirla
             const tieneEntregados = comanda.detalles?.some((d) => d.entregado)
-            const tipoServicio = comanda.preorden?.tipo_servicio || comanda.venta?.tipo_servicio
-            const comentarios = comanda.preorden?.comentarios || comanda.venta?.comentarios
-            const tipoLecheGlobal = comanda.preorden?.tipo_leche || comanda.venta?.tipo_leche
+            const tipoServicio = comanda.pedido?.tipo_servicio || comanda.venta?.tipo_servicio
+            const comentarios = comanda.pedido?.comentarios || comanda.venta?.comentarios
+            const tipoLecheGlobal = comanda.pedido?.tipo_leche || comanda.venta?.tipo_leche
             const mostrarLecheGlobal =
               tipoLecheGlobal &&
               !comanda.detalles?.some(
@@ -455,7 +455,7 @@ const Barista = () => {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 truncate flex items-center gap-1">
                       <User className="w-3.5 h-3.5 text-matcha-600 shrink-0" />
-                      {comanda.preorden?.nombre_cliente || comanda.venta?.nombre_cliente || 'Sin nombre'}
+                      {comanda.pedido?.nombre_cliente || comanda.venta?.nombre_cliente || 'Sin nombre'}
                     </p>
                     <p className="text-[11px] text-gray-500 flex items-center gap-1">
                       <Clock className="w-3 h-3 shrink-0" />

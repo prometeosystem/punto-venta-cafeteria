@@ -24,7 +24,6 @@ const ROUTE_TITLES = {
   '/bitacora': 'Bitácora',
   '/configuracion': 'Configuración',
   '/test-sonidos': 'Prueba de Sonidos',
-  '/pedidos': 'Pedidos',
   '/clientes': 'Clientes',
 }
 

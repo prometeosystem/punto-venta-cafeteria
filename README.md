@@ -1,4 +1,4 @@
-# Zona 2 Coffee Recovery - Punto de Venta
+# Zona 2 Brunch and Run - Punto de Venta
 
 Sistema de punto de venta tipo CRM para cafetería desarrollado con React, Vite y arquitectura limpia.
 
@@ -144,7 +144,7 @@ El sistema está optimizado para:
 
 ## 📄 Licencia
 
-Este proyecto es privado y propiedad de Zona 2 Coffee Recovery.
+Este proyecto es privado y propiedad de Zona 2 Brunch and Run.
 
 
 

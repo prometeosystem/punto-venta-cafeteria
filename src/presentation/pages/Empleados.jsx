@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Plus, Search, Mail, Phone, Users, Loader2, X, Edit, Trash2 } from 'lucide-react'
+import { Plus, Search, Mail, Phone, Users, Loader2, X, Edit, Trash2, KeyRound } from 'lucide-react'
 import { useUsuarios } from '../hooks/useUsuarios'
+import { useAuth } from '../context/AuthContext'
 import Swal from 'sweetalert2'
 
 const Empleados = () => {
@@ -15,16 +16,80 @@ const Empleados = () => {
     apellido_paterno: '',
     apellido_materno: '',
     correo: '',
-    contrasena: '',
+    codigo: '',
     celular: '',
     rol: 'vendedor',
     activo: true,
   })
 
-  const { usuarios, estadisticas, loading, crearUsuario, editarUsuario, eliminarUsuario, obtenerUsuarios } = useUsuarios()
+  const { usuarios, estadisticas, loading, crearUsuario, editarUsuario, eliminarUsuario, obtenerUsuarios, definirCodigo, quitarCodigo } = useUsuarios()
+  const { usuario: usuarioActual } = useAuth()
+
+  const esSuperadmin = (u) => u?.rol === 'superadministrador'
+  const soyYo = (u) => u?.id_usuario === usuarioActual?.id_usuario
+
+  // El superadministrador no se muestra al resto del personal; él sí se ve a sí mismo
+  const visibles = usuarios.filter((user) => !esSuperadmin(user) || soyYo(user))
+
+  /**
+   * Solo el superadministrador puede desactivar (el backend lo exige igual), y
+   * nadie puede desactivarse a sí mismo ni dejar al sistema sin superadmin.
+   */
+  const puedeDesactivar = (empleado) => {
+    if (!esSuperadmin(usuarioActual)) return false
+    if (soyYo(empleado)) return false
+    if (esSuperadmin(empleado)) return false
+    return empleado.activo === 1 || empleado.activo === true
+  }
+
+  /**
+   * Asigna el código de 6 dígitos con el que el empleado entra desde la tablet.
+   * Sin código su tarjeta no aparece en la pantalla de inicio.
+   */
+  const handleCodigo = async (empleado) => {
+    const tieneCodigo = empleado.tiene_codigo === 1 || empleado.tiene_codigo === true
+
+    const { value: codigo, isDenied } = await Swal.fire({
+      // Arriba y sin icono: en tablet el teclado tapa media pantalla
+      position: 'top',
+      heightAuto: false,
+      title: tieneCodigo ? 'Cambiar código' : 'Asignar código',
+      text: `6 dígitos para ${getFullName(empleado)}`,
+      input: 'text',
+      inputAttributes: { inputmode: 'numeric', maxlength: 6, autocomplete: 'off' },
+      showCancelButton: true,
+      showDenyButton: tieneCodigo,
+      confirmButtonText: 'Guardar',
+      denyButtonText: 'Quitar código',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#10b981',
+      inputValidator: (valor) => {
+        if (!/^\d{6}$/.test(valor || '')) return 'Deben ser exactamente 6 dígitos'
+        if (new Set(valor).size === 1) return 'No puede ser el mismo dígito repetido'
+        return null
+      },
+    })
+
+    try {
+      if (isDenied) {
+        await quitarCodigo(empleado.id_usuario)
+        await Swal.fire({ icon: 'success', title: 'Código eliminado', timer: 1400, showConfirmButton: false })
+      } else if (codigo) {
+        await definirCodigo(empleado.id_usuario, codigo)
+        await Swal.fire({ icon: 'success', title: 'Código guardado', timer: 1400, showConfirmButton: false })
+      }
+    } catch (err) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'No se pudo guardar',
+        text: err?.detail || err?.message || 'Intenta de nuevo',
+        confirmButtonColor: '#10b981',
+      })
+    }
+  }
 
   // Filtrar empleados
-  const filteredEmployees = usuarios.filter((user) => {
+  const filteredEmployees = visibles.filter((user) => {
     const searchLower = searchTerm.toLowerCase()
     return (
       user.nombre_completo?.toLowerCase().includes(searchLower) ||
@@ -143,7 +208,7 @@ const Empleados = () => {
       apellido_paterno: '',
       apellido_materno: '',
       correo: '',
-      contrasena: '',
+      codigo: '',
       celular: '',
       rol: 'vendedor',
       activo: true,
@@ -159,7 +224,7 @@ const Empleados = () => {
       apellido_paterno: empleado.apellido_paterno || '',
       apellido_materno: empleado.apellido_materno || '',
       correo: empleado.correo || '',
-      contrasena: '', // No mostramos la contraseña al editar
+      codigo: '',
       celular: empleado.celular || '',
       rol: empleado.rol || 'vendedor',
       activo: empleado.activo === 1 || empleado.activo === true,
@@ -182,7 +247,7 @@ const Empleados = () => {
       apellido_paterno: '',
       apellido_materno: '',
       correo: '',
-      contrasena: '',
+      codigo: '',
       celular: '',
       rol: 'vendedor',
       activo: true,
@@ -206,17 +271,6 @@ const Empleados = () => {
           icon: 'error',
           title: 'Error de validación',
           text: 'El nombre es requerido',
-          confirmButtonColor: '#10b981',
-        })
-        setGuardando(false)
-        return
-      }
-
-      if (!formData.apellido_paterno.trim()) {
-        await Swal.fire({
-          icon: 'error',
-          title: 'Error de validación',
-          text: 'El apellido paterno es requerido',
           confirmButtonColor: '#10b981',
         })
         setGuardando(false)
@@ -247,132 +301,30 @@ const Empleados = () => {
         return
       }
 
-      // ============================================
-      // PASO 1: OBTENER Y LIMPIAR LA CONTRASEÑA
-      // ============================================
-      
-      // Obtener el valor crudo de formData.contrasena
-      const contrasenaRaw = formData.contrasena
-      
-      // Variable para almacenar la contraseña final (debe ser string)
-      let contrasenaFinal = ''
-      
-      // Verificar qué tipo de dato es (solo en desarrollo)
-      if (import.meta.env.DEV) {
-        console.log('🔍 Tipo de contrasenaRaw:', typeof contrasenaRaw)
-        console.log('🔍 Es objeto?', typeof contrasenaRaw === 'object' && contrasenaRaw !== null)
-      }
-      
-      // CASO 1: Si es un objeto/diccionario
-      if (contrasenaRaw && typeof contrasenaRaw === 'object' && !Array.isArray(contrasenaRaw)) {
-        if (import.meta.env.DEV) {
-          console.log('⚠️ La contraseña es un objeto, extrayendo valor...')
-        }
-        
-        // Intentar obtener valorCompleto primero (es el campo más común)
-        contrasenaFinal = contrasenaRaw.valorCompleto || ''
-        
-        // Si no está, buscar otros campos posibles
-        if (!contrasenaFinal) {
-          contrasenaFinal = contrasenaRaw.valor || 
-                           contrasenaRaw.password || 
-                           contrasenaRaw.contrasena || 
-                           ''
-        }
-        
-        // Si aún no hay valor, buscar el primer string válido en el objeto
-        if (!contrasenaFinal) {
-          for (let key in contrasenaRaw) {
-            const value = contrasenaRaw[key]
-            // Buscar un string que tenga entre 6 y 15 caracteres
-            if (typeof value === 'string' && value.length >= 6 && value.length <= 15) {
-              contrasenaFinal = value
-              if (import.meta.env.DEV) {
-                console.log(`✅ Encontrado valor en clave "${key}":`, value)
-              }
-              break
-            }
-          }
-        }
-        
-        // Si después de todo no encontramos un valor válido
-        if (!contrasenaFinal) {
+      // El código de acceso sólo se pide al dar de alta; después se cambia
+      // con el botón de la llave.
+      const codigo = (formData.codigo || '').trim()
+      if (!empleadoEditando) {
+        if (!/^\d{6}$/.test(codigo)) {
           await Swal.fire({
             icon: 'error',
             title: 'Error de validación',
-            text: 'No se pudo extraer la contraseña del objeto. Asegúrate de que el objeto tenga un campo "valorCompleto" o "valor" con el texto de la contraseña.',
+            text: 'El código de acceso debe ser de 6 dígitos',
             confirmButtonColor: '#10b981',
           })
           setGuardando(false)
           return
         }
-        
-        // Contraseña procesada correctamente
-      }
-      // CASO 2: Si ya es un string
-      else if (typeof contrasenaRaw === 'string') {
-        // Contraseña ya es string
-        contrasenaFinal = contrasenaRaw
-      }
-      // CASO 3: Otro tipo (number, boolean, etc.)
-      else {
-        console.log('⚠️ La contraseña es de otro tipo, convirtiendo a string...')
-        contrasenaFinal = String(contrasenaRaw || '')
-      }
-      
-      // ============================================
-      // PASO 2: VALIDAR LA CONTRASEÑA
-      // ============================================
-      
-      // Verificar que sea string
-      if (typeof contrasenaFinal !== 'string') {
-        await Swal.fire({
-          icon: 'error',
-          title: 'Error de validación',
-          text: `La contraseña debe ser un texto. Tipo recibido: ${typeof contrasenaFinal}`,
-          confirmButtonColor: '#10b981',
-        })
-        setGuardando(false)
-        return
-      }
-      
-      // Eliminar espacios en blanco al inicio y final
-      contrasenaFinal = contrasenaFinal.trim()
-      
-      // Si es crear, la contraseña es requerida
-      if (!empleadoEditando && !contrasenaFinal) {
-        await Swal.fire({
-          icon: 'error',
-          title: 'Error de validación',
-          text: 'La contraseña es requerida para crear un nuevo empleado',
-          confirmButtonColor: '#10b981',
-        })
-        setGuardando(false)
-        return
-      }
-      
-      // Validar longitud mínima
-      if (contrasenaFinal && contrasenaFinal.length < 6) {
-        await Swal.fire({
-          icon: 'error',
-          title: 'Error de validación',
-          text: `La contraseña debe tener al menos 6 caracteres. Recibido: ${contrasenaFinal.length} caracteres.`,
-          confirmButtonColor: '#10b981',
-        })
-        setGuardando(false)
-        return
-      }
-      
-      // Validar longitud máxima
-      if (contrasenaFinal && contrasenaFinal.length > 15) {
-        await Swal.fire({
-          icon: 'error',
-          title: 'Error de validación',
-          text: `La contraseña no puede tener más de 15 caracteres. Recibido: ${contrasenaFinal.length} caracteres.`,
-          confirmButtonColor: '#10b981',
-        })
-        setGuardando(false)
-        return
+        if (new Set(codigo).size === 1) {
+          await Swal.fire({
+            icon: 'error',
+            title: 'Error de validación',
+            text: 'El código no puede ser el mismo dígito repetido',
+            confirmButtonColor: '#10b981',
+          })
+          setGuardando(false)
+          return
+        }
       }
 
       // ============================================
@@ -397,44 +349,9 @@ const Empleados = () => {
         empleadoData.celular = formData.celular.trim()
       }
 
-      // Solo incluir contraseña si se está creando o si se proporcionó una nueva
-      if (!empleadoEditando || contrasenaFinal) {
-        empleadoData.contrasena = contrasenaFinal // ✅ STRING SIMPLE, NO OBJETO
-      }
-
-      // ============================================
-      // PASO 4: VERIFICACIÓN FINAL ANTES DE ENVIAR
-      // ============================================
-      
-      // Datos preparados para envío al backend
-      
-      // Verificación de seguridad adicional
-      if (empleadoData.contrasena && typeof empleadoData.contrasena !== 'string') {
-        if (import.meta.env.DEV) {
-          console.error('❌ ERROR CRÍTICO: La contraseña no es un string. Tipo:', typeof empleadoData.contrasena)
-        }
-        await Swal.fire({
-          icon: 'error',
-          title: 'Error interno',
-          text: `ERROR CRÍTICO: La contraseña no es un string. Tipo: ${typeof empleadoData.contrasena}`,
-          confirmButtonColor: '#10b981',
-        })
-        setGuardando(false)
-        return
-      }
-      
-      if (empleadoData.contrasena && (empleadoData.contrasena.length < 6 || empleadoData.contrasena.length > 15)) {
-        if (import.meta.env.DEV) {
-          console.error('❌ ERROR CRÍTICO: La contraseña tiene longitud inválida:', empleadoData.contrasena.length)
-        }
-        await Swal.fire({
-          icon: 'error',
-          title: 'Error interno',
-          text: `ERROR CRÍTICO: La contraseña tiene longitud inválida: ${empleadoData.contrasena.length}`,
-          confirmButtonColor: '#10b981',
-        })
-        setGuardando(false)
-        return
+      // El código sólo viaja al crear; al editar se cambia con la llave
+      if (!empleadoEditando) {
+        empleadoData.codigo = codigo
       }
 
       if (empleadoEditando) {
@@ -717,12 +634,29 @@ const Empleados = () => {
                       <Edit className="w-4 h-4 text-gray-600" />
                     </button>
                     <button
-                      onClick={() => handleEliminar(employee)}
-                      className="p-2 rounded-lg hover:bg-red-100 transition-colors border border-gray-300"
-                      title="Desactivar"
+                      onClick={() => handleCodigo(employee)}
+                      className={`p-2 rounded-lg transition-colors border ${
+                        employee.tiene_codigo
+                          ? 'border-gray-300 hover:bg-gray-100 text-gray-600'
+                          : 'border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-700'
+                      }`}
+                      title={
+                        employee.tiene_codigo
+                          ? 'Cambiar código de acceso'
+                          : 'Sin código: no aparece en la pantalla de inicio'
+                      }
                     >
-                      <Trash2 className="w-4 h-4 text-red-600" />
+                      <KeyRound className="w-4 h-4" />
                     </button>
+                    {puedeDesactivar(employee) && (
+                      <button
+                        onClick={() => handleEliminar(employee)}
+                        className="p-2 rounded-lg hover:bg-red-100 transition-colors border border-gray-300"
+                        title="Desactivar"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-600" />
+                      </button>
+                    )}
                   </div>
                 </div>
               )
@@ -769,11 +703,10 @@ const Empleados = () => {
                 {/* Apellido Paterno */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Apellido Paterno <span className="text-red-500">*</span>
+                    Apellido Paterno
                   </label>
                   <input
                     type="text"
-                    required
                     value={formData.apellido_paterno}
                     onChange={(e) => setFormData({ ...formData, apellido_paterno: e.target.value })}
                     className="input w-full"
@@ -810,21 +743,32 @@ const Empleados = () => {
                   />
                 </div>
 
-                {/* Contraseña */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Contraseña {!empleadoEditando && <span className="text-red-500">*</span>}
-                    {empleadoEditando && <span className="text-gray-500 text-xs">(dejar vacío para no cambiar)</span>}
-                  </label>
-                  <input
-                    type="password"
-                    required={!empleadoEditando}
-                    value={formData.contrasena}
-                    onChange={(e) => setFormData({ ...formData, contrasena: e.target.value })}
-                    className="input w-full"
-                    placeholder={empleadoEditando ? "Nueva contraseña (opcional)" : "Contraseña"}
-                  />
-                </div>
+                {/* Código de acceso: sólo al dar de alta. Después se cambia con
+                    el botón de la llave, para no tener dos formas de hacerlo. */}
+                {!empleadoEditando && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Código de acceso <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      required
+                      value={formData.codigo}
+                      onChange={(e) =>
+                        setFormData({ ...formData, codigo: e.target.value.replace(/\D/g, '') })
+                      }
+                      className="input w-full tracking-widest"
+                      placeholder="6 dígitos"
+                      autoComplete="off"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Con este código entra desde la tablet. Se puede cambiar después con
+                      el botón de la llave.
+                    </p>
+                  </div>
+                )}
 
                 {/* Celular */}
                 <div>
@@ -1013,13 +957,15 @@ const Empleados = () => {
 
               {/* Botones de acción */}
               <div className="flex justify-end gap-4 mt-6 pt-6 border-t border-gray-200">
-                <button
-                  onClick={() => handleEliminar(empleadoSeleccionado)}
-                  className="btn-outline text-red-600 border-red-300 hover:bg-red-50"
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Desactivar
-                </button>
+                {puedeDesactivar(empleadoSeleccionado) && (
+                  <button
+                    onClick={() => handleEliminar(empleadoSeleccionado)}
+                    className="btn-outline text-red-600 border-red-300 hover:bg-red-50"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Desactivar
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     cerrarModalDetalles()

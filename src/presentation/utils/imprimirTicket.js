@@ -101,7 +101,7 @@ export function imprimirTicket(ticket) {
     .totals .value { text-align: right; }
     .total-row { font-size: 14px; font-weight: 700; }
     .footer { margin-top: 10px; text-align: center; font-size: 11px; font-weight: 700; }
-    .logo { width: 22mm; max-width: 100%; display: inline-block; }
+    .logo { width: 55mm; max-width: 100%; display: inline-block; }
     @media print {
       @page { size: 80mm auto; margin: 0; }
       body { width: 80mm; padding: 3mm; }
@@ -110,7 +110,7 @@ export function imprimirTicket(ticket) {
 </head>
 <body>
   <div class="center">
-    <img class="logo" src="${logoAbsoluto}" alt="Zona 2 Coffee Recovery" />
+    <img class="logo" src="${logoAbsoluto}" alt="Zona 2 Brunch and Run" />
   </div>
   <div class="sep"></div>
   <div>

@@ -111,13 +111,15 @@ export const AuthProvider = ({ children }) => {
   }, [])
 
   const login = async (correo, contrasena) => {
-    try {
-      const response = await authService.login(correo, contrasena)
-      setUsuario(response.usuario)
-      return response
-    } catch (error) {
-      throw error
-    }
+    const response = await authService.login(correo, contrasena)
+    setUsuario(response.usuario)
+    return response
+  }
+
+  const loginConCodigo = async (idUsuario, codigo) => {
+    const response = await authService.loginConCodigo(idUsuario, codigo)
+    setUsuario(response.usuario)
+    return response
   }
 
   const logout = () => {
@@ -129,6 +131,7 @@ export const AuthProvider = ({ children }) => {
     usuario,
     loading,
     login,
+    loginConCodigo,
     logout,
     isAuthenticated: !!usuario,
   }

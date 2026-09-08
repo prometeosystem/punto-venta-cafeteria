@@ -97,7 +97,6 @@ const NotificationsBell = ({ variant = 'header' }) => {
                   <div className={`flex-shrink-0 w-12 h-12 rounded-lg flex items-center justify-center ${
                     notification.tipo === 'comanda' ? 'bg-matcha-100' :
                     notification.tipo === 'inventario' ? (notification.estado === 'critical' ? 'bg-red-100' : 'bg-yellow-100') :
-                    notification.tipo === 'preorden' ? 'bg-blue-100' :
                     notification.tipo === 'comanda-lista-cobrar' ? 'bg-amber-100' :
                     'bg-gray-100'
                   }`}>
@@ -116,7 +115,6 @@ const NotificationsBell = ({ variant = 'header' }) => {
                     ) : (
                       <Bell className={`w-6 h-6 ${
                         notification.tipo === 'comanda' ? 'text-matcha-600' :
-                        notification.tipo === 'preorden' ? 'text-blue-600' :
                         'text-gray-600'
                       }`} />
                     )}

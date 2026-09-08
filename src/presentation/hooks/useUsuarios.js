@@ -91,6 +91,26 @@ export const useUsuarios = () => {
     }
   }
 
+  const definirCodigo = async (idUsuario, codigo) => {
+    try {
+      const response = await usuariosService.definirCodigo(idUsuario, codigo)
+      await obtenerUsuarios()
+      return response
+    } catch (err) {
+      throw err.response?.data || err
+    }
+  }
+
+  const quitarCodigo = async (idUsuario) => {
+    try {
+      const response = await usuariosService.quitarCodigo(idUsuario)
+      await obtenerUsuarios()
+      return response
+    } catch (err) {
+      throw err.response?.data || err
+    }
+  }
+
   const eliminarUsuario = async (idUsuario) => {
     try {
       const response = await usuariosService.eliminarUsuario(idUsuario)
@@ -112,6 +132,8 @@ export const useUsuarios = () => {
     crearUsuario,
     editarUsuario,
     eliminarUsuario,
+    definirCodigo,
+    quitarCodigo,
   }
 }
 

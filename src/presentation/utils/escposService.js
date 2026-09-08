@@ -33,8 +33,12 @@ export const PAPER_PROFILES = {
  */
 export const FEED_FINAL = 5
 
-/** Qué tanto del ancho del papel ocupa el logo del encabezado. */
-const LOGO_ANCHO_RELATIVO = 0.28
+/**
+ * Qué tanto del ancho del papel ocupa el logo del encabezado.
+ * El logo es un banner alargado (más de 3:1), así que necesita buena parte del
+ * ancho para que el eslogan salga legible en papel térmico.
+ */
+const LOGO_ANCHO_RELATIVO = 0.72
 
 export const DEFAULT_PAPER = '80'
 
@@ -211,7 +215,7 @@ export function generateCafeTicketBytes(ticket = {}, options = {}) {
     })
 
   const negocio = ticket.negocio || 'ZONA 2'
-  const lugar = ticket.lugar || 'Coffee Recovery'
+  const lugar = ticket.lugar || 'Brunch and Run'
   const commands = []
 
   commands.push(EscPosCommands.INIT)

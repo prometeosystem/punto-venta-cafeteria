@@ -6,7 +6,6 @@ export { ventasService } from './ventasService'
 export { comandasService } from './comandasService'
 export { inventarioService } from './inventarioService'
 export { recetasService } from './recetasService'
-export { preordenesService } from './preordenesService'
 export { usuariosService } from './usuariosService'
 
 
