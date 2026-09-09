@@ -765,6 +765,9 @@ const PuntoVenta = () => {
 
     setProcesando(true)
     setMostrarModalFinalizar(false)
+    // Se cobra exactamente la propina que se le mostró al cliente en el panel,
+    // en lugar de recalcularla aquí y arriesgar que salgan dos cifras distintas.
+    const propinaACobrar = resumenOrden().propina
     try {
       // Si es comanda lista para cobrar, solo procesar pago (no crear nueva venta) con propina, descuento y tipo servicio
       if (comandaTerminadaSeleccionada) {
@@ -775,8 +778,8 @@ const PuntoVenta = () => {
           descuento_valor: totalDescuento > 0 ? descuentoValor : undefined,
           total_descuento: totalDescuento > 0 ? totalDescuento : undefined,
           autorizacion: autorizacionDescuento || undefined,
-          propina_porcentaje: montoPropina > 0 && propinaPorcentajeNumerico != null ? propinaPorcentajeNumerico : undefined,
-          propina_monto: montoPropina > 0 ? montoPropina : undefined,
+          propina_porcentaje: propinaACobrar > 0 && propinaPorcentajeNumerico != null ? propinaPorcentajeNumerico : undefined,
+          propina_monto: propinaACobrar > 0 ? propinaACobrar : undefined,
         }
         const resultado = await procesarPagoVenta(comandaTerminadaSeleccionada.id_venta, bodyPago)
         if (resultado?.error) throw new Error(resultado.error)
@@ -871,13 +874,13 @@ const PuntoVenta = () => {
       })
 
       // Registrar propina si existe
-      if (propinaPorcentaje && montoPropina > 0 && comandaResponse?.id_comanda && usuario?.id_usuario) {
+      if (propinaPorcentaje && propinaACobrar > 0 && comandaResponse?.id_comanda && usuario?.id_usuario) {
         try {
           const { propinasService } = await import('../../application/services/propinasService')
           await propinasService.registrarPropina({
             id_comanda: comandaResponse.id_comanda,
             monto_porcentaje: propinaPorcentajeNumerico,
-            monto_dinero: montoPropina,
+            monto_dinero: propinaACobrar,
             metodo_pago: metodoPago,
             id_usuario: usuario.id_usuario
           })
@@ -1071,6 +1074,7 @@ const PuntoVenta = () => {
     const cajaOk = await verificarCajaParaCobro()
     if (!cajaOk) return
     setProcesando(true)
+    const propinaACobrar = resumenOrden().propina
     try {
       const bodyPago = {
         metodo_pago: metodoPago,
@@ -1079,8 +1083,8 @@ const PuntoVenta = () => {
         descuento_valor: totalDescuento > 0 ? descuentoValor : undefined,
         total_descuento: totalDescuento > 0 ? totalDescuento : undefined,
         autorizacion: autorizacionDescuento || undefined,
-        propina_porcentaje: montoPropina > 0 && propinaPorcentajeNumerico != null ? propinaPorcentajeNumerico : undefined,
-        propina_monto: montoPropina > 0 ? montoPropina : undefined,
+        propina_porcentaje: propinaACobrar > 0 && propinaPorcentajeNumerico != null ? propinaPorcentajeNumerico : undefined,
+        propina_monto: propinaACobrar > 0 ? propinaACobrar : undefined,
       }
       const resultado = await procesarPagoVenta(comandaTerminadaSeleccionada.id_venta, bodyPago)
       if (resultado?.error) throw new Error(resultado.error)
@@ -1120,6 +1124,14 @@ const PuntoVenta = () => {
   }
 
   /**
+   * Importe sobre el que se calcula la propina: lo que el cliente realmente va a
+   * pagar, ya con el descuento aplicado. Si se calculara sobre el subtotal, un
+   * 10% de propina cobraría de más en cada orden con descuento.
+   */
+  const baseParaPropina = () =>
+    Math.max(0, calcularSubtotalConExtras() - totalDescuento)
+
+  /**
    * Totales de la orden en pantalla. La propina se calcula sobre el importe ya
    * descontado, igual que al cobrar y al imprimir.
    */
@@ -1157,28 +1169,21 @@ const PuntoVenta = () => {
       return
     }
 
-    const subtotal = calcularSubtotalConExtras()
-    const monto = (subtotal * porcentaje) / 100
     setPropinaPorcentaje(porcentaje)
-    setMontoPropina(monto)
+    setMontoPropina((baseParaPropina() * porcentaje) / 100)
     setMostrarModalPropina(false)
   }
 
-  // Función para calcular el monto de propina personalizada (para vista previa)
+  // Cuánto quedaría de propina con lo que hay escrito, para mostrarlo antes de aplicar
   const calcularMontoPropinaPersonalizada = () => {
-    const subtotal = calcularSubtotalConExtras()
     const valor = parseFloat(propinaPersonalizada) || 0
-
-    if (tipoPropinaPersonalizada === 'porcentaje') {
-      return (subtotal * valor) / 100
-    } else {
-      return valor
-    }
+    return tipoPropinaPersonalizada === 'porcentaje'
+      ? (baseParaPropina() * valor) / 100
+      : valor
   }
 
   // Función para aplicar propina personalizada
   const aplicarPropinaPersonalizada = () => {
-    const subtotal = calcularSubtotalConExtras()
     const valor = parseFloat(propinaPersonalizada)
 
     if (isNaN(valor) || valor < 0) {
@@ -1202,7 +1207,7 @@ const PuntoVenta = () => {
         })
         return
       }
-      monto = (subtotal * valor) / 100
+      monto = (baseParaPropina() * valor) / 100
     } else {
       monto = valor
     }
@@ -1254,16 +1259,14 @@ const PuntoVenta = () => {
     setPrecioProductoPersonalizado('')
   }
 
-  // Actualizar monto de propina cuando cambia el carrito o el porcentaje (solo si es porcentaje numérico, no personalizado)
+  // La propina por porcentaje se rehace cuando cambia el carrito o el descuento:
+  // ambos mueven el importe a pagar, que es sobre el que se calcula.
   useEffect(() => {
-    if (propinaPorcentaje != null && typeof propinaPorcentaje === 'number') {
-      const subtotal = cart.reduce((sum, item) => sum + precioItem(item) * (Number(item.quantity) || 0), 0)
-      const { extraLeche, extraExtras, extraProteina } = desglosarExtrasCarrito(cart)
-      const totalConExtras = subtotal + extraLeche + extraExtras + extraProteina
-      const monto = (totalConExtras * propinaPorcentaje) / 100
-      setMontoPropina(monto)
+    if (typeof propinaPorcentaje === 'number') {
+      setMontoPropina((baseParaPropina() * propinaPorcentaje) / 100)
     }
-  }, [cart, propinaPorcentaje])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cart, propinaPorcentaje, totalDescuento])
 
   // Actualizar monto de descuento cuando cambia el carrito
   useEffect(() => {
@@ -1979,19 +1982,18 @@ const PuntoVenta = () => {
                 </div>
 
                 <div className="border-t border-gray-200 pt-4 space-y-3">
-                  {/* Calcular total con extras y propina */}
+                  {/* Los totales salen de resumenOrden, que es el mismo cálculo
+                      que se cobra y que se imprime en la cuenta. */}
                   {(() => {
                     const subtotal = cart.reduce((sum, item) => sum + precioItem(item) * (Number(item.quantity) || 0), 0)
-                    const { extraLeche, extraExtras, extraProteina } = desglosarExtrasCarrito(cart)
-                    const totalConExtras = subtotal + extraLeche + extraExtras + extraProteina
-                    const descuentoActual = totalDescuento
-                    const totalDespuesDescuento = Math.max(0, totalConExtras - descuentoActual)
-                    const montoPropinaActual = (propinaPorcentaje != null && typeof propinaPorcentaje === 'number')
-                      ? (totalDespuesDescuento * propinaPorcentaje) / 100
-                      : (propinaPorcentaje === 'personalizado' ? (montoPropina || 0) : 0)
-                    const totalFinal = totalDespuesDescuento + montoPropinaActual
-                    const propinaLabel = propinaPorcentaje === 'personalizado' ? 'Propina (personalizado)' : (typeof propinaPorcentaje === 'number' ? `Propina (${propinaPorcentaje}%)` : 'Propina')
-                    
+                    const {
+                      extraLeche, extraExtras, extraProteina,
+                      descuento: descuentoActual,
+                      propina: montoPropinaActual,
+                      propinaLabel,
+                      totalFinal,
+                    } = resumenOrden()
+
                     return (
                       <>
                         <div className="space-y-2">
@@ -2705,6 +2707,19 @@ const PuntoVenta = () => {
                       Aplicar
                     </button>
                   </div>
+
+                  {/* Sin esto no hay forma de notar que un 18.9 escrito en modo
+                      porcentaje no son $18.90 sino el 18.9% de la cuenta. */}
+                  {parseFloat(propinaPersonalizada) > 0 && (
+                    <p className="text-sm text-gray-600 text-center">
+                      Se agregarán{' '}
+                      <span className="font-semibold text-gray-900">
+                        ${calcularMontoPropinaPersonalizada().toFixed(2)}
+                      </span>
+                      {tipoPropinaPersonalizada === 'porcentaje' &&
+                        ` (${propinaPersonalizada}% de $${baseParaPropina().toFixed(2)})`}
+                    </p>
+                  )}
 
                   
                 </div>

@@ -7,6 +7,67 @@ import {
   History
 } from 'lucide-react'
 
+/**
+ * Campos que ya se leen en la tarjeta: el rol aparece junto al nombre y el
+ * autorizador dentro de la descripción. Repetirlos en el detalle solo estorba,
+ * y cuando no hubo autorización se ven como "null", que no le dice nada a nadie.
+ */
+const CAMPOS_REDUNDANTES = new Set([
+  'rol_solicitante',
+  'autorizado_por',
+  'autorizado_por_nombre',
+])
+
+const ETIQUETAS_CAMPO = {
+  descuento_tipo: 'Tipo de descuento',
+  descuento_valor: 'Valor aplicado',
+  total_descuento: 'Monto descontado',
+  porcentaje_efectivo: 'Porcentaje real',
+  total_cancelado: 'Monto cancelado',
+}
+
+const CAMPOS_MONEDA = new Set(['total_descuento', 'total_cancelado'])
+const CAMPOS_PORCENTAJE = new Set(['porcentaje_efectivo'])
+
+const etiquetaCampo = (clave) =>
+  ETIQUETAS_CAMPO[clave] ||
+  clave.replace(/_/g, ' ').replace(/^./, (letra) => letra.toUpperCase())
+
+const formatearValor = (clave, valor) => {
+  if (typeof valor === 'boolean') return valor ? 'Sí' : 'No'
+  if (typeof valor === 'object') return JSON.stringify(valor)
+  if (CAMPOS_MONEDA.has(clave)) return `$${Number(valor).toFixed(2)}`
+  if (CAMPOS_PORCENTAJE.has(clave)) return `${valor}%`
+  return String(valor)
+}
+
+/** Convierte el JSON crudo en filas legibles, descartando lo vacío y lo repetido. */
+const detallesLegibles = (valores) => {
+  // El backend normalmente ya entrega objetos, pero si el JSON viniera mal
+  // formado lo deja como texto; en ese caso más vale mostrarlo que perderlo.
+  if (typeof valores === 'string') {
+    try {
+      valores = JSON.parse(valores)
+    } catch {
+      return [{ clave: 'detalle', etiqueta: 'Detalle', texto: valores }]
+    }
+  }
+  if (!valores || typeof valores !== 'object') return []
+  return Object.entries(valores)
+    .filter(
+      ([clave, valor]) =>
+        !CAMPOS_REDUNDANTES.has(clave) &&
+        valor !== null &&
+        valor !== undefined &&
+        valor !== ''
+    )
+    .map(([clave, valor]) => ({
+      clave,
+      etiqueta: etiquetaCampo(clave),
+      texto: formatearValor(clave, valor),
+    }))
+}
+
 const Bitacora = () => {
   const { obtenerBitacora, loading } = useBitacora()
   const [seccion, setSeccion] = useState('movimientos')
@@ -320,7 +381,12 @@ const Bitacora = () => {
           ) : (
             <>
               <div className="space-y-3">
-                {registros.map((registro) => (
+                {registros.map((registro) => {
+                  const detallesAntes = detallesLegibles(registro.valores_antes)
+                  const detallesDespues = detallesLegibles(registro.valores_despues)
+                  const hayDetalles = detallesAntes.length > 0 || detallesDespues.length > 0
+                  const expandido = registroExpandido === registro.id_bitacora
+                  return (
                   <div
                     key={registro.id_bitacora}
                     className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
@@ -360,14 +426,12 @@ const Bitacora = () => {
                           <p className="text-sm text-gray-700 mb-2">{registro.descripcion}</p>
                         )}
 
-                        {(registro.valores_antes || registro.valores_despues) && (
+                        {hayDetalles && (
                           <button
-                            onClick={() => setRegistroExpandido(
-                              registroExpandido === registro.id_bitacora ? null : registro.id_bitacora
-                            )}
+                            onClick={() => setRegistroExpandido(expandido ? null : registro.id_bitacora)}
                             className="text-sm text-matcha-600 hover:text-matcha-700 flex items-center gap-1"
                           >
-                            {registroExpandido === registro.id_bitacora ? (
+                            {expandido ? (
                               <>
                                 <ChevronUp className="w-4 h-4" />
                                 Ocultar detalles
@@ -375,41 +439,44 @@ const Bitacora = () => {
                             ) : (
                               <>
                                 <Eye className="w-4 h-4" />
-                                Ver detalles de cambios
+                                Ver detalles
                               </>
                             )}
                           </button>
                         )}
 
-                        {registroExpandido === registro.id_bitacora && (
+                        {hayDetalles && expandido && (
                           <div className="mt-3 pt-3 border-t border-gray-200 space-y-3">
-                            {registro.valores_antes && (
-                              <div>
-                                <h4 className="text-xs font-semibold text-gray-700 mb-1">Valores Antes:</h4>
-                                <pre className="bg-gray-50 p-3 rounded text-xs overflow-x-auto">
-                                  {JSON.stringify(registro.valores_antes, null, 2)}
-                                </pre>
-                              </div>
-                            )}
-                            {registro.valores_despues && (
-                              <div>
-                                <h4 className="text-xs font-semibold text-gray-700 mb-1">Valores Después:</h4>
-                                <pre className="bg-gray-50 p-3 rounded text-xs overflow-x-auto">
-                                  {JSON.stringify(registro.valores_despues, null, 2)}
-                                </pre>
-                              </div>
-                            )}
+                            {[
+                              { titulo: 'Antes', filas: detallesAntes },
+                              { titulo: 'Después', filas: detallesDespues },
+                            ]
+                              .filter(({ filas }) => filas.length > 0)
+                              .map(({ titulo, filas }) => (
+                                <div key={titulo}>
+                                  {detallesAntes.length > 0 && detallesDespues.length > 0 && (
+                                    <h4 className="text-xs font-semibold text-gray-700 mb-1">{titulo}</h4>
+                                  )}
+                                  <dl className="bg-gray-50 rounded px-3 py-2 text-xs divide-y divide-gray-200">
+                                    {filas.map(({ clave, etiqueta, texto }) => (
+                                      <div key={clave} className="flex justify-between gap-4 py-1">
+                                        <dt className="text-gray-500">{etiqueta}</dt>
+                                        <dd className="text-gray-900 font-medium text-right">{texto}</dd>
+                                      </div>
+                                    ))}
+                                  </dl>
+                                </div>
+                              ))}
                             {registro.ip_address && (
-                              <div className="text-xs text-gray-500">
-                                IP: {registro.ip_address}
-                              </div>
+                              <div className="text-xs text-gray-400">IP: {registro.ip_address}</div>
                             )}
                           </div>
                         )}
                       </div>
                     </div>
                   </div>
-                ))}
+                  )
+                })}
               </div>
 
               {/* Paginación */}

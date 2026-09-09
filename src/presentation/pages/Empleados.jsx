@@ -799,7 +799,10 @@ const Empleados = () => {
                     <option value="cocina">Cocina</option>
                     <option value="mesero">Mesero</option>
                     <option value="administrador">Administrador</option>
-                    <option value="superadministrador">Super Administrador</option>
+                    {/* El backend lo rechaza igual; aquí solo se evita ofrecerlo */}
+                    {esSuperadmin(usuarioActual) && (
+                      <option value="superadministrador">Super Administrador</option>
+                    )}
                   </select>
                 </div>
 
