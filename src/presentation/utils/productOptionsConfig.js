@@ -170,7 +170,7 @@ export function getExtrasDisponibles() {
 export const PROTEINA_SCOOP_PRECIO = 25
 
 export const MENU_CATEGORY_ORDER = [
-  'Café Caliente',
+  'Bebidas Calientes',
   'Bebidas Frías',
   'Frappés',
   'Recovery Bar',
