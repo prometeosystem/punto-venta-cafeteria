@@ -433,7 +433,16 @@ const Barista = () => {
             const itemsCount = comanda.detalles?.reduce((sum, d) => sum + d.cantidad, 0) || 0
             // Si ya se entregó parte, lo pendiente es una segunda ronda: hay que distinguirla
             const tieneEntregados = comanda.detalles?.some((d) => d.entregado)
+            // Se marca tanto lo pagado como lo pendiente: sin la píldora verde no
+            // se sabe si una comanda ya cobrada está ahí por error.
+            const pagoConocido = comanda.venta_pagada !== undefined && comanda.venta_pagada !== null
+            const sinPagar = comanda.venta_pagada === 0 || comanda.venta_pagada === false
             const tipoServicio = comanda.pedido?.tipo_servicio || comanda.venta?.tipo_servicio
+            const nombreCliente =
+              comanda.pedido?.nombre_cliente ||
+              comanda.venta?.nombre_cliente ||
+              comanda.venta_nombre_cliente ||
+              ''
             const comentarios = comanda.pedido?.comentarios || comanda.venta?.comentarios
             const tipoLecheGlobal = comanda.pedido?.tipo_leche || comanda.venta?.tipo_leche
             const mostrarLecheGlobal =
@@ -455,7 +464,7 @@ const Barista = () => {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 truncate flex items-center gap-1">
                       <User className="w-3.5 h-3.5 text-matcha-600 shrink-0" />
-                      {comanda.pedido?.nombre_cliente || comanda.venta?.nombre_cliente || 'Sin nombre'}
+                      {nombreCliente || 'Sin nombre'}
                     </p>
                     <p className="text-[11px] text-gray-500 flex items-center gap-1">
                       <Clock className="w-3 h-3 shrink-0" />
@@ -480,17 +489,39 @@ const Barista = () => {
                         {tipoServicio === 'comer-aqui' ? 'Comer aquí' : 'Para llevar'}
                       </span>
                     )}
-                    {(comanda.venta_pagada === 0 || comanda.venta_pagada === false) && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-800 border border-red-300">
-                        Sin pagar
+                    {pagoConocido && (
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                          sinPagar
+                            ? 'bg-red-100 text-red-800 border-red-300'
+                            : 'bg-matcha-100 text-matcha-800 border-matcha-300'
+                        }`}
+                      >
+                        {sinPagar ? 'Sin pagar' : 'Pagado'}
                       </span>
                     )}
                   </div>
+                  {/* Lo pagado ya no se puede editar, así que ahí el botón abre una
+                      orden nueva para el mismo cliente en lugar de fallar al guardar. */}
                   <button
-                    onClick={() => navigate('/punto-venta', { state: { editarComandaId: comanda.id_comanda } })}
+                    onClick={() =>
+                      navigate('/punto-venta', {
+                        state: sinPagar
+                          ? { editarComandaId: comanda.id_comanda }
+                          : { nuevaOrdenPara: { nombre: nombreCliente, tipoServicio } },
+                      })
+                    }
                     className="shrink-0 p-2 rounded-lg border-2 border-blue-500/50 text-blue-600 hover:bg-blue-500/10 transition-colors"
-                    title="Agregar más productos a esta comanda"
-                    aria-label="Agregar productos a la comanda"
+                    title={
+                      sinPagar
+                        ? 'Agregar más productos a esta comanda'
+                        : 'Ya está pagada: abre una orden nueva para este cliente'
+                    }
+                    aria-label={
+                      sinPagar
+                        ? 'Agregar productos a la comanda'
+                        : 'Nueva orden para este cliente'
+                    }
                   >
                     <Plus className="w-4 h-4" strokeWidth={3} />
                   </button>

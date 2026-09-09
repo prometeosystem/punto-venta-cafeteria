@@ -101,8 +101,8 @@ const PrinterConnectionButton = ({ printer, className = '', iconOnly = false }) 
     : isConnected
       ? 'Listo'
       : hasSavedDevice
-        ? 'Reconectar'
-        : 'Conectar'
+        ? ''
+        : ''
 
   if (iconOnly) {
     const colorEstado = isConnected ? 'text-emerald-400' : 'text-red-400'

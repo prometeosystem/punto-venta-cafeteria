@@ -1,7 +1,14 @@
 import axios from 'axios'
 
-// Usar variable de entorno, con fallback a localhost para desarrollo local
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+// Sin VITE_API_URL el backend se asume en el mismo host que sirve la app, en el
+// puerto 8000. Asi la tablet apunta sola a la IP de la Mac aunque cambie de red.
+const resolverBaseUrl = () => {
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL
+  if (typeof window === 'undefined') return 'http://localhost:8000'
+  return `${window.location.protocol}//${window.location.hostname}:8000`
+}
+
+export const API_BASE_URL = resolverBaseUrl()
 
 const api = axios.create({
   baseURL: API_BASE_URL,

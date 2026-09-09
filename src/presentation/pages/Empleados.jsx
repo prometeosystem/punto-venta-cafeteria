@@ -331,22 +331,18 @@ const Empleados = () => {
       // PASO 3: PREPARAR LOS DATOS PARA ENVIAR
       // ============================================
       
+      // Los opcionales viajan siempre, en null cuando se vacían: si se omiten
+      // el backend los interpreta como "no cambiar" y no se podrían borrar.
+      const opcional = (valor) => valor?.trim() || null
+
       const empleadoData = {
         nombre: formData.nombre.trim(),
-        apellido_paterno: formData.apellido_paterno.trim(),
+        apellido_paterno: opcional(formData.apellido_paterno),
+        apellido_materno: opcional(formData.apellido_materno),
         correo: formData.correo.trim(),
+        celular: opcional(formData.celular),
         rol: formData.rol,
         activo: formData.activo,
-      }
-
-      // Apellido materno es opcional - solo incluirlo si tiene valor
-      if (formData.apellido_materno?.trim()) {
-        empleadoData.apellido_materno = formData.apellido_materno.trim()
-      }
-
-      // Celular es opcional - solo incluirlo si tiene valor
-      if (formData.celular?.trim()) {
-        empleadoData.celular = formData.celular.trim()
       }
 
       // El código sólo viaja al crear; al editar se cambia con la llave

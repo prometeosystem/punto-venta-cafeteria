@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Bell, CreditCard, Store, Users, Loader2, Tags, ChevronRight } from 'lucide-react'
+import { Bell, CreditCard, Loader2, Tags, ChevronRight } from 'lucide-react'
 import { useUsuarios } from '../hooks/useUsuarios'
 import { useVentas } from '../hooks/useVentas'
 import { useProductos } from '../hooks/useProductos'
@@ -143,52 +143,6 @@ const Configuracion = () => {
         </Link>
       </div>
 
-      {/* Información del negocio */}
-      <div className="card">
-        <div className="flex items-center gap-3 mb-4">
-          <Store className="w-5 h-5 text-matcha-600" />
-          <h2 className="text-lg font-semibold text-gray-900">
-            Información del Negocio
-          </h2>
-        </div>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nombre del Negocio
-            </label>
-            <input
-              type="text"
-              defaultValue="Zona 2 Brunch and Run"
-              className="input"
-              disabled
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Dirección
-            </label>
-            <input type="text" className="input" disabled />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Teléfono
-              </label>
-              <input type="tel" className="input" disabled />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email
-              </label>
-              <input type="email" className="input" disabled />
-            </div>
-          </div>
-          <p className="text-xs text-gray-500 italic">
-            * La configuración de la cafetería se puede gestionar desde la base de datos
-          </p>
-        </div>
-      </div>
-
       <OpcionesProductoConfig />
 
       {/* Métodos de pago en Punto de Venta */}
@@ -210,9 +164,7 @@ const Configuracion = () => {
             >
               <div>
                 <p className="text-gray-900 font-medium">{metodo.label}</p>
-                <p className="text-sm text-gray-500">
-                  Botón en POS: “{metodo.boton}”
-                </p>
+                
               </div>
               <input
                 type="checkbox"

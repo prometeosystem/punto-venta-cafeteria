@@ -13,7 +13,6 @@ const Inventario = lazy(() => import('../pages/Inventario'))
 const Empleados = lazy(() => import('../pages/Empleados'))
 const Reportes = lazy(() => import('../pages/Reportes'))
 const Configuracion = lazy(() => import('../pages/Configuracion'))
-const Loyabit = lazy(() => import('../pages/Loyabit'))
 const Barista = lazy(() => import('../pages/Barista'))
 const Bitacora = lazy(() => import('../pages/Bitacora'))
 const Caja = lazy(() => import('../pages/Caja'))
@@ -54,7 +53,6 @@ function AppRouter() {
         <Route path="barista" element={<RoleProtectedRoute><LazyPage><Barista /></LazyPage></RoleProtectedRoute>} />
         <Route path="productos" element={<RoleProtectedRoute><LazyPage><Productos /></LazyPage></RoleProtectedRoute>} />
         <Route path="inventario" element={<RoleProtectedRoute><LazyPage><Inventario /></LazyPage></RoleProtectedRoute>} />
-        <Route path="loyabit" element={<RoleProtectedRoute><LazyPage><Loyabit /></LazyPage></RoleProtectedRoute>} />
         <Route path="empleados" element={<RoleProtectedRoute><LazyPage><Empleados /></LazyPage></RoleProtectedRoute>} />
         <Route path="reportes" element={<RoleProtectedRoute><LazyPage><Reportes /></LazyPage></RoleProtectedRoute>} />
         <Route path="bitacora" element={<RoleProtectedRoute><LazyPage><Bitacora /></LazyPage></RoleProtectedRoute>} />

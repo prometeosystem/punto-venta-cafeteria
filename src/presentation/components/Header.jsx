@@ -17,7 +17,6 @@ const ROUTE_TITLES = {
   '/barista': 'Comandas',
   '/productos': 'Productos',
   '/inventario': 'Inventario',
-  '/loyabit': 'Loyabit',
   '/empleados': 'Empleados',
   '/reportes': 'Reportes',
   '/contabilidad': 'Contabilidad',

@@ -25,6 +25,12 @@ export const opcionesProductoService = {
     return response.data
   },
 
+  // Borrado real. El backend lo rechaza si alguna orden ya menciona la opción.
+  borrar: async (idOpcion) => {
+    const response = await api.delete(`${BASE}/${idOpcion}/definitivo`)
+    return response.data
+  },
+
   listarGrupos: async (soloActivos = false) => {
     const response = await api.get(`${BASE}/grupos`, { params: { solo_activos: soloActivos } })
     return response.data
@@ -43,6 +49,12 @@ export const opcionesProductoService = {
 
   editarGrupo: async (idGrupo, cambios) => {
     const response = await api.put(`${BASE}/grupos/${idGrupo}`, cambios)
+    return response.data
+  },
+
+  // Borra el grupo y sus opciones. Se rechaza si alguna ya se usó en órdenes.
+  borrarGrupo: async (idGrupo) => {
+    const response = await api.delete(`${BASE}/grupos/${idGrupo}`)
     return response.data
   },
 

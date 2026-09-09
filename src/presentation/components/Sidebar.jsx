@@ -15,7 +15,6 @@ import {
   BarChart3,
   Settings,
   X,
-  ExternalLink,
   Coffee,
   FileText,
   Wallet,
@@ -41,7 +40,6 @@ const menuItems = [
   { path: '/contabilidad', icon: Calculator, label: 'Contabilidad' },
   { path: '/reportes', icon: BarChart3, label: 'Reportes' },
   { path: '/bitacora', icon: FileText, label: 'Bitácora' },
-  { path: '/loyabit', icon: ExternalLink, label: 'Loyabit' },
   { path: '/configuracion', icon: Settings, label: 'Configuración' },
 ]
 

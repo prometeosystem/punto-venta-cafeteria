@@ -266,6 +266,23 @@ const PuntoVenta = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state?.editarComandaId])
 
+  /**
+   * Una comanda pagada es una venta cerrada y no admite cambios, así que lo que
+   * el cliente pida después va en una orden nueva. Solo se hereda el nombre y
+   * el tipo de servicio para no volver a capturarlos; el cobro es aparte.
+   */
+  useEffect(() => {
+    const datos = location.state?.nuevaOrdenPara
+    if (!datos) return
+
+    navigate(location.pathname, { replace: true, state: null })
+    limpiarOrden()
+    setComandaEnEdicion(null)
+    setNombreCliente(datos.nombre || '')
+    setTipoServicio(datos.tipoServicio === 'para-llevar' ? 'para-llevar' : 'comer-aqui')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state?.nuevaOrdenPara])
+
   const addToCart = (product, tipoLecheSeleccionado = null, extrasSeleccionados = [], tipoProteinaSeleccionado = null) => {
     // Crear un ID único que incluya tipo de leche, extras y tipo de proteína para diferenciar productos
     const tipoLecheHash = tipoLecheSeleccionado || 'none'
@@ -955,10 +972,13 @@ const PuntoVenta = () => {
       return
     }
     const nombreParaEnviar = (nombreForzado ?? nombreCliente ?? '').trim()
-    if (!nombreParaEnviar) {
+    // El modal no solo pide el nombre: ahí van los comentarios para el barista y
+    // el tipo de servicio. Por eso se abre en toda orden nueva aunque el nombre
+    // venga heredado; al editar una comanda esos datos ya se capturaron.
+    if (nombreForzado === null && (!comandaEnEdicion || !nombreParaEnviar)) {
       // Modal propio en vez de un prompt de SweetAlert: en tablet necesitamos
       // controlar la posición sobre el teclado y que Cancelar sea confiable.
-      setNombreClienteTemp('')
+      setNombreClienteTemp(nombreParaEnviar)
       setMostrarModalNombreCliente(true)
       return
     }
@@ -2470,6 +2490,23 @@ const PuntoVenta = () => {
                 </div>
               </div>
               */}
+
+              {/* Cuando el cliente paga de una vez, la orden nunca pasó por el
+                  modal de comandas y este es el único lugar donde dar el nombre. */}
+              {!comandaEnEdicion && !comandaTerminadaSeleccionada && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nombre del cliente <span className="text-gray-400">(Opcional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={nombreCliente}
+                    onChange={(e) => setNombreCliente(e.target.value)}
+                    placeholder="Para identificar la comanda"
+                    className="input w-full"
+                  />
+                </div>
+              )}
 
               {/* Totales */}
               <div className="border-t border-gray-200 pt-4 space-y-2">

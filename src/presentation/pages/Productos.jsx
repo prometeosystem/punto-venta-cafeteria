@@ -5,6 +5,7 @@ import { useInventario } from '../hooks/useInventario'
 import { recetasService } from '../../application/services/recetasService'
 import { opcionesProductoService } from '../../application/services/opcionesProductoService'
 import { notificarOpcionesActualizadas } from '../hooks/useOpcionesProducto'
+import { API_BASE_URL } from '../../infrastructure/api'
 import Swal from 'sweetalert2'
 import ImageCropModal from '../components/ImageCropModal'
 
@@ -253,8 +254,7 @@ const Productos = () => {
     setUsandoCategoriaNueva(categoria && !categoriasExistentes.includes(categoria))
     // Cargar imagen existente si hay
     if (producto.id_producto && producto.tipo_imagen) {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
-      setImagenPreview(`${apiUrl}/api/productos/imagen/${producto.id_producto}`)
+      setImagenPreview(`${API_BASE_URL}/api/productos/imagen/${producto.id_producto}`)
     } else {
       setImagenPreview(null)
       setImagenParaRecortar(null)
@@ -596,17 +596,7 @@ const Productos = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-4">
-        <button 
-          onClick={abrirModalCrear}
-          className="btn-primary flex items-center gap-2"
-        >
-          <Plus className="w-5 h-5" />
-          Nuevo Producto
-        </button>
-      </div>
-
-      {/* Filtros y búsqueda */}
+      {/* Filtros, búsqueda y alta */}
       <div className="card">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 relative">
@@ -637,6 +627,13 @@ const Productos = () => {
             <option>Activo</option>
             <option>Inactivo</option>
           </select>
+          <button
+            onClick={abrirModalCrear}
+            className="btn-primary flex items-center justify-center gap-2 shrink-0 whitespace-nowrap"
+          >
+            <Plus className="w-5 h-5" />
+            Nuevo Producto
+          </button>
         </div>
       </div>
 
