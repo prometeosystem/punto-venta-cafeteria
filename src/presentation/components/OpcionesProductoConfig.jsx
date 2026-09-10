@@ -131,7 +131,7 @@ const OpcionesProductoConfig = () => {
   const cambiarDisponibilidadGrupo = async (grupo) => {
     if (grupo.activo) {
       const confirmacion = await Swal.fire({
-        icon: 'question',
+        icon: '',
         title: `¿Retirar “${grupo.nombre}”?`,
         text: 'Dejará de ofrecerse en todos los productos que lo tengan asignado. Las ventas anteriores lo conservan.',
         showCancelButton: true,
@@ -147,7 +147,7 @@ const OpcionesProductoConfig = () => {
   const cambiarDisponibilidadOpcion = async (opcion) => {
     if (opcion.activo) {
       const confirmacion = await Swal.fire({
-        icon: 'question',
+        icon: '',
         title: `¿Quitar ${opcion.nombre} del menú?`,
         text: 'Dejará de ofrecerse al tomar órdenes. Las ventas anteriores lo conservan.',
         showCancelButton: true,

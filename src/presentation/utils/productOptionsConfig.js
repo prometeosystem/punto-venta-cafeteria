@@ -179,6 +179,17 @@ export const MENU_CATEGORY_ORDER = [
   'Signature',
 ]
 
+// Categorías de cocina: solo ellas abren el modal de nota por producto.
+export const CATEGORIAS_COMIDA = ['Clásicos', 'Mini WOD', 'Signature']
+
+export function esProductoComida(productoOrCategoria) {
+  const categoria =
+    typeof productoOrCategoria === 'string'
+      ? productoOrCategoria
+      : productoOrCategoria?.categoria
+  return CATEGORIAS_COMIDA.includes(categoria)
+}
+
 export function getExtraPrecio(extraId) {
   return buscarOpcion(extraId)?.precio ?? 0
 }
@@ -266,7 +277,7 @@ const normalizar = (texto) =>
  */
 export function parseObservacionesProducto(observaciones) {
   if (!observaciones) {
-    return { tipoLeche: null, extras: [], tipoProteina: null, tipoPreparacion: null }
+    return { tipoLeche: null, extras: [], tipoProteina: null, tipoPreparacion: null, comentario: null }
   }
 
   const texto = normalizar(observaciones)
@@ -274,6 +285,7 @@ export function parseObservacionesProducto(observaciones) {
   const extras = []
   let tipoProteina = null
   let tipoPreparacion = null
+  let comentario = null
 
   if (texto.includes('preparacion: frio')) {
     tipoPreparacion = 'heladas'
@@ -311,7 +323,13 @@ export function parseObservacionesProducto(observaciones) {
     tipoProteina = 'scoop'
   }
 
-  return { tipoLeche, extras, tipoProteina, tipoPreparacion }
+  // Nota por producto: se guarda al final como "Nota: ..."
+  const notaMatch = observaciones.match(/(?:^| - )Nota:\s*(.+)$/i)
+  if (notaMatch) {
+    comentario = notaMatch[1].trim() || null
+  }
+
+  return { tipoLeche, extras, tipoProteina, tipoPreparacion, comentario }
 }
 
 export function buildItemObservaciones(item) {
@@ -324,6 +342,10 @@ export function buildItemObservaciones(item) {
   }
   if (item.tipoProteina) {
     observaciones.push('Scoop: Scoop de Proteína')
+  }
+  const nota = (item.comentario || '').trim()
+  if (nota) {
+    observaciones.push(`Nota: ${nota}`)
   }
   return observaciones.length > 0 ? observaciones.join(' - ') : null
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Plus, Minus, Trash2, ShoppingCart, ArrowLeft, Loader2, X, Search, Coins, Percent, Check, CheckCircle, Receipt, ChefHat, Lock } from 'lucide-react'
+import { Plus, Minus, Trash2, ShoppingCart, ArrowLeft, Loader2, X, Search, Coins, Percent, Check, CheckCircle, Receipt, ChefHat, Lock, Bike, Utensils, CreditCard, Banknote, ArrowLeftRight } from 'lucide-react'
 import { useProductos } from '../hooks/useProductos'
 import { useVentas } from '../hooks/useVentas'
 import { useComandas } from '../hooks/useComandas'
@@ -26,6 +26,7 @@ import {
   parseObservacionesProducto,
   productoLlevaLeche,
   productoLlevaProteina,
+  esProductoComida,
   sortMenuCategories,
   tieneScoopProteina,
 } from '../utils/productOptionsConfig'
@@ -75,15 +76,28 @@ const OVERLAY_MODAL =
 const UMBRAL_DESCUENTO_AUTORIZACION = 15
 
 /**
- * El método de pago es una selección, no la acción final. El verde sólido se
- * reserva para "Procesar Venta" y aquí se usa verde tenue, si no los dos
- * botones se ven iguales de un vistazo.
+ * Métodos de pago en fila de iconos. Cada uno tiene su color al seleccionarlo
+ * para distinguirlos de un vistazo; el verde sólido se reserva para Procesar Venta.
  */
-const claseMetodoPago = (seleccionado) =>
-  `w-full py-3 text-lg rounded-lg border-2 transition-colors ${
+const ICONOS_METODO_PAGO = {
+  efectivo: Banknote,
+  tarjeta: CreditCard,
+  delivery: Bike,
+  transferencia: ArrowLeftRight,
+}
+
+const COLORES_METODO_PAGO = {
+  efectivo: 'border-emerald-500 bg-emerald-50 text-emerald-700',
+  tarjeta: 'border-sky-500 bg-sky-50 text-sky-700',
+  delivery: 'border-violet-500 bg-violet-50 text-violet-700',
+  transferencia: 'border-amber-500 bg-amber-50 text-amber-700',
+}
+
+const claseMetodoPago = (id, seleccionado) =>
+  `flex-1 min-w-0 py-2.5 rounded-lg border-2 transition-colors inline-flex items-center justify-center ${
     seleccionado
-      ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-semibold'
-      : 'border-gray-200 bg-white text-gray-600 font-medium hover:border-gray-300 hover:bg-gray-50'
+      ? COLORES_METODO_PAGO[id] || 'border-matcha-500 bg-matcha-50 text-matcha-700'
+      : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:bg-gray-50'
   }`
 
 const PuntoVenta = () => {
@@ -158,6 +172,7 @@ const PuntoVenta = () => {
   // Estados para producto personalizado
   const [nombreProductoPersonalizado, setNombreProductoPersonalizado] = useState('')
   const [precioProductoPersonalizado, setPrecioProductoPersonalizado] = useState('')
+  const [mostrarModalPersonalizado, setMostrarModalPersonalizado] = useState(false)
 
   // Si la caja está cerrada, redirigir a abrir caja
   useEffect(() => {
@@ -283,31 +298,24 @@ const PuntoVenta = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state?.nuevaOrdenPara])
 
-  const addToCart = (product, tipoLecheSeleccionado = null, extrasSeleccionados = [], tipoProteinaSeleccionado = null) => {
-    // Crear un ID único que incluya tipo de leche, extras y tipo de proteína para diferenciar productos
+  const addToCart = (product, tipoLecheSeleccionado = null, extrasSeleccionados = [], tipoProteinaSeleccionado = null, comentarioProducto = null) => {
+    // Crear un ID único que incluya tipo de leche, extras, proteína y nota
     const tipoLecheHash = tipoLecheSeleccionado || 'none'
     const extrasHash = extrasSeleccionados && extrasSeleccionados.length > 0 
       ? extrasSeleccionados.sort().join(',') 
       : 'none'
     const tipoProteinaHash = tipoProteinaSeleccionado || 'none'
-    const uniqueId = `${product.id}-${tipoLecheHash}-${extrasHash}-${tipoProteinaHash}`
+    const comentario = (comentarioProducto || '').trim() || null
+    const comentarioHash = comentario || 'none'
+    const uniqueId = `${product.id}-${tipoLecheHash}-${extrasHash}-${tipoProteinaHash}-${comentarioHash}`
     
-    // Construir observaciones basadas en tipo de leche, extras y tipo de proteína
-    const observaciones = []
-    if (tipoLecheSeleccionado && tipoLecheSeleccionado !== 'entera') {
-      if (tipoLecheSeleccionado === 'deslactosada') {
-        observaciones.push('Leche deslactosada')
-      } else if (tipoLecheSeleccionado === 'almendras') {
-        observaciones.push('Leche de almendras')
-      }
-    }
-    if (extrasSeleccionados && extrasSeleccionados.length > 0) {
-      const extrasNombres = extrasSeleccionados.map((id) => getNombreExtra(id))
-      observaciones.push(`Extras: ${extrasNombres.join(', ')}`)
-    }
-    if (tipoProteinaSeleccionado) {
-      observaciones.push('Scoop: Scoop de Proteína')
-    }
+    // Construir observaciones basadas en tipo de leche, extras, proteína y nota
+    const observaciones = buildItemObservaciones({
+      tipoLeche: tipoLecheSeleccionado,
+      extras: extrasSeleccionados || [],
+      tipoProteina: tipoProteinaSeleccionado,
+      comentario,
+    })
     
     const cartItem = {
       ...product,
@@ -316,7 +324,8 @@ const PuntoVenta = () => {
       tipoLeche: tipoLecheSeleccionado,
       extras: extrasSeleccionados || [],
       tipoProteina: tipoProteinaSeleccionado,
-      observaciones: observaciones.length > 0 ? observaciones.join(' - ') : null,
+      comentario,
+      observaciones,
       quantity: 1
     }
     
@@ -324,7 +333,8 @@ const PuntoVenta = () => {
       item.originalId === product.id && 
       item.tipoLeche === tipoLecheSeleccionado &&
       JSON.stringify(item.extras?.sort() || []) === JSON.stringify((extrasSeleccionados || []).sort()) &&
-      item.tipoProteina === tipoProteinaSeleccionado
+      item.tipoProteina === tipoProteinaSeleccionado &&
+      (item.comentario || null) === comentario
     )
     
     if (existingItem) {
@@ -338,11 +348,33 @@ const PuntoVenta = () => {
     }
   }
   
+  const abrirModalProducto = (product) => {
+    const productId = product.id_producto
+    if (productoExpandido === productId) {
+      setProductoExpandido(null)
+      return
+    }
+    setProductoExpandido(productId)
+    if (!opcionesProductos[productId]) {
+      setOpcionesProductos({
+        ...opcionesProductos,
+        [productId]: {
+          tipoLeche: 'entera',
+          extras: [],
+          tipoProteina: null,
+          comentario: '',
+        },
+      })
+    }
+  }
+
   const handleProductClick = (product) => {
     const { llevaLeche, llevaExtras, llevaProteina } = opcionesDelProducto(product)
+    const necesitaModal = llevaLeche || llevaExtras || llevaProteina || esProductoComida(product)
 
-    // Si no tiene opciones, agregar directamente al carrito
-    if (!llevaLeche && !llevaExtras && !llevaProteina) {
+    // Bebidas sin opciones van directo al carrito; la comida siempre abre modal
+    // aunque no tenga extras, para poder dejar nota a cocina.
+    if (!necesitaModal) {
       addToCart({
         ...product,
         id: product.id_producto,
@@ -351,24 +383,8 @@ const PuntoVenta = () => {
       })
       return
     }
-    
-    // Si tiene opciones, abrir modal de selección
-    const productId = product.id_producto
-    if (productoExpandido === productId) {
-      setProductoExpandido(null)
-    } else {
-      setProductoExpandido(productId)
-      if (!opcionesProductos[productId]) {
-        setOpcionesProductos({
-          ...opcionesProductos,
-          [productId]: {
-            tipoLeche: 'entera',
-            extras: [],
-            tipoProteina: null
-          }
-        })
-      }
-    }
+
+    abrirModalProducto(product)
   }
 
   const cerrarModalOpcionesProducto = () => {
@@ -379,6 +395,7 @@ const PuntoVenta = () => {
           tipoLeche: 'entera',
           extras: [],
           tipoProteina: null,
+          comentario: '',
         },
       }))
     }
@@ -387,9 +404,14 @@ const PuntoVenta = () => {
   
   const confirmarAgregarAlCarrito = (product) => {
     const productId = product.id_producto
-    const opciones = opcionesProductos[productId] || { tipoLeche: 'entera', extras: [], tipoProteina: null }
+    const opciones = opcionesProductos[productId] || {
+      tipoLeche: 'entera',
+      extras: [],
+      tipoProteina: null,
+      comentario: '',
+    }
     const { llevaLeche, llevaExtras, llevaProteina } = opcionesDelProducto(product)
-
+    
     addToCart(
       {
         ...product,
@@ -399,7 +421,8 @@ const PuntoVenta = () => {
       },
       llevaLeche ? opciones.tipoLeche : null,
       llevaExtras ? opciones.extras : [],
-      llevaProteina ? opciones.tipoProteina : null
+      llevaProteina ? opciones.tipoProteina : null,
+      esProductoComida(product) ? opciones.comentario : null
     )
     
     // Colapsar el panel y resetear opciones
@@ -409,8 +432,9 @@ const PuntoVenta = () => {
       [productId]: {
         tipoLeche: 'entera',
         extras: [],
-        tipoProteina: null
-      }
+        tipoProteina: null,
+        comentario: '',
+      },
     })
   }
   
@@ -437,7 +461,7 @@ const PuntoVenta = () => {
   const toggleExtra = (productId, extraId, grupo = null) => {
     const opciones = opcionesProductos[productId] || { tipoLeche: 'entera', extras: [] }
     const extrasActuales = opciones.extras || []
-
+    
     let nuevosExtras
     if (extrasActuales.includes(extraId)) {
       nuevosExtras = extrasActuales.filter((id) => id !== extraId)
@@ -449,7 +473,7 @@ const PuntoVenta = () => {
     } else {
       nuevosExtras = [...extrasActuales, extraId]
     }
-
+    
     setOpcionesProductos({
       ...opcionesProductos,
       [productId]: {
@@ -460,17 +484,32 @@ const PuntoVenta = () => {
   }
 
   const updateQuantity = (id, delta) => {
-    setCart(cart.map(item => {
-      if (item.id === id) {
-        const newQuantity = item.quantity + delta
-        return newQuantity > 0 ? { ...item, quantity: newQuantity } : item
-      }
-      return item
-    }).filter(item => item.quantity > 0))
+    const siguiente = cart
+      .map((item) => {
+        if (item.id === id) {
+          const newQuantity = item.quantity + delta
+          return newQuantity > 0 ? { ...item, quantity: newQuantity } : item
+        }
+        return item
+      })
+      .filter((item) => item.quantity > 0)
+    setCart(siguiente)
+    if (siguiente.length === 0) reiniciarSeleccionDeCobro()
   }
 
   const removeFromCart = (id) => {
-    setCart(cart.filter(item => item.id !== id))
+    const siguiente = cart.filter((item) => item.id !== id)
+    setCart(siguiente)
+    if (siguiente.length === 0) reiniciarSeleccionDeCobro()
+  }
+
+  /** Al vaciar la orden no debe quedar método de pago ni ajustes de la anterior. */
+  const reiniciarSeleccionDeCobro = () => {
+    setMetodoPago(null)
+    setMontoRecibido('')
+    setTipoServicio('comer-aqui')
+    removerPropina()
+    removerDescuento()
   }
 
   /** Precio del renglón tolerante a nulos: `precio` en 0 no debe caer a `price`. */
@@ -635,6 +674,9 @@ const PuntoVenta = () => {
       return
     }
 
+    // Cada apertura del modal parte del estándar: comer aquí, salvo que el
+    // método de pago sea Delivery (ahí el servicio ya está implícito).
+    setTipoServicio(metodoPago === 'delivery' ? 'para-llevar' : 'comer-aqui')
     setMontoRecibido('')
     setMostrarModalFinalizar(true)
   }
@@ -652,7 +694,7 @@ const PuntoVenta = () => {
         icon: 'info',
         title: 'Sin productos',
         text: 'Agrega productos a la orden antes de imprimir la cuenta.',
-        confirmButtonColor: '#10b981',
+      confirmButtonColor: '#10b981',
       })
       return
     }
@@ -729,13 +771,13 @@ const PuntoVenta = () => {
     }
 
     const printResult = imprimirTicket(ticket)
-    if (printResult?.error) {
-      await Swal.fire({
-        icon: 'warning',
-        title: 'No se pudo imprimir',
-        text: printResult.error,
-        confirmButtonColor: '#10b981',
-      })
+      if (printResult?.error) {
+        await Swal.fire({
+          icon: 'warning',
+          title: 'No se pudo imprimir',
+          text: printResult.error,
+          confirmButtonColor: '#10b981',
+        })
     }
   }
 
@@ -972,12 +1014,13 @@ const PuntoVenta = () => {
       return
     }
     const nombreParaEnviar = (nombreForzado ?? nombreCliente ?? '').trim()
-    // El modal no solo pide el nombre: ahí van los comentarios para el barista y
-    // el tipo de servicio. Por eso se abre en toda orden nueva aunque el nombre
-    // venga heredado; al editar una comanda esos datos ya se capturaron.
+    // El modal pide el nombre y el tipo de servicio. Las notas van por producto
+    // en el modal de opciones, no aquí.
     if (nombreForzado === null && (!comandaEnEdicion || !nombreParaEnviar)) {
       // Modal propio en vez de un prompt de SweetAlert: en tablet necesitamos
       // controlar la posición sobre el teclado y que Cancelar sea confiable.
+      // El tipo de servicio se reinicia al abrir, no arrastra la elección anterior.
+      setTipoServicio('comer-aqui')
       setNombreClienteTemp(nombreParaEnviar)
       setMostrarModalNombreCliente(true)
       return
@@ -1066,14 +1109,6 @@ const PuntoVenta = () => {
       setComentarios('')
       removerDescuento()
       await cargarComandasTerminadasSinPagar()
-
-      await Swal.fire({
-        icon: 'success',
-        title: '¡Enviado a comandas!',
-        text: 'La orden se envió sin pagar. Se preparará primero y podrás cobrar cuando esté lista.',
-        confirmButtonColor: '#10b981',
-        timer: 3000,
-      })
     } catch (error) {
       console.error('Error al enviar sin pagar:', error)
       const errorMsg = extraerMensajeError(error, 'Error al enviar a comandas')
@@ -1165,7 +1200,7 @@ const PuntoVenta = () => {
         : propinaPorcentaje === 'personalizado'
           ? montoPropina || 0
           : 0
-    return {
+        return {
       extraLeche,
       extraExtras,
       extraProteina,
@@ -1238,6 +1273,18 @@ const PuntoVenta = () => {
   }
 
   // Función para agregar producto personalizado al carrito
+  const abrirModalPersonalizado = () => {
+    setNombreProductoPersonalizado('')
+    setPrecioProductoPersonalizado('')
+    setMostrarModalPersonalizado(true)
+  }
+
+  const cerrarModalPersonalizado = () => {
+    setMostrarModalPersonalizado(false)
+    setNombreProductoPersonalizado('')
+    setPrecioProductoPersonalizado('')
+  }
+
   const agregarProductoPersonalizado = () => {
     const nombre = nombreProductoPersonalizado.trim()
     const precio = parseFloat(precioProductoPersonalizado)
@@ -1273,10 +1320,7 @@ const PuntoVenta = () => {
 
     // Agregar al carrito
     addToCart(productoPersonalizado)
-
-    // Limpiar campos
-    setNombreProductoPersonalizado('')
-    setPrecioProductoPersonalizado('')
+    cerrarModalPersonalizado()
   }
 
   // La propina por porcentaje se rehace cuando cambia el carrito o el descuento:
@@ -1377,7 +1421,7 @@ const PuntoVenta = () => {
       const producto = productos.find(p => p.id_producto === detalle.id_producto)
       const precio = detalle.precio_unitario != null ? parseFloat(detalle.precio_unitario) : (producto ? parseFloat(producto.precio) : 0)
       const nombre = detalle.producto_nombre || detalle.nombre_producto || (producto?.nombre) || 'Producto'
-      const { tipoLeche, extras, tipoProteina, tipoPreparacion } = parsearObservaciones(detalle.observaciones || '')
+      const { tipoLeche, extras, tipoProteina, tipoPreparacion, comentario } = parsearObservaciones(detalle.observaciones || '')
       const tipoLecheHash = tipoLeche || 'none'
       const extrasHash = extras?.length ? extras.sort().join(',') : 'none'
       const tipoProteinaHash = tipoProteina || 'none'
@@ -1396,6 +1440,7 @@ const PuntoVenta = () => {
         extras: extras || [],
         tipoProteina: tipoProteina || null,
         tipoPreparacion: detalle.tipo_preparacion || tipoPreparacion || null,
+        comentario: comentario || null,
         fromComandaTerminada: true,
       }
       cartItem.observaciones = buildItemObservaciones(cartItem)
@@ -1428,6 +1473,10 @@ const PuntoVenta = () => {
     setNombreCliente('')
     setTipoServicio('comer-aqui')
     setComentarios('')
+    setMetodoPago(null)
+    setMontoRecibido('')
+    removerPropina()
+    removerDescuento()
     subirPanelOrden()
   }
 
@@ -1471,14 +1520,14 @@ const PuntoVenta = () => {
         confirmButtonColor: '#10b981',
         timer: 2200,
       })
-    } catch (error) {
+      } catch (error) {
       const detalle = error?.response?.data?.detail
-      await Swal.fire({
+        await Swal.fire({
         icon: 'error',
         title: 'No se pudo cancelar',
         text: typeof detalle === 'string' ? detalle : 'Intenta de nuevo.',
-        confirmButtonColor: '#10b981',
-      })
+          confirmButtonColor: '#10b981',
+        })
     } finally {
       setCancelandoComanda(false)
     }
@@ -1541,16 +1590,6 @@ const PuntoVenta = () => {
       salirDeEdicion()
       setComandaTerminadaSeleccionada(null)
       await cargarComandasTerminadasSinPagar()
-
-      await Swal.fire({
-        icon: 'success',
-        title: 'Enviado a comandas',
-        text: resultado?.reabierta
-          ? 'Los productos nuevos ya están en la lista del barista.'
-          : 'Los productos se agregaron a la comanda.',
-        timer: 2200,
-        showConfirmButton: false,
-      })
       if (veniaDeBarista) navigate('/barista')
     } catch (error) {
       const errorMsg = error.response?.data?.detail || error.message || 'No se pudo actualizar la comanda'
@@ -1603,9 +1642,9 @@ const PuntoVenta = () => {
   // Función para seleccionar producto desde búsqueda
   const seleccionarProductoDesdeBusqueda = (producto) => {
     const { llevaLeche, llevaExtras, llevaProteina } = opcionesDelProducto(producto)
+    const necesitaModal = llevaLeche || llevaExtras || llevaProteina || esProductoComida(producto)
 
-    if (!llevaLeche && !llevaExtras && !llevaProteina) {
-      // Producto sin opciones: agregar directamente al carrito
+    if (!necesitaModal) {
       addToCart({
         ...producto,
         id: producto.id_producto,
@@ -1616,18 +1655,7 @@ const PuntoVenta = () => {
       return
     }
 
-    // Producto con opciones: abrir modal
-    setProductoExpandido(producto.id_producto)
-    if (!opcionesProductos[producto.id_producto]) {
-      setOpcionesProductos({
-        ...opcionesProductos,
-        [producto.id_producto]: {
-          tipoLeche: 'entera',
-          extras: [],
-          tipoProteina: null,
-        },
-      })
-    }
+    abrirModalProducto(producto)
     setSearchTerm('')
     setHighlightedProduct(null)
   }
@@ -1654,7 +1682,7 @@ const PuntoVenta = () => {
     const isHighlighted = highlightedProduct === product.id_producto
     const isSelected = productoExpandido === product.id_producto
 
-    return (
+  return (
       <button
         key={product.id_producto}
         type="button"
@@ -1675,12 +1703,18 @@ const PuntoVenta = () => {
     ? productos.find((p) => p.id_producto === productoExpandido)
     : null
   const opcionesModal = productoExpandido
-    ? (opcionesProductos[productoExpandido] || { tipoLeche: 'entera', extras: [], tipoProteina: null })
+    ? (opcionesProductos[productoExpandido] || {
+        tipoLeche: 'entera',
+        extras: [],
+        tipoProteina: null,
+        comentario: '',
+      })
     : null
   const opcionesDelModal = opcionesDelProducto(productoOpcionesModal)
   const modalLlevaLeche = opcionesDelModal.llevaLeche
   const modalLlevaExtras = opcionesDelModal.llevaExtras
   const modalLlevaProteina = opcionesDelModal.llevaProteina
+  const modalEsComida = esProductoComida(productoOpcionesModal)
   // Cada grupo asignado al producto se pinta como una sección propia ("Extras",
   // "Agrega Power", "Toppings"). Sin grupos cargados se cae a la lista completa.
   const gruposDelModal = opcionesDelModal.grupos.length
@@ -1688,12 +1722,14 @@ const PuntoVenta = () => {
     : modalLlevaExtras
       ? [{ clave: 'extras', nombre: 'Extras', seleccion: 'multiple', opciones: getExtrasDisponibles() }]
       : []
+  const modalSoloNota =
+    modalEsComida && !modalLlevaLeche && !modalLlevaExtras && !modalLlevaProteina && gruposDelModal.length === 0
 
   return (
     <div className="h-full min-h-0 pt-3 px-2 pb-2 flex flex-col landscape:flex-row gap-2 overflow-hidden">
       {/* Catálogo */}
       <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-2 overflow-hidden">
-        {/* Barra superior compacta */}
+        {/* Barra superior: solo buscador */}
         <div className="shrink-0 flex gap-2 items-center">
           <div className="relative flex-1 min-w-0">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
@@ -1716,35 +1752,6 @@ const PuntoVenta = () => {
               </button>
             )}
           </div>
-          <input
-            type="text"
-            value={nombreProductoPersonalizado}
-            onChange={(e) => setNombreProductoPersonalizado(e.target.value)}
-            placeholder="Producto personalizado"
-            className="input py-2.5 text-sm flex-1 min-w-0"
-            maxLength="100"
-          />
-          <div className="relative w-28 shrink-0">
-            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
-            <input
-              type="number"
-              value={precioProductoPersonalizado}
-              onChange={(e) => setPrecioProductoPersonalizado(e.target.value)}
-              placeholder="0"
-              className="input w-full pl-6 py-2.5 text-sm"
-              min="0"
-              step="0.01"
-            />
-          </div>
-          <button
-            onClick={agregarProductoPersonalizado}
-            disabled={!nombreProductoPersonalizado.trim() || !precioProductoPersonalizado}
-            className="btn-primary py-2.5 px-4 text-sm disabled:opacity-50 shrink-0 inline-flex items-center gap-1.5 min-h-[42px]"
-            title="Agregar personalizado"
-          >
-            <Plus className="w-5 h-5" />
-            <span className="hidden sm:inline">Agregar</span>
-          </button>
         </div>
 
         {/* Área con scroll propio: categorías o productos */}
@@ -1755,10 +1762,19 @@ const PuntoVenta = () => {
             ) : (
               <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2">
                 {productosFiltrados.map((product) => renderProductTile(product))}
-              </div>
+                  </div>
             )
           ) : !categoriaActiva ? (
             <div className="grid grid-cols-[repeat(auto-fill,minmax(115px,1fr))] gap-2">
+              <button
+                type="button"
+                onClick={abrirModalPersonalizado}
+                className="min-h-[76px] rounded-xl border-2 border-gray-200 bg-gray-50 hover:border-matcha-500 hover:bg-matcha-50 active:scale-[0.98] transition-all p-2 flex flex-col items-center justify-center text-center"
+              >
+                <span className="font-semibold text-gray-900 text-sm leading-tight">
+                  Personalizado
+                </span>
+              </button>
               {categories.map((category) => {
                 const count = productosDeCategoria(category).length
                 return (
@@ -1779,20 +1795,20 @@ const PuntoVenta = () => {
               
               <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2 pt-1">
                 {/* Casilla volver también en la grilla */}
-                <button
-                  type="button"
+                                <button
+                                  type="button"
                   onClick={volverACategorias}
                   className="min-h-[88px] rounded-xl border-2 border-dashed border-gray-300 bg-white hover:bg-gray-50 p-3 flex flex-col items-center justify-center text-gray-600 text-sm font-medium"
-                >
+                                >
                   <ArrowLeft className="w-5 h-5 mb-1" />
                   Categorías
-                </button>
+                                </button>
                 {productosDeCategoria(categoriaActiva).map((product) => renderProductTile(product))}
-              </div>
-            </div>
-          )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
         </div>
-      </div>
 
         {/* Ticket / orden — scroll propio */}
         <div
@@ -1881,7 +1897,7 @@ const PuntoVenta = () => {
                         </button>
                       )}
                     </div>
-                    </div>
+                  </div>
                   </div>
                 </div>
 
@@ -1907,7 +1923,7 @@ const PuntoVenta = () => {
                     // comanda ni cobrándola: el backend cobra el total guardado,
                     // así que cambiarlo aquí solo desajustaría lo que se ve.
                     const bloqueado = Boolean(item.entregado)
-
+                    
                     return (
                       <div
                         key={item.id}
@@ -1963,6 +1979,11 @@ const PuntoVenta = () => {
                               </span>
                             ))}
                           </div>
+                          {item.comentario && (
+                            <p className="text-xs text-amber-800 italic mt-1.5 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                              {item.comentario}
+                            </p>
+                          )}
                           <p className="text-sm text-gray-500 mt-2">
                             ${precioItem(item).toFixed(2)} c/u
                           </p>
@@ -1972,29 +1993,29 @@ const PuntoVenta = () => {
                             x{item.quantity}
                           </span>
                         ) : (
-                          <div className="flex items-center gap-2 ml-2">
-                            <button
-                              onClick={() => updateQuantity(item.id, -1)}
-                              className="p-1 rounded hover:bg-gray-200 transition-colors"
-                            >
-                              <Minus className="w-4 h-4 text-gray-600" />
-                            </button>
-                            <span className="w-8 text-center font-medium text-gray-900">
-                              {item.quantity}
-                            </span>
-                            <button
-                              onClick={() => updateQuantity(item.id, 1)}
-                              className="p-1 rounded hover:bg-gray-200 transition-colors"
-                            >
-                              <Plus className="w-4 h-4 text-gray-600" />
-                            </button>
-                            <button
-                              onClick={() => removeFromCart(item.id)}
-                              className="p-1 rounded hover:bg-red-100 transition-colors ml-2"
-                            >
-                              <Trash2 className="w-4 h-4 text-red-600" />
-                            </button>
-                          </div>
+                        <div className="flex items-center gap-2 ml-2">
+                          <button
+                            onClick={() => updateQuantity(item.id, -1)}
+                            className="p-1 rounded hover:bg-gray-200 transition-colors"
+                          >
+                            <Minus className="w-4 h-4 text-gray-600" />
+                          </button>
+                          <span className="w-8 text-center font-medium text-gray-900">
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() => updateQuantity(item.id, 1)}
+                            className="p-1 rounded hover:bg-gray-200 transition-colors"
+                          >
+                            <Plus className="w-4 h-4 text-gray-600" />
+                          </button>
+                          <button
+                            onClick={() => removeFromCart(item.id)}
+                            className="p-1 rounded hover:bg-red-100 transition-colors ml-2"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-600" />
+                          </button>
+                        </div>
                         )}
                       </div>
                     )
@@ -2013,7 +2034,7 @@ const PuntoVenta = () => {
                       propinaLabel,
                       totalFinal,
                     } = resumenOrden()
-
+                    
                     return (
                       <>
                         <div className="space-y-2">
@@ -2073,7 +2094,7 @@ const PuntoVenta = () => {
                           Hay productos nuevos sin preparar. Envíalos a comandas antes de cobrar la mesa.
                         </p>
                       )}
-                      <button
+                  <button
                         onClick={guardarEdicionComanda}
                         disabled={procesando || comandaLoading || !hayItemsNuevos}
                         className="btn-primary w-full py-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
@@ -2127,21 +2148,29 @@ const PuntoVenta = () => {
 
                   {puedeCobrarOrden && (
                     <>
-                  <div className={`grid gap-3 ${metodosPagoActivos.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
-                    {metodosPagoActivos.map((metodo) => (
-                      <button
-                        key={metodo.id}
-                        onClick={() => setMetodoPago(metodo.id)}
-                        className={claseMetodoPago(metodoPago === metodo.id)}
-                      >
-                        {metodo.boton}
-                      </button>
-                    ))}
+                  <div className="flex gap-2">
+                    {metodosPagoActivos.map((metodo) => {
+                      const Icono = ICONOS_METODO_PAGO[metodo.icono] || Banknote
+                      return (
+                        <button
+                          key={metodo.id}
+                          type="button"
+                          onClick={() => setMetodoPago(metodo.id)}
+                          className={claseMetodoPago(metodo.id, metodoPago === metodo.id)}
+                          title={metodo.label}
+                          aria-label={metodo.label}
+                          aria-pressed={metodoPago === metodo.id}
+                        >
+                          <Icono className="w-6 h-6" />
+                        </button>
+                      )
+                    })}
                   </div>
                   <button
                     onClick={abrirModalFinalizar}
-                    disabled={procesando || ventaLoading || comandaLoading}
+                    disabled={!metodoPago || procesando || ventaLoading || comandaLoading}
                     className="btn-primary w-full py-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    title={!metodoPago ? 'Selecciona un método de pago' : undefined}
                   >
                     {(procesando || ventaLoading || comandaLoading) && (
                       <Loader2 className="w-5 h-5 animate-spin" />
@@ -2219,15 +2248,83 @@ const PuntoVenta = () => {
                         >
                           <Receipt className="w-3.5 h-3.5" />
                           Cuenta
-                        </button>
+                      </button>
                       </div>
                     </div>
                   )
                 })}
               </div>
             </div>
-          )}
+              )}
+            </div>
+
+      {/* Modal producto personalizado */}
+      {mostrarModalPersonalizado && (
+        <div className={OVERLAY_MODAL} onClick={cerrarModalPersonalizado}>
+          <div
+            className="bg-white rounded-lg shadow-xl max-w-sm w-full mt-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <form
+              className="p-4 space-y-3"
+              onSubmit={(e) => {
+                e.preventDefault()
+                agregarProductoPersonalizado()
+              }}
+            >
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nombre del producto
+                </label>
+                <input
+                  type="text"
+                  autoFocus
+                  value={nombreProductoPersonalizado}
+                  onChange={(e) => setNombreProductoPersonalizado(e.target.value)}
+                  placeholder="Ej: Extra shot, postre del día"
+                  className="input w-full"
+                  maxLength={100}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Precio
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={precioProductoPersonalizado}
+                    onChange={(e) => setPrecioProductoPersonalizado(e.target.value)}
+                    placeholder="0.00"
+                    className="input w-full pl-7"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={cerrarModalPersonalizado}
+                  className="flex-1 py-2.5 rounded-lg border-2 border-red-200 text-red-600 font-medium hover:bg-red-50 hover:border-red-300 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={!nombreProductoPersonalizado.trim() || !precioProductoPersonalizado}
+                  className="btn-primary flex-1 py-2.5 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-1.5"
+                >
+                  
+                  Agregar
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
+      )}
 
       {/* Modal opciones de producto (leche / extras / proteína) */}
       {productoOpcionesModal && opcionesModal && (
@@ -2239,19 +2336,18 @@ const PuntoVenta = () => {
             className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+            <div className="flex items-center justify-between p-2 border-b border-gray-200">
               <div className="min-w-0 pr-2">
                 <h2 className="text-xl font-bold text-gray-900 truncate">{productoOpcionesModal.nombre}</h2>
-                <p className="text-sm text-gray-500 mt-0.5">Elige las opciones</p>
               </div>
-              <button
+                      <button
                 type="button"
                 onClick={cerrarModalOpcionesProducto}
                 className="p-2 rounded-lg hover:bg-gray-100 transition-colors shrink-0"
               >
                 <X className="w-5 h-5 text-gray-600" />
               </button>
-            </div>
+                          </div>
 
             <div className="p-4 space-y-5">
               {modalLlevaLeche && (
@@ -2273,8 +2369,8 @@ const PuntoVenta = () => {
                         {opt.extra > 0 ? ` (+$${opt.extra})` : ''}
                       </button>
                     ))}
-                  </div>
-                </div>
+                        </div>
+                          </div>
               )}
 
               {gruposDelModal.map((grupo) => {
@@ -2283,10 +2379,8 @@ const PuntoVenta = () => {
                   <div key={grupo.clave}>
                     <div className="flex items-baseline gap-2 mb-2">
                       <p className="text-sm font-medium text-gray-700">{grupo.nombre}</p>
-                      <span className="text-xs text-gray-400">
-                        {eligeUna ? 'Elige una' : 'Puedes elegir varias'}
-                      </span>
-                    </div>
+                      
+                          </div>
                     <div className="grid grid-cols-1 gap-2">
                       {grupo.opciones.map((opcion) => {
                         const activo = (opcionesModal.extras || []).includes(opcion.id)
@@ -2323,10 +2417,10 @@ const PuntoVenta = () => {
                           </button>
                         )
                       })}
+                        </div>
                     </div>
-                  </div>
-                )
-              })}
+                  )
+                })}
 
               {modalLlevaProteina && (
                 <div>
@@ -2347,6 +2441,29 @@ const PuntoVenta = () => {
                   >
                     Scoop proteína (+${PROTEINA_SCOOP_PRECIO})
                   </button>
+                </div>
+              )}
+
+              {modalEsComida && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Nota para cocina
+                  </label>
+                  <textarea
+                    value={opcionesModal.comentario || ''}
+                    onChange={(e) =>
+                      setOpcionesProductos((prev) => ({
+                        ...prev,
+                        [productoOpcionesModal.id_producto]: {
+                          ...(prev[productoOpcionesModal.id_producto] || {}),
+                          comentario: e.target.value,
+                        },
+                      }))
+                    }
+                    rows={2}
+                    placeholder="Sin cebolla, poco picante, etc."
+                    className="input w-full resize-none text-base"
+                  />
                 </div>
               )}
             </div>
@@ -2404,34 +2521,23 @@ const PuntoVenta = () => {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { valor: 'comer-aqui', texto: 'Comer aquí' },
-                  { valor: 'para-llevar', texto: 'Para llevar' },
-                ].map((opcion) => (
+                  { valor: 'comer-aqui', texto: 'Comer aquí', Icono: Utensils },
+                  { valor: 'para-llevar', texto: 'Delivery', Icono: Bike },
+                ].map(({ valor, texto, Icono }) => (
                   <button
-                    key={opcion.valor}
+                    key={valor}
                     type="button"
-                    onClick={() => setTipoServicio(opcion.valor)}
-                    className={`py-2.5 px-3 rounded-lg border-2 text-sm transition-all ${
-                      tipoServicio === opcion.valor
+                    onClick={() => setTipoServicio(valor)}
+                    className={`py-2.5 px-3 rounded-lg border-2 text-sm transition-all inline-flex items-center justify-center gap-2 ${
+                      tipoServicio === valor
                         ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
                         : 'border-gray-200 text-gray-600 hover:border-gray-300'
                     }`}
                   >
-                    {opcion.texto}
+                    <Icono className="w-4 h-4" />
+                    {texto}
                   </button>
                 ))}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nota para el barista <span className="text-gray-400">(Opcional)</span>
-                </label>
-                <textarea
-                  value={comentarios}
-                  onChange={(e) => setComentarios(e.target.value)}
-                  rows={2}
-                  placeholder="Sin azúcar, extra caliente, etc."
-                  className="input w-full resize-none"
-                />
               </div>
               <div className="flex gap-2">
                 <button
@@ -2494,17 +2600,41 @@ const PuntoVenta = () => {
               {/* Cuando el cliente paga de una vez, la orden nunca pasó por el
                   modal de comandas y este es el único lugar donde dar el nombre. */}
               {!comandaEnEdicion && !comandaTerminadaSeleccionada && (
-                <div>
+              <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Nombre del cliente <span className="text-gray-400">(Opcional)</span>
-                  </label>
+                </label>
                   <input
                     type="text"
                     value={nombreCliente}
                     onChange={(e) => setNombreCliente(e.target.value)}
                     placeholder="Para identificar la comanda"
                     className="input w-full"
-                  />
+                />
+              </div>
+              )}
+
+              {/* En efectivo/tarjeta hay que preguntar; con método Delivery ya se sabe. */}
+              {metodoPago !== 'delivery' && (
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { valor: 'comer-aqui', texto: 'Comer aquí', Icono: Utensils },
+                    { valor: 'para-llevar', texto: 'Delivery', Icono: Bike },
+                  ].map(({ valor, texto, Icono }) => (
+                    <button
+                      key={valor}
+                      type="button"
+                      onClick={() => setTipoServicio(valor)}
+                      className={`py-2.5 px-3 rounded-lg border-2 text-sm transition-all inline-flex items-center justify-center gap-2 ${
+                        tipoServicio === valor
+                          ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
+                          : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                      }`}
+                    >
+                      <Icono className="w-4 h-4" />
+                      {texto}
+                    </button>
+                  ))}
                 </div>
               )}
 
@@ -2569,8 +2699,8 @@ const PuntoVenta = () => {
                   <div className="border-t border-gray-200 pt-4 space-y-2">
                     <label className="block text-sm font-medium text-gray-700">
                       Paga con <span className="text-gray-400">(Opcional)</span>
-                    </label>
-                    <input
+                </label>
+                <input
                       type="number"
                       inputMode="decimal"
                       min="0"
@@ -2578,7 +2708,7 @@ const PuntoVenta = () => {
                       placeholder={`Ej: ${Math.ceil(totalACobrar / 50) * 50}`}
                       value={montoRecibido}
                       onChange={(e) => setMontoRecibido(e.target.value)}
-                      className="input w-full"
+                  className="input w-full"
                     />
                     {cambio != null && (
                       <div
@@ -2588,11 +2718,11 @@ const PuntoVenta = () => {
                       >
                         <span>{cambio < 0 ? 'Faltan:' : 'Cambio:'}</span>
                         <span>${Math.abs(cambio).toFixed(2)}</span>
-                      </div>
-                    )}
-                  </div>
-                )
-              })()}
+                        </div>
+                      )}
+                        </div>
+                  )
+                })()}
             </div>
 
             {/* Footer */}
@@ -2801,21 +2931,21 @@ const PuntoVenta = () => {
                   const seleccionado = descuentoTipo === 'porcentaje' && descuentoValor === porcentaje
                   const pideCodigo = descuentoNecesitaAutorizacion('porcentaje', porcentaje)
                   return (
-                    <button
+                <button
                       key={porcentaje}
                       onClick={() => seleccionarDescuento(porcentaje)}
                       title={pideCodigo ? 'Requiere código de autorización' : undefined}
                       className={`relative py-4 px-2 rounded-lg border-2 transition-all text-center ${
                         seleccionado
-                          ? 'border-amber-500 bg-amber-50'
-                          : 'border-gray-200 hover:border-amber-500 hover:bg-amber-50'
-                      }`}
-                    >
+                      ? 'border-amber-500 bg-amber-50'
+                      : 'border-gray-200 hover:border-amber-500 hover:bg-amber-50'
+                  }`}
+                >
                       <div className="text-2xl font-bold text-gray-900">{porcentaje}%</div>
                       {pideCodigo && (
                         <Lock className="w-3.5 h-3.5 text-amber-600 absolute top-1.5 right-1.5" />
                       )}
-                    </button>
+                </button>
                   )
                 })}
               </div>

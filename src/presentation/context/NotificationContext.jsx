@@ -405,22 +405,38 @@ export const NotificationProvider = ({ children }) => {
     }
   }, [addNotification])
 
-  // Escuchar eventos de comanda terminada para verificar stock inmediatamente
+  // Escuchar eventos de comanda terminada: toast (si ya está pagada) + verificar stock
   useEffect(() => {
-    const handleComandaTerminada = () => {
+    const handleComandaTerminada = (event) => {
+      const { numero_dia, nombre_cliente, venta_sin_pagar } = event.detail || {}
+
+      // Sin pagar ya tiene su propia notificación "Lista para cobrar"
+      if (!venta_sin_pagar) {
+        const mensaje = numero_dia != null && numero_dia !== ''
+          ? `Pedido del día #${numero_dia}${nombre_cliente ? ` · ${nombre_cliente}` : ''} listo para entregar`
+          : nombre_cliente
+            ? `${nombre_cliente} — listo para entregar`
+            : 'La comanda está lista para entregar'
+        addNotification({
+          tipo: 'comanda-terminada',
+          titulo: 'Comanda terminada',
+          mensaje,
+          icono: 'check'
+        })
+      }
+
       // Esperar un pequeño delay para asegurar que el backend haya actualizado el inventario
       setTimeout(() => {
         verificarInsumosStock()
-      }, 500) // 500ms de delay para dar tiempo al backend
+      }, 500)
     }
 
-    // Escuchar eventos personalizados
     window.addEventListener('comanda-terminada', handleComandaTerminada)
 
     return () => {
       window.removeEventListener('comanda-terminada', handleComandaTerminada)
     }
-  }, [verificarInsumosStock])
+  }, [verificarInsumosStock, addNotification])
 
   // Verificar insumos periódicamente (cada 2 minutos)
   useEffect(() => {

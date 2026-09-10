@@ -76,7 +76,7 @@ const Caja = () => {
     const confirm = await Swal.fire({
       title: '¿Cerrar caja?',
       html: `Esperado: ${formatMoney(esperado)}<br>Contado: ${formatMoney(contado)}<br>Diferencia: ${formatMoney(diferencia)}`,
-      icon: 'question',
+      icon: '',
       showCancelButton: true,
       confirmButtonText: 'Cerrar caja',
     })

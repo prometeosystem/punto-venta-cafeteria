@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CheckCircle, Clock, User, Package, Loader2, Plus } from 'lucide-react'
+import { CheckCircle, Package, Loader2, Plus } from 'lucide-react'
 import { useComandas } from '../hooks/useComandas'
 import { useProductos } from '../hooks/useProductos'
 import { useInventario } from '../hooks/useInventario'
@@ -36,6 +36,12 @@ const Barista = () => {
       ]
         .filter(comanda => comanda.estado === 'pendiente' || comanda.estado === 'en_preparacion')
         .sort((a, b) => {
+          const tipoA = a.pedido?.tipo_servicio || a.venta?.tipo_servicio || a.venta_tipo_servicio
+          const tipoB = b.pedido?.tipo_servicio || b.venta?.tipo_servicio || b.venta_tipo_servicio
+          const esDeliveryA = tipoA === 'para-llevar' || tipoA === 'delivery' ? 0 : 1
+          const esDeliveryB = tipoB === 'para-llevar' || tipoB === 'delivery' ? 0 : 1
+          if (esDeliveryA !== esDeliveryB) return esDeliveryA - esDeliveryB
+
           const fechaA = new Date(a.fecha_creacion || a.fecha_venta)
           const fechaB = new Date(b.fecha_creacion || b.fecha_venta)
           return fechaA - fechaB
@@ -166,13 +172,49 @@ const Barista = () => {
       })
   }
 
+  const emitirComandaTerminada = (idComanda, respuesta = {}, comandaRef = null) => {
+    const numeroDia = respuesta.numero_dia ?? comandaRef?.numero_dia ?? null
+    const nombreCliente =
+      respuesta.nombre_cliente ??
+      comandaRef?.pedido?.nombre_cliente ??
+      comandaRef?.venta?.nombre_cliente ??
+      comandaRef?.venta_nombre_cliente ??
+      null
+    const idVenta = respuesta.id_venta ?? comandaRef?.id_venta ?? null
+    const ventaSinPagar = !!respuesta.venta_sin_pagar
+
+    window.dispatchEvent(new CustomEvent('comanda-actualizada'))
+    window.dispatchEvent(new CustomEvent('comanda-terminada', {
+      detail: {
+        id_comanda: idComanda,
+        id_venta: idVenta,
+        numero_dia: numeroDia,
+        nombre_cliente: nombreCliente,
+        venta_sin_pagar: ventaSinPagar,
+      }
+    }))
+    if (ventaSinPagar) {
+      window.dispatchEvent(new CustomEvent('comanda-lista-para-cobrar', {
+        detail: {
+          id_comanda: idComanda,
+          id_venta: idVenta,
+          numero_dia: numeroDia,
+          nombre_cliente: nombreCliente,
+        }
+      }))
+    }
+  }
+
   // Función para marcar comanda como terminada
-  const marcarComoTerminada = async (idComanda) => {
+  const marcarComoTerminada = async (comanda) => {
+    const idComanda = typeof comanda === 'object' ? comanda.id_comanda : comanda
+    const comandaRef = typeof comanda === 'object' ? comanda : null
     try {
       const result = await Swal.fire({
         title: '¿Marcar como terminada?',
-        text: 'Esta comanda estará lista para entregar al cliente',
-        icon: 'question',
+        text: '',
+        icon: '',
+        position: 'top',
         showCancelButton: true,
         confirmButtonColor: '#10b981',
         cancelButtonColor: '#6b7280',
@@ -210,6 +252,7 @@ const Barista = () => {
                 icon: 'warning',
                 title: 'Stock Insuficiente',
                 html: htmlContent,
+                position: 'top',
                 showCancelButton: true,
                 showDenyButton: true,
                 showConfirmButton: false,
@@ -228,6 +271,7 @@ const Barista = () => {
                     icon: 'error',
                     title: 'Error',
                     text: respuestaContinuar.error,
+                    position: 'top',
                     confirmButtonColor: '#10b981',
                   })
                   await cargarComandas(true)
@@ -235,25 +279,7 @@ const Barista = () => {
                 }
                 // Éxito - continuar con flujo normal de comanda terminada
                 await cargarComandas(true)
-                window.dispatchEvent(new CustomEvent('comanda-actualizada'))
-                window.dispatchEvent(new CustomEvent('comanda-terminada', { detail: { id_comanda: idComanda } }))
-                if (respuestaContinuar?.venta_sin_pagar) {
-                  window.dispatchEvent(new CustomEvent('comanda-lista-para-cobrar', {
-                    detail: {
-                      id_comanda: idComanda,
-                      id_venta: respuestaContinuar.id_venta,
-                      numero_dia: respuestaContinuar.numero_dia,
-                      nombre_cliente: respuestaContinuar.nombre_cliente
-                    }
-                  }))
-                }
-                await Swal.fire({
-                  icon: 'success',
-                  title: '¡Comanda terminada!',
-                  text: 'La comanda está lista para entregar. Recuerda actualizar el inventario para corregir las cantidades negativas.',
-                  confirmButtonColor: '#10b981',
-                  timer: 3000,
-                })
+                emitirComandaTerminada(idComanda, respuestaContinuar, comandaRef)
               }
               await cargarComandas(true)
               return
@@ -262,41 +288,7 @@ const Barista = () => {
           
           // ✅ IMPORTANTE: Refrescar la lista para que la comanda terminada desaparezca
           await cargarComandas(true)
-          
-          // Notificar a otras instancias que se actualizó una comanda
-          window.dispatchEvent(new CustomEvent('comanda-actualizada'))
-          
-          // ✅ Disparar evento para verificar stock inmediatamente después de terminar comanda
-          window.dispatchEvent(new CustomEvent('comanda-terminada', {
-            detail: { id_comanda: idComanda }
-          }))
-          // Si la venta estaba sin pagar, notificar al Punto de Venta para cobrar
-          if (respuesta?.venta_sin_pagar) {
-            window.dispatchEvent(new CustomEvent('comanda-lista-para-cobrar', {
-              detail: {
-                id_comanda: idComanda,
-                id_venta: respuesta.id_venta,
-                numero_dia: respuesta.numero_dia,
-                nombre_cliente: respuesta.nombre_cliente
-              }
-            }))
-          }
-          
-          // Mostrar información detallada si hay insumos restados
-          let mensaje = 'La comanda está lista para entregar.'
-          if (respuesta?.insumos_restados && respuesta.insumos_restados.length > 0) {
-            mensaje += `\n\nSe restaron ${respuesta.total_insumos_restados || respuesta.insumos_restados.length} insumo(s) del inventario.`
-          } else {
-            mensaje += '\n\nLos insumos se han restado automáticamente del inventario.'
-          }
-          
-          await Swal.fire({
-            icon: 'success',
-            title: '¡Comanda terminada!',
-            text: mensaje,
-            confirmButtonColor: '#10b981',
-            timer: 3000,
-          })
+          emitirComandaTerminada(idComanda, respuesta, comandaRef)
         } catch (error) {
           if (import.meta.env.DEV) {
             console.error('Error al marcar como terminada:', error)
@@ -330,6 +322,7 @@ const Barista = () => {
                 icon: 'warning',
                 title: 'Stock Insuficiente',
                 html: htmlContent,
+                position: 'top',
                 showCancelButton: true,
                 showDenyButton: true,
                 showConfirmButton: false,
@@ -348,35 +341,19 @@ const Barista = () => {
                       icon: 'error',
                       title: 'Error',
                       text: respuestaContinuar.error,
+                      position: 'top',
                       confirmButtonColor: '#10b981',
                     })
                   } else {
                     await cargarComandas(true)
-                    window.dispatchEvent(new CustomEvent('comanda-actualizada'))
-                    window.dispatchEvent(new CustomEvent('comanda-terminada', { detail: { id_comanda: idComanda } }))
-                    if (respuestaContinuar?.venta_sin_pagar) {
-                      window.dispatchEvent(new CustomEvent('comanda-lista-para-cobrar', {
-                        detail: {
-                          id_comanda: idComanda,
-                          id_venta: respuestaContinuar.id_venta,
-                          numero_dia: respuestaContinuar.numero_dia,
-                          nombre_cliente: respuestaContinuar.nombre_cliente
-                        }
-                      }))
-                    }
-                    await Swal.fire({
-                      icon: 'success',
-                      title: '¡Comanda terminada!',
-                      text: 'La comanda está lista para entregar. Recuerda actualizar el inventario para corregir las cantidades negativas.',
-                      confirmButtonColor: '#10b981',
-                      timer: 3000,
-                    })
+                    emitirComandaTerminada(idComanda, respuestaContinuar, comandaRef)
                   }
                 } catch (errContinuar) {
                   await Swal.fire({
                     icon: 'error',
                     title: 'Error',
                     text: errContinuar.response?.data?.detail || errContinuar.message || 'Error al terminar la comanda',
+                    position: 'top',
                     confirmButtonColor: '#10b981',
                   })
                 }
@@ -392,6 +369,7 @@ const Barista = () => {
             icon: 'error',
             title: 'Error',
             text: errorMsg,
+            position: 'top',
             confirmButtonColor: '#10b981',
           })
         }
@@ -404,6 +382,7 @@ const Barista = () => {
         icon: 'error',
         title: 'Error',
         text: 'Ocurrió un error inesperado. Por favor, intenta nuevamente.',
+        position: 'top',
         confirmButtonColor: '#10b981',
       })
     }
@@ -430,7 +409,6 @@ const Barista = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
           {comandas.map((comanda) => {
-            const itemsCount = comanda.detalles?.reduce((sum, d) => sum + d.cantidad, 0) || 0
             // Si ya se entregó parte, lo pendiente es una segunda ronda: hay que distinguirla
             const tieneEntregados = comanda.detalles?.some((d) => d.entregado)
             // Se marca tanto lo pagado como lo pendiente: sin la píldora verde no
@@ -438,6 +416,7 @@ const Barista = () => {
             const pagoConocido = comanda.venta_pagada !== undefined && comanda.venta_pagada !== null
             const sinPagar = comanda.venta_pagada === 0 || comanda.venta_pagada === false
             const tipoServicio = comanda.pedido?.tipo_servicio || comanda.venta?.tipo_servicio
+            const esDelivery = tipoServicio === 'para-llevar' || tipoServicio === 'delivery'
             const nombreCliente =
               comanda.pedido?.nombre_cliente ||
               comanda.venta?.nombre_cliente ||
@@ -462,39 +441,27 @@ const Barista = () => {
                     {comanda.numero_dia ?? comanda.id_comanda}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate flex items-center gap-1">
-                      <User className="w-3.5 h-3.5 text-matcha-600 shrink-0" />
+                    <p className="text-sm font-semibold text-gray-900 truncate">
                       {nombreCliente || 'Sin nombre'}
                     </p>
-                    <p className="text-[11px] text-gray-500 flex items-center gap-1">
-                      <Clock className="w-3 h-3 shrink-0" />
+                    <p className="text-[11px] text-gray-500">
                       {formatHora(comanda.fecha_creacion || comanda.fecha_venta)}
-                      <span>·</span>
-                      <span>{itemsCount} items</span>
-                      <span>·</span>
-                      <span className="font-medium text-gray-700">
-                        ${parseFloat(comanda.total || 0).toFixed(2)}
-                      </span>
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0">
                     {tipoServicio && (
                       <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                          tipoServicio === 'comer-aqui'
-                            ? 'bg-blue-100 text-blue-700'
-                            : 'bg-purple-100 text-purple-700'
+                        className={`text-[10px] font-bold tracking-wide uppercase leading-none ${
+                          esDelivery ? 'text-violet-700' : 'text-blue-700'
                         }`}
                       >
-                        {tipoServicio === 'comer-aqui' ? 'Comer aquí' : 'Para llevar'}
+                        {esDelivery ? 'Delivery' : 'Comer aquí'}
                       </span>
                     )}
                     {pagoConocido && (
                       <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
-                          sinPagar
-                            ? 'bg-red-100 text-red-800 border-red-300'
-                            : 'bg-matcha-100 text-matcha-800 border-matcha-300'
+                        className={`text-[10px] font-bold tracking-wide uppercase leading-none ${
+                          sinPagar ? 'text-red-700' : 'text-matcha-700'
                         }`}
                       >
                         {sinPagar ? 'Sin pagar' : 'Pagado'}
@@ -548,6 +515,7 @@ const Barista = () => {
                     const tipoLecheObs = observaciones.find(obs => obs.includes('Leche'))
                     const extrasObs = observaciones.find(obs => obs.includes('Extras:'))
                     const tipoProteinaObs = observaciones.find(obs => obs.includes('Proteína:') || obs.includes('Proteina:') || obs.includes('Scoop:'))
+                    const notaObs = observaciones.find(obs => obs.startsWith('Nota:'))
                     const tipoPreparacion = detalle.tipo_preparacion
                     const otrasObs = observaciones.filter(obs =>
                       !obs.includes('Leche') &&
@@ -555,9 +523,10 @@ const Barista = () => {
                       !obs.includes('Preparación:') &&
                       !obs.includes('Scoop:') &&
                       !obs.includes('Proteína:') &&
-                      !obs.includes('Proteina:')
+                      !obs.includes('Proteina:') &&
+                      !obs.startsWith('Nota:')
                     )
-                    const tieneDetalles = tipoPreparacion || tipoLecheObs || extrasObs || tipoProteinaObs || otrasObs.length > 0
+                    const tieneDetalles = tipoPreparacion || tipoLecheObs || extrasObs || tipoProteinaObs || notaObs || otrasObs.length > 0
 
                     const yaEntregado = Boolean(detalle.entregado)
 
@@ -604,6 +573,11 @@ const Barista = () => {
                                   {extrasObs.replace('Extras: ', '')}
                                 </span>
                               )}
+                              {notaObs && (
+                                <span className="w-full mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-900 border border-amber-200 italic">
+                                  {notaObs.replace(/^Nota:\s*/i, '')}
+                                </span>
+                              )}
                               {otrasObs.map((obs, obsIndex) => (
                                 <span key={obsIndex} className="text-[10px] text-gray-600 italic">
                                   {obs}
@@ -625,7 +599,7 @@ const Barista = () => {
 
                 <div className="flex justify-end mt-2">
                   <button
-                    onClick={() => marcarComoTerminada(comanda.id_comanda)}
+                    onClick={() => marcarComoTerminada(comanda)}
                     disabled={loading}
                     className="px-7 py-2 rounded-lg border-2 border-matcha-500 bg-matcha-500/15 text-matcha-700 hover:bg-matcha-500/25 active:bg-matcha-500/35 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Marcar como listo y entregado; la mesa queda abierta en el punto de venta"

@@ -1,14 +1,16 @@
 const STORAGE_KEY = 'zona2_metodos_pago'
 
 export const METODOS_PAGO_DISPONIBLES = [
-  { id: 'efectivo', label: 'Efectivo', boton: '$ Efectivo' },
-  { id: 'tarjeta', label: 'Tarjeta de Débito/Crédito', boton: 'Tarjeta' },
-  { id: 'transferencia', label: 'Transferencia Bancaria', boton: 'Transferencia' },
+  { id: 'efectivo', label: 'Efectivo', boton: '$ Efectivo', icono: 'efectivo' },
+  { id: 'tarjeta', label: 'Tarjeta', boton: 'Tarjeta', icono: 'tarjeta' },
+  { id: 'delivery', label: 'Delivery', boton: 'Delivery', icono: 'delivery' },
+  { id: 'transferencia', label: 'Transferencia Bancaria', boton: 'Transferencia', icono: 'transferencia' },
 ]
 
 const DEFAULTS = {
   efectivo: true,
   tarjeta: true,
+  delivery: true,
   transferencia: false,
 }
 

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { Bell, Package, X, AlertTriangle, DollarSign } from 'lucide-react'
+import { Bell, Package, X, AlertTriangle, DollarSign, CheckCircle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useNotifications } from '../context/NotificationContext'
 
@@ -98,6 +98,7 @@ const NotificationsBell = ({ variant = 'header' }) => {
                     notification.tipo === 'comanda' ? 'bg-matcha-100' :
                     notification.tipo === 'inventario' ? (notification.estado === 'critical' ? 'bg-red-100' : 'bg-yellow-100') :
                     notification.tipo === 'comanda-lista-cobrar' ? 'bg-amber-100' :
+                    notification.tipo === 'comanda-terminada' ? 'bg-emerald-100' :
                     'bg-gray-100'
                   }`}>
                     {notification.icono === 'package' ? (
@@ -112,6 +113,8 @@ const NotificationsBell = ({ variant = 'header' }) => {
                       }`} />
                     ) : notification.icono === 'dollar-sign' ? (
                       <DollarSign className="w-6 h-6 text-amber-600" />
+                    ) : notification.icono === 'check' ? (
+                      <CheckCircle className="w-6 h-6 text-emerald-600" />
                     ) : (
                       <Bell className={`w-6 h-6 ${
                         notification.tipo === 'comanda' ? 'text-matcha-600' :
