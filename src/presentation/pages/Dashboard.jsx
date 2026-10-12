@@ -19,6 +19,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import { useVentas } from '../hooks/useVentas'
+import { servicioDe } from '../utils/tipoServicio'
 import { useComandas } from '../hooks/useComandas'
 import { useReportes } from '../hooks/useReportes'
 import { useProductos } from '../hooks/useProductos'
@@ -49,6 +50,38 @@ const COLORES_METODO = {
   transferencia: { bg: 'bg-sky-100', text: 'text-sky-700', icon: 'text-sky-600' },
 }
 
+// Columnas según el ancho real (con el sidebar abierto el contenido es más
+// angosto que la pantalla). Solo 5, 4 o 2 para que las 10 tarjetas cierren
+// parejas: 5-5, 4-4-2 o 2-2-2-2-2.
+const columnasResumen = (ancho) => (ancho >= 1150 ? 5 : ancho >= 880 ? 4 : 2)
+
+const useColumnasResumen = () => {
+  const [nodo, setNodo] = useState(null)
+  const [columnas, setColumnas] = useState(5)
+  useEffect(() => {
+    if (!nodo) return undefined
+    const observador = new ResizeObserver(([entrada]) => {
+      setColumnas(columnasResumen(entrada.contentRect.width))
+    })
+    observador.observe(nodo)
+    return () => observador.disconnect()
+  }, [nodo])
+  return [setNodo, columnas]
+}
+
+const TarjetaResumen = ({ titulo, valor, detalle, Icono, colorValor = 'text-gray-900', colorFondo, colorIcono }) => (
+  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 min-w-0">
+    <div className="flex items-start justify-between gap-2">
+      <p className="text-sm text-gray-600 leading-tight min-w-0">{titulo}</p>
+      <div className={`p-2 rounded-lg shrink-0 ${colorFondo}`}>
+        <Icono className={`w-4 h-4 ${colorIcono}`} />
+      </div>
+    </div>
+    <p className={`text-2xl font-bold tabular-nums truncate ${colorValor}`}>{valor}</p>
+    <p className="text-xs text-gray-500 mt-0.5 truncate">{detalle}</p>
+  </div>
+)
+
 const labelMetodoPago = (metodo) => {
   if (!metodo) return '—'
   const found = METODOS_PAGO_DISPONIBLES.find((m) => m.id === metodo)
@@ -56,6 +89,7 @@ const labelMetodoPago = (metodo) => {
 }
 
 const Dashboard = () => {
+  const [refResumen, columnas] = useColumnasResumen()
   const { obtenerVentas, obtenerVenta } = useVentas()
   const { obtenerComandas } = useComandas()
   const { obtenerVentasPorDia, obtenerProductosMasVendidos, obtenerPropinasPorFecha, obtenerDescuentosPorFecha } = useReportes()
@@ -263,119 +297,39 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      {/* Cards resumen del día (igual que reportes) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-        <div className="card">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Ventas Totales</p>
-              <p className="text-2xl font-bold text-gray-900">${formatPrecio(ventasTotales)}</p>
-              <p className="text-xs text-gray-500 mt-1">Hoy</p>
-            </div>
-            <div className="p-3 bg-matcha-100 rounded-lg">
-              <DollarSign className="w-6 h-6 text-matcha-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Total Descuentos</p>
-              <p className="text-2xl font-bold text-amber-600">${formatPrecio(totalDescuentos)}</p>
-              <p className="text-xs text-gray-500 mt-1">Hoy</p>
-            </div>
-            <div className="p-3 bg-amber-100 rounded-lg">
-              <Percent className="w-6 h-6 text-amber-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Total Propinas</p>
-              <p className="text-2xl font-bold text-matcha-600">${formatPrecio(totalPropinas)}</p>
-              <p className="text-xs text-gray-500 mt-1">Hoy</p>
-            </div>
-            <div className="p-3 bg-matcha-100 rounded-lg">
-              <Coins className="w-6 h-6 text-matcha-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Ticket Promedio</p>
-              <p className="text-2xl font-bold text-gray-900">${formatPrecio(ticketPromedio)}</p>
-              <p className="text-xs text-gray-500 mt-1">Por venta</p>
-            </div>
-            <div className="p-3 bg-green-100 rounded-lg">
-              <TrendingUp className="w-6 h-6 text-green-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Órdenes Activas</p>
-              <p className="text-2xl font-bold text-gray-900">{ordenesActivas}</p>
-              <p className="text-xs text-gray-500 mt-1">En cocina</p>
-            </div>
-            <div className="p-3 bg-coffee-100 rounded-lg">
-              <ShoppingCart className="w-6 h-6 text-coffee-600" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-4">
-        <div className="card flex-1 min-w-[200px]">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Productos Vendidos</p>
-              <p className="text-2xl font-bold text-gray-900">{productosVendidos}</p>
-              <p className="text-xs text-gray-500 mt-1">Unidades de hoy</p>
-            </div>
-            <div className="p-3 bg-coffee-100 rounded-lg">
-              <Package className="w-6 h-6 text-coffee-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="card flex-1 min-w-[200px]">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Cantidad de ventas</p>
-              <p className="text-2xl font-bold text-gray-900">{pedidosTotales}</p>
-              <p className="text-xs text-gray-500 mt-1">Tickets de hoy</p>
-            </div>
-            <div className="p-3 bg-matcha-100 rounded-lg">
-              <Package className="w-6 h-6 text-matcha-600" />
-            </div>
-          </div>
-        </div>
-
+      {/* Cards resumen del día */}
+      <div
+        ref={refResumen}
+        className="grid gap-3"
+        style={{ gridTemplateColumns: `repeat(${columnas}, minmax(0, 1fr))` }}
+      >
+        <TarjetaResumen titulo="Ventas Totales" valor={`$${formatPrecio(ventasTotales)}`} detalle="Hoy"
+          Icono={DollarSign} colorFondo="bg-matcha-100" colorIcono="text-matcha-600" />
+        <TarjetaResumen titulo="Total Descuentos" valor={`$${formatPrecio(totalDescuentos)}`} detalle="Hoy"
+          Icono={Percent} colorValor="text-amber-600" colorFondo="bg-amber-100" colorIcono="text-amber-600" />
+        <TarjetaResumen titulo="Total Propinas" valor={`$${formatPrecio(totalPropinas)}`} detalle="Hoy"
+          Icono={Coins} colorValor="text-matcha-600" colorFondo="bg-matcha-100" colorIcono="text-matcha-600" />
+        <TarjetaResumen titulo="Ticket Promedio" valor={`$${formatPrecio(ticketPromedio)}`} detalle="Por venta"
+          Icono={TrendingUp} colorFondo="bg-green-100" colorIcono="text-green-600" />
+        <TarjetaResumen titulo="Órdenes Activas" valor={ordenesActivas} detalle="En cocina"
+          Icono={ShoppingCart} colorFondo="bg-coffee-100" colorIcono="text-coffee-600" />
+        <TarjetaResumen titulo="Productos Vendidos" valor={productosVendidos} detalle="Unidades de hoy"
+          Icono={Package} colorFondo="bg-coffee-100" colorIcono="text-coffee-600" />
+        <TarjetaResumen titulo="Cantidad de ventas" valor={pedidosTotales} detalle="Tickets de hoy"
+          Icono={Package} colorFondo="bg-matcha-100" colorIcono="text-matcha-600" />
         {conteoPorMetodo.map((metodo) => {
-          const Icono = ICONOS_METODO[metodo.id] || CreditCard
           const colores = COLORES_METODO[metodo.id] || COLORES_METODO.tarjeta
           return (
-            <div key={metodo.id} className="card flex-1 min-w-[200px]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">{metodo.label}</p>
-                  <p className={`text-2xl font-bold ${colores.text}`}>{metodo.cantidad}</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {metodo.cantidad === 1 ? 'venta' : 'ventas'}
-                  </p>
-                </div>
-                <div className={`p-3 ${colores.bg} rounded-lg`}>
-                  <Icono className={`w-6 h-6 ${colores.icon}`} />
-                </div>
-              </div>
-            </div>
+            <TarjetaResumen
+              key={metodo.id}
+              titulo={metodo.label}
+              valor={metodo.cantidad}
+              detalle={metodo.cantidad === 1 ? 'venta' : 'ventas'}
+              Icono={ICONOS_METODO[metodo.id] || CreditCard}
+              colorValor={colores.text}
+              colorFondo={colores.bg}
+              colorIcono={colores.icon}
+            />
           )
         })}
       </div>
@@ -399,8 +353,8 @@ const Dashboard = () => {
               <AreaChart data={ventasSemana}>
                 <defs>
                   <linearGradient id="colorVentasSemana" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#5a8f5a" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#5a8f5a" stopOpacity={0.1} />
+                    <stop offset="5%" stopColor="#3d6b4f" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="#3d6b4f" stopOpacity={0.1} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -419,16 +373,16 @@ const Dashboard = () => {
                     const fecha = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
                     return fecha.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'short' })
                   }}
-                  contentStyle={{ backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                  contentStyle={{ backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '5px' }}
                 />
                 <Legend />
                 <Area
                   type="monotone"
                   dataKey="total_ventas"
-                  stroke="#5a8f5a"
+                  stroke="#3d6b4f"
                   strokeWidth={3}
                   fill="url(#colorVentasSemana)"
-                  dot={{ fill: '#5a8f5a', r: 4, strokeWidth: 2, stroke: '#fff' }}
+                  dot={{ fill: '#3d6b4f', r: 4, strokeWidth: 2, stroke: '#fff' }}
                   activeDot={{ r: 6 }}
                   name="Ventas ($)"
                 />
@@ -440,6 +394,7 @@ const Dashboard = () => {
         <div className="card">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
             Productos Más Vendidos
+            <span className="ml-2 text-xs font-normal text-gray-500">últimos 30 días</span>
           </h2>
           <div className="space-y-3">
             {productosMasVendidos.length === 0 ? (
@@ -453,6 +408,11 @@ const Dashboard = () => {
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-900 truncate">{product.nombre}</p>
                     <p className="text-sm text-gray-500">{product.categoria}</p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-lg tabular-nums text-gray-900 leading-none">
+                      {Number(product.cantidad_vendida) || 0}
+                    </p>
                   </div>
                 </div>
               ))
@@ -475,7 +435,7 @@ const Dashboard = () => {
             <input
               type="text"
               className="input pl-9 pr-9"
-              placeholder="Buscar por cliente, producto, total o # venta..."
+              placeholder="Buscar por cliente, producto, total o ticket..."
               value={busquedaVentas}
               onChange={(e) => setBusquedaVentas(e.target.value)}
             />
@@ -510,7 +470,7 @@ const Dashboard = () => {
             >
               <option value="">Todos los tipos de servicio</option>
               <option value="comer-aqui">Comer aquí</option>
-              <option value="para-llevar">Delivery</option>
+              <option value="para-llevar">Para llevar</option>
             </select>
           </div>
         </div>
@@ -542,6 +502,7 @@ const Dashboard = () => {
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200">
+                <th className="text-left py-3 px-4 font-semibold text-gray-900">Ticket</th>
                 <th className="text-left py-3 px-4 font-semibold text-gray-900">Fecha</th>
                 <th className="text-left py-3 px-4 font-semibold text-gray-900">Cliente</th>
                 <th className="text-center py-3 px-4 font-semibold text-gray-900">Productos</th>
@@ -555,13 +516,13 @@ const Dashboard = () => {
             <tbody>
               {ventas.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="py-8 text-center text-gray-500">
+                  <td colSpan="9" className="py-8 text-center text-gray-500">
                     No hay ventas hoy
                   </td>
                 </tr>
               ) : ventasFiltradas.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="py-8 text-center text-gray-500">
+                  <td colSpan="9" className="py-8 text-center text-gray-500">
                     No hay ventas que coincidan con la búsqueda o filtros
                   </td>
                 </tr>
@@ -571,6 +532,9 @@ const Dashboard = () => {
                     key={venta.id_venta}
                     className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
                   >
+                    <td className="py-3 px-4 text-gray-900 font-medium tabular-nums">
+                      {venta.id_venta}
+                    </td>
                     <td className="py-3 px-4 text-gray-900 whitespace-nowrap">
                       {formatearFechaHora(venta.fecha_venta)}
                     </td>
@@ -616,8 +580,7 @@ const Dashboard = () => {
                         onClick={() => abrirModalDetalles(venta)}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-matcha-700 border border-matcha-200 rounded-lg hover:bg-matcha-50 transition-colors"
                       >
-                        <Eye className="w-3.5 h-3.5" />
-                        Ver detalles
+                        <Eye className="w-5 h-5" />
                       </button>
                     </td>
                   </tr>
@@ -714,7 +677,7 @@ const Dashboard = () => {
                       <div>
                         <p className="text-sm text-gray-600 mb-1">Tipo de servicio</p>
                         <p className="font-medium text-gray-900">
-                          {ventaDetalle.tipo_servicio === 'comer-aqui' ? 'Comer aquí' : 'Delivery'}
+                          {servicioDe(ventaDetalle.tipo_servicio, ventaDetalle.metodo_pago)?.texto}
                         </p>
                       </div>
                     )}

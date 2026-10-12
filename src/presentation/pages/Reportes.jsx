@@ -20,10 +20,11 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { useVentas } from '../hooks/useVentas'
+import { servicioDe } from '../utils/tipoServicio'
 import { useReportes } from '../hooks/useReportes'
 import { useProductos } from '../hooks/useProductos'
 import { useAuth } from '../context/AuthContext'
-import { formatPrecio, formatNumber } from '../utils/numberFormatter'
+import { formatPrecio, formatMedida } from '../utils/numberFormatter'
 import { METODOS_PAGO_DISPONIBLES } from '../utils/metodosPagoConfig'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -365,7 +366,7 @@ const Reportes = () => {
       rec.nombre,
       `${rec.stock_actual} ${rec.unidad_medida}`,
       `${rec.stock_minimo} ${rec.unidad_medida}`,
-      `${formatNumber(rec.cantidad_recomendada, true)} ${rec.unidad_medida}`,
+      `${formatMedida(rec.cantidad_recomendada)} ${rec.unidad_medida}`,
       `$${formatPrecio(rec.costo_estimado)}`,
       rec.urgencia.toUpperCase()
     ])
@@ -597,8 +598,8 @@ const Reportes = () => {
               <AreaChart data={ventasPorDia}>
                 <defs>
                   <linearGradient id="colorVentas" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#5a8f5a" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#5a8f5a" stopOpacity={0.1} />
+                    <stop offset="5%" stopColor="#3d6b4f" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="#3d6b4f" stopOpacity={0.1} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -620,10 +621,10 @@ const Reportes = () => {
                 <Area
                   type="monotone"
                   dataKey="total_ventas"
-                  stroke="#5a8f5a"
+                  stroke="#3d6b4f"
                   strokeWidth={3}
                   fill="url(#colorVentas)"
-                  dot={{ fill: '#5a8f5a', r: 5, strokeWidth: 2, stroke: '#fff' }}
+                  dot={{ fill: '#3d6b4f', r: 5, strokeWidth: 2, stroke: '#fff' }}
                   activeDot={{ r: 7 }}
                   name="Ventas ($)"
                 />
@@ -667,15 +668,15 @@ const Reportes = () => {
                 <Legend />
                 <defs>
                   <linearGradient id="colorBarras" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#5a8f5a" stopOpacity={0.8} />
-                    <stop offset="95%" stopColor="#5a8f5a" stopOpacity={0.4} />
+                    <stop offset="5%" stopColor="#3d6b4f" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="#3d6b4f" stopOpacity={0.4} />
                   </linearGradient>
                 </defs>
                 <Bar
                   dataKey="cantidad_vendida"
                   fill="url(#colorBarras)"
                   name="Cantidad Vendida"
-                  stroke="#5a8f5a"
+                  stroke="#3d6b4f"
                   strokeWidth={1}
                 />
               </BarChart>
@@ -703,7 +704,7 @@ const Reportes = () => {
             <input
               type="text"
               className="input pl-9 pr-9"
-              placeholder="Buscar por cliente, producto, total o # venta..."
+              placeholder="Buscar por cliente, producto, total o ticket..."
               value={busquedaVentas}
               onChange={(e) => setBusquedaVentas(e.target.value)}
             />
@@ -738,7 +739,7 @@ const Reportes = () => {
             >
               <option value="">Todos los tipos de servicio</option>
               <option value="comer-aqui">Comer aquí</option>
-              <option value="para-llevar">Delivery</option>
+              <option value="para-llevar">Para llevar</option>
             </select>
           </div>
         </div>
@@ -770,6 +771,7 @@ const Reportes = () => {
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200">
+                <th className="text-left py-3 px-4 font-semibold text-gray-900">Ticket</th>
                 <th className="text-left py-3 px-4 font-semibold text-gray-900">Fecha</th>
                 <th className="text-left py-3 px-4 font-semibold text-gray-900">Cliente</th>
                 <th className="text-center py-3 px-4 font-semibold text-gray-900">Productos</th>
@@ -783,19 +785,19 @@ const Reportes = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="py-8 text-center text-gray-500">
+                  <td colSpan="9" className="py-8 text-center text-gray-500">
                     <Loader2 className="w-6 h-6 animate-spin text-matcha-600 mx-auto" />
                   </td>
                 </tr>
               ) : ventas.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="py-8 text-center text-gray-500">
+                  <td colSpan="9" className="py-8 text-center text-gray-500">
                     No hay ventas en el período seleccionado
                   </td>
                 </tr>
               ) : ventasFiltradas.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="py-8 text-center text-gray-500">
+                  <td colSpan="9" className="py-8 text-center text-gray-500">
                     No hay ventas que coincidan con la búsqueda o filtros
                   </td>
                 </tr>
@@ -805,6 +807,9 @@ const Reportes = () => {
                     key={venta.id_venta}
                     className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
                   >
+                    <td className="py-3 px-4 text-gray-900 font-medium tabular-nums">
+                      {venta.id_venta}
+                    </td>
                     <td className="py-3 px-4 text-gray-900 whitespace-nowrap">
                       {formatearFechaHora(venta.fecha_venta)}
                     </td>
@@ -994,14 +999,14 @@ const Reportes = () => {
                           {rec.stock_minimo} {rec.unidad_medida}
                         </td>
                         <td className="py-3 px-4 text-gray-600">
-                          {formatNumber(rec.consumo_promedio_diario, true)} {rec.unidad_medida}
+                          {formatMedida(rec.consumo_promedio_diario)} {rec.unidad_medida}
                         </td>
                         <td className="py-3 px-4 text-gray-600">
-                          {formatNumber(rec.consumo_proyectado_mes, true)} {rec.unidad_medida}
+                          {formatMedida(rec.consumo_proyectado_mes)} {rec.unidad_medida}
                         </td>
                         <td className="py-3 px-4">
                           <span className="font-semibold text-matcha-600">
-                            {formatNumber(rec.cantidad_recomendada, true)} {rec.unidad_medida}
+                            {formatMedida(rec.cantidad_recomendada)} {rec.unidad_medida}
                           </span>
                         </td>
                         <td className="py-3 px-4">
@@ -1092,7 +1097,7 @@ const Reportes = () => {
                       <div>
                         <p className="text-sm text-gray-600 mb-1">Tipo de servicio</p>
                         <p className="font-medium text-gray-900">
-                          {ventaDetalle.tipo_servicio === 'comer-aqui' ? 'Comer aquí' : 'Delivery'}
+                          {servicioDe(ventaDetalle.tipo_servicio, ventaDetalle.metodo_pago)?.texto}
                         </p>
                       </div>
                     )}

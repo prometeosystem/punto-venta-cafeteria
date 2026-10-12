@@ -32,6 +32,12 @@ export const comandasService = {
     return response.data
   },
 
+  // Comandas terminadas hoy, la más reciente primero
+  obtenerHistorialDia: async () => {
+    const response = await api.get('/api/comandas/historial_dia')
+    return response.data
+  },
+
   // Cancelar comanda: no la borra, la marca como cancelada y salda la venta
   // con un descuento del 100%. `autorizacion` es el código o la contraseña de
   // un administrador, y solo hace falta si el rol no es admin/superadmin.
@@ -42,10 +48,14 @@ export const comandasService = {
 
   // Actualizar estado de comanda
   // permitirStockNegativo: si true, permite terminar comanda aunque haya stock insuficiente (inventario puede quedar negativo)
-  actualizarEstadoComanda: async (idComanda, estado, permitirStockNegativo = false) => {
+  // `area` ('cocina' | 'barra') entrega solo los productos de esa área
+  actualizarEstadoComanda: async (idComanda, estado, permitirStockNegativo = false, area = null) => {
     let url = `/api/comandas/actualizar_estado_comanda/${idComanda}?estado=${estado}`
     if (permitirStockNegativo) {
       url += '&permitir_stock_negativo=true'
+    }
+    if (area) {
+      url += `&area=${area}`
     }
     const response = await api.put(url)
     return response.data

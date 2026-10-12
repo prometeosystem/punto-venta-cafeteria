@@ -127,12 +127,30 @@ export const AuthProvider = ({ children }) => {
     setUsuario(null)
   }
 
+  const actualizarPerfil = async (datos) => {
+    const perfil = await authService.actualizarPerfil(datos)
+    setUsuario(perfil)
+    return perfil
+  }
+
+  const cambiarCodigo = async (codigoActual, codigoNuevo) => {
+    const response = await authService.cambiarCodigo(codigoActual, codigoNuevo)
+    setUsuario((actual) => {
+      const siguiente = { ...actual, debe_cambiar_codigo: false }
+      localStorage.setItem('usuario', JSON.stringify(siguiente))
+      return siguiente
+    })
+    return response
+  }
+
   const value = {
     usuario,
     loading,
     login,
     loginConCodigo,
     logout,
+    actualizarPerfil,
+    cambiarCodigo,
     isAuthenticated: !!usuario,
   }
 

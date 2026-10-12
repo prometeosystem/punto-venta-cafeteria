@@ -48,5 +48,34 @@
   .animate-fadeIn {
     animation: fadeIn 0.3s ease-out;
   }
+
+  .login-marquee {
+    display: flex;
+    width: max-content;
+    --marquee-dist: 2400;
+    animation: login-desliza linear infinite;
+    /* Misma velocidad en px/s: la duración crece con lo largo del texto. */
+    animation-duration: calc(var(--marquee-dist) / 26 * 1s);
+  }
+
+  .login-marquee-lenta {
+    animation-direction: reverse;
+  }
+
+  .login-usuarios {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(168, 194, 88, 0.5) transparent;
+  }
+
+  @keyframes login-desliza {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .login-marquee {
+      animation: none;
+    }
+  }
 }
 

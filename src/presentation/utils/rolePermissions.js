@@ -27,6 +27,7 @@ const routePermissions = {
   '/categorias-movimiento': ['administrador', 'superadministrador'],
   '/contabilidad': ['administrador', 'superadministrador'],
   '/test-sonidos': ['administrador', 'superadministrador'], // Ruta de prueba para sonidos
+  '/mi-perfil': ['vendedor', 'cocina', 'mesero', 'administrador', 'superadministrador'],
 }
 
 /**

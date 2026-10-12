@@ -101,6 +101,16 @@ export const useUsuarios = () => {
     }
   }
 
+  const restablecerCodigo = async (idUsuario) => {
+    try {
+      const response = await usuariosService.restablecerCodigo(idUsuario)
+      await obtenerUsuarios()
+      return response
+    } catch (err) {
+      throw err.response?.data || err
+    }
+  }
+
   const quitarCodigo = async (idUsuario) => {
     try {
       const response = await usuariosService.quitarCodigo(idUsuario)
@@ -133,6 +143,7 @@ export const useUsuarios = () => {
     editarUsuario,
     eliminarUsuario,
     definirCodigo,
+    restablecerCodigo,
     quitarCodigo,
   }
 }

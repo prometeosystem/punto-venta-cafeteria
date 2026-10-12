@@ -26,7 +26,7 @@ const PrinterConnectionButton = ({ printer, className = '', iconOnly = false }) 
         icon: 'warning',
         title: 'Bluetooth no disponible',
         text: 'Usa Chrome o Edge en HTTPS o localhost para conectar la impresora.',
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
       })
       return
     }
@@ -43,7 +43,7 @@ const PrinterConnectionButton = ({ printer, className = '', iconOnly = false }) 
         confirmButtonText: 'Probar impresión',
         denyButtonText: 'Desconectar',
         cancelButtonText: 'Cerrar',
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
         denyButtonColor: '#ef4444',
       })
       if (result.isConfirmed) {
@@ -60,7 +60,7 @@ const PrinterConnectionButton = ({ printer, className = '', iconOnly = false }) 
             icon: 'error',
             title: 'Error al imprimir',
             text: err.message || 'No se pudo enviar la prueba',
-            confirmButtonColor: '#10b981',
+            confirmButtonColor: '#3d6b4f',
           })
         }
       } else if (result.isDenied) {
@@ -75,7 +75,7 @@ const PrinterConnectionButton = ({ printer, className = '', iconOnly = false }) 
         icon: 'error',
         title: 'No se conectó',
         text: error || 'Enciende la impresora, acércala y vuelve a intentar.',
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
       })
     } else {
       await Swal.fire({

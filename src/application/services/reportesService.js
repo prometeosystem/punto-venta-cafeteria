@@ -24,6 +24,14 @@ export const reportesService = {
     return response.data
   },
 
+  // Atajos del POS: más vendidos de los últimos 30 días (cualquier rol)
+  obtenerMasVendidosPos: async (limite = 8) => {
+    const response = await api.get('/api/reportes/mas_vendidos_pos', {
+      params: { limite }
+    })
+    return response.data
+  },
+
   // Obtener recomendaciones de compra
   obtenerComprasRecomendadas: async (mesesAnalisis = 3) => {
     const response = await api.get('/api/reportes/compras_recomendadas', {

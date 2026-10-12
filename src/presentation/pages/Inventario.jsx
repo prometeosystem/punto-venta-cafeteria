@@ -140,7 +140,7 @@ const Inventario = () => {
           icon: 'error',
           title: 'Error de validación',
           text: 'La cantidad actual debe ser un número válido mayor o igual a 0',
-          confirmButtonColor: '#10b981',
+          confirmButtonColor: '#3d6b4f',
         })
         setGuardando(false)
         return
@@ -151,7 +151,7 @@ const Inventario = () => {
           icon: 'error',
           title: 'Error de validación',
           text: 'La cantidad mínima debe ser un número válido mayor o igual a 0',
-          confirmButtonColor: '#10b981',
+          confirmButtonColor: '#3d6b4f',
         })
         setGuardando(false)
         return
@@ -162,7 +162,7 @@ const Inventario = () => {
           icon: 'error',
           title: 'Error de validación',
           text: 'El precio de compra debe ser un número válido mayor o igual a 0',
-          confirmButtonColor: '#10b981',
+          confirmButtonColor: '#3d6b4f',
         })
         setGuardando(false)
         return
@@ -180,7 +180,7 @@ const Inventario = () => {
             icon: 'error',
             title: 'Error de validación',
             text: 'Debes seleccionar la unidad del precio (ej. kilogramos, litros)',
-            confirmButtonColor: '#10b981',
+            confirmButtonColor: '#3d6b4f',
           })
           setGuardando(false)
           return
@@ -190,7 +190,7 @@ const Inventario = () => {
             icon: 'error',
             title: 'Error de validación',
             text: 'La cantidad que cuesta el precio debe ser un número mayor a 0 (ej. 1)',
-            confirmButtonColor: '#10b981',
+            confirmButtonColor: '#3d6b4f',
           })
           setGuardando(false)
           return
@@ -218,7 +218,7 @@ const Inventario = () => {
           icon: 'success',
           title: '¡Insumo actualizado!',
           text: 'El insumo se ha actualizado correctamente',
-          confirmButtonColor: '#10b981',
+          confirmButtonColor: '#3d6b4f',
           timer: 2000,
         })
       } else {
@@ -228,7 +228,7 @@ const Inventario = () => {
           icon: 'success',
           title: '¡Insumo creado!',
           text: 'El insumo se ha creado correctamente',
-          confirmButtonColor: '#10b981',
+          confirmButtonColor: '#3d6b4f',
           timer: 2000,
         })
       }
@@ -245,7 +245,7 @@ const Inventario = () => {
         icon: 'error',
         title: 'Error',
         text: errorMsg,
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
       })
     } finally {
       setGuardando(false)
@@ -261,7 +261,7 @@ const Inventario = () => {
       showCancelButton: true,
       confirmButtonText: 'Sí, desactivar',
       cancelButtonText: 'Cancelar',
-      confirmButtonColor: '#10b981',
+      confirmButtonColor: '#3d6b4f',
       cancelButtonColor: '#6b7280',
     })
 
@@ -272,7 +272,7 @@ const Inventario = () => {
           icon: 'success',
           title: '¡Insumo desactivado!',
           text: 'El insumo se ha desactivado correctamente',
-          confirmButtonColor: '#10b981',
+          confirmButtonColor: '#3d6b4f',
           timer: 2000,
         })
         await obtenerInsumos()
@@ -283,7 +283,7 @@ const Inventario = () => {
           icon: 'error',
           title: 'Error',
           text: errorMsg,
-          confirmButtonColor: '#10b981',
+          confirmButtonColor: '#3d6b4f',
         })
       }
     }

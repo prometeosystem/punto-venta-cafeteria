@@ -3,6 +3,7 @@ import { Menu } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import ToastNotification from '../components/ToastNotification'
+import CambiarCodigoObligatorio from '../components/CambiarCodigoObligatorio'
 import { useLayout } from '../context/LayoutContext'
 import { useNotifications } from '../context/NotificationContext'
 
@@ -80,12 +81,14 @@ const MainLayout = () => {
       {!headerVisible && !sidebarOpen && (
         <button
           onClick={toggleSidebar}
-          className="fixed bottom-4 left-4 z-40 p-3 rounded-full bg-coffee-800/90 text-white shadow-lg hover:bg-coffee-700 transition-colors"
+          className="fixed bottom-4 left-4 z-40 p-3 rounded-full bg-pino-800/90 text-white shadow-lg hover:bg-pino-700 transition-colors"
           aria-label="Abrir menú"
         >
           <Menu className="w-5 h-5" />
         </button>
       )}
+
+      <CambiarCodigoObligatorio />
     </>
   )
 }

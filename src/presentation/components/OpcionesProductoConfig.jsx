@@ -42,7 +42,7 @@ const OpcionesProductoConfig = () => {
       icon: 'error',
       title: 'No se pudo guardar',
       text: error?.response?.data?.detail || error?.message || respaldo,
-      confirmButtonColor: '#10b981',
+      confirmButtonColor: '#3d6b4f',
     })
   }
 
@@ -185,7 +185,7 @@ const OpcionesProductoConfig = () => {
         icon: 'info',
         title: 'No se puede borrar',
         text: error?.response?.data?.detail || 'Intenta de nuevo',
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
       })
     } finally {
       setGuardando(null)

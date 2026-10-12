@@ -1,0 +1,283 @@
+import { useState } from 'react'
+import { Printer } from 'lucide-react'
+import { itemsDesdeCarrito } from '../utils/imprimirTicket'
+import { repartirProporcional } from '../utils/cuentaTicket'
+
+const OPCIONES_PERSONAS = [2, 3, 4, 5, 6]
+const MAX_PERSONAS = 20
+
+// Clases completas para que Tailwind las incluya; se repiten a partir de la 7.ª persona.
+const COLORES = [
+  { solido: 'bg-sky-500 border-sky-500', suave: 'bg-sky-50 border-sky-500', texto: 'text-sky-700' },
+  { solido: 'bg-amber-500 border-amber-500', suave: 'bg-amber-50 border-amber-500', texto: 'text-amber-700' },
+  { solido: 'bg-violet-500 border-violet-500', suave: 'bg-violet-50 border-violet-500', texto: 'text-violet-700' },
+  { solido: 'bg-rose-500 border-rose-500', suave: 'bg-rose-50 border-rose-500', texto: 'text-rose-700' },
+  { solido: 'bg-teal-500 border-teal-500', suave: 'bg-teal-50 border-teal-500', texto: 'text-teal-700' },
+  { solido: 'bg-orange-500 border-orange-500', suave: 'bg-orange-50 border-orange-500', texto: 'text-orange-700' },
+]
+const colorDe = (persona) => COLORES[persona % COLORES.length]
+
+const money = (n) => `$${(Number(n) || 0).toFixed(2)}`
+
+/**
+ * Divide la cuenta de la orden en pantalla: se elige una persona y se tocan
+ * los productos (unidad por unidad) que le tocan pagar.
+ *
+ * `cuenta` trae lo que ya calcula el punto de venta: items del carrito,
+ * subtotal, descuento, propina, total y `precioUnitario(item)` con extras.
+ */
+const DividirCuentaModal = ({ cuenta, onImprimir, onClose }) => {
+  const [personas, setPersonas] = useState(2)
+  const [otraCantidad, setOtraCantidad] = useState('')
+  const [personaActiva, setPersonaActiva] = useState(0)
+  const [asignacion, setAsignacion] = useState({})
+
+  // Un renglón por unidad: tres cafés se pueden repartir entre tres personas
+  const renglones = cuenta.items.flatMap((item, indice) => {
+    const [info] = itemsDesdeCarrito([{ ...item, quantity: 1 }])
+    return Array.from({ length: Number(item.quantity) || 1 }, (_, u) => ({
+      clave: `${indice}-${u}`,
+      indice,
+      nombre: info.nombre,
+      notas: info.observaciones,
+      precio: cuenta.precioUnitario(item),
+    }))
+  })
+
+  // Lo mismo pedido en distintas rondas va junto, en el orden de su primera aparición
+  const grupoDe = (u) => `${u.nombre}|${u.notas || ''}|${u.precio}`
+  const ordenGrupo = new Map()
+  renglones.forEach((u) => {
+    if (!ordenGrupo.has(grupoDe(u))) ordenGrupo.set(grupoDe(u), ordenGrupo.size)
+  })
+  const unidades = [...renglones].sort((a, b) => ordenGrupo.get(grupoDe(a)) - ordenGrupo.get(grupoDe(b)))
+
+  const cambiarPersonas = (n) => {
+    setPersonas(n)
+    if (personaActiva >= n) setPersonaActiva(0)
+    // Quien ya no existe pierde sus productos
+    setAsignacion((prev) =>
+      Object.fromEntries(Object.entries(prev).filter(([, persona]) => persona < n))
+    )
+  }
+
+  const tocarProducto = (clave) =>
+    setAsignacion((prev) => {
+      const siguiente = { ...prev }
+      if (siguiente[clave] === personaActiva) delete siguiente[clave]
+      else siguiente[clave] = personaActiva
+      return siguiente
+    })
+
+  const asignarRestantes = () =>
+    setAsignacion((prev) => {
+      const siguiente = { ...prev }
+      unidades.forEach((u) => {
+        if (siguiente[u.clave] === undefined) siguiente[u.clave] = personaActiva
+      })
+      return siguiente
+    })
+
+  const subtotalesPorPersona = Array.from({ length: personas }, (_, p) =>
+    unidades.filter((u) => asignacion[u.clave] === p).reduce((sum, u) => sum + u.precio, 0)
+  )
+  const conteoPorPersona = Array.from({ length: personas }, (_, p) =>
+    unidades.filter((u) => asignacion[u.clave] === p).length
+  )
+  const sinAsignar = unidades.filter((u) => asignacion[u.clave] === undefined).length
+
+  const armarCuentasPorProductos = () => {
+    const activas = subtotalesPorPersona
+      .map((subtotal, persona) => ({ persona, subtotal }))
+      .filter(({ subtotal }) => subtotal > 0)
+    const pesos = activas.map(({ subtotal }) => subtotal)
+    const descuentos = repartirProporcional(cuenta.descuento, pesos)
+    const propinas = repartirProporcional(cuenta.propina, pesos)
+
+    return activas.map(({ persona, subtotal }, i) => {
+      const conteo = {}
+      unidades
+        .filter((u) => asignacion[u.clave] === persona)
+        .forEach((u) => {
+          conteo[u.indice] = (conteo[u.indice] || 0) + 1
+        })
+      const items = itemsDesdeCarrito(
+        Object.entries(conteo).map(([indice, cantidad]) => ({ ...cuenta.items[indice], quantity: cantidad }))
+      )
+      return {
+        items,
+        subtotal,
+        descuento: descuentos[i],
+        propina: propinas[i],
+        total: subtotal - descuentos[i] + propinas[i],
+      }
+    })
+  }
+
+  const imprimir = () => onImprimir({ modo: 'productos', cuentas: armarCuentasPorProductos() })
+
+  const puedeImprimir = sinAsignar === 0 && unidades.length > 0
+  const esOtra = !OPCIONES_PERSONAS.includes(personas)
+  const colorActivo = colorDe(personaActiva)
+
+  return (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center p-4 overflow-y-auto"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-lg shadow-xl max-w-lg md:max-w-3xl w-full max-h-[90dvh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+      >
+        <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4">
+          <div>
+            <p className="text-sm font-medium text-gray-700 mb-2">¿Entre cuántas personas?</p>
+            <div className="flex flex-wrap gap-2">
+              {OPCIONES_PERSONAS.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => {
+                    setOtraCantidad('')
+                    cambiarPersonas(n)
+                  }}
+                  className={`w-12 h-12 rounded-lg border-2 text-lg font-semibold transition-colors ${
+                    personas === n && !otraCantidad
+                      ? 'border-matcha-500 bg-matcha-50 text-matcha-700'
+                      : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+              <input
+                type="number"
+                inputMode="numeric"
+                min="2"
+                max={MAX_PERSONAS}
+                placeholder="Otro"
+                value={otraCantidad}
+                onChange={(e) => {
+                  setOtraCantidad(e.target.value)
+                  const n = parseInt(e.target.value, 10)
+                  if (n >= 2 && n <= MAX_PERSONAS) cambiarPersonas(n)
+                }}
+                className={`w-20 h-12 px-2 rounded-lg border-2 text-center text-lg font-semibold focus:outline-none ${
+                  esOtra || otraCantidad ? 'border-matcha-500 bg-matcha-50 text-matcha-700' : 'border-gray-200'
+                }`}
+              />
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs text-gray-500 mb-2">Elige una persona y toca lo que pidió.</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              {subtotalesPorPersona.map((subtotal, p) => {
+                const color = colorDe(p)
+                const activa = p === personaActiva
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setPersonaActiva(p)}
+                    className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg border-2 text-left transition-colors ${
+                      activa ? color.suave : 'border-gray-200 bg-white hover:border-gray-300'
+                    }`}
+                  >
+                    <span
+                      className={`w-8 h-8 shrink-0 rounded-md flex items-center justify-center text-sm font-bold text-white ${color.solido}`}
+                    >
+                      {p + 1}
+                    </span>
+                    <span className="min-w-0">
+                      <span className={`block text-sm font-semibold ${activa ? color.texto : 'text-gray-900'}`}>
+                        Persona {p + 1}
+                      </span>
+                      <span className="block text-xs text-gray-500 tabular-nums">
+                        {money(subtotal)} · {conteoPorPersona[p]} {conteoPorPersona[p] === 1 ? 'producto' : 'productos'}
+                      </span>
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium text-gray-700">Productos</p>
+              {sinAsignar > 0 && (
+                <button
+                  type="button"
+                  onClick={asignarRestantes}
+                  className={`text-xs font-semibold underline-offset-2 hover:underline ${colorActivo.texto}`}
+                >
+                  Asignar lo que falta a Persona {personaActiva + 1}
+                </button>
+              )}
+            </div>
+            <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {unidades.map((u) => {
+                const asignadaA = asignacion[u.clave]
+                const color = asignadaA !== undefined ? colorDe(asignadaA) : null
+                return (
+                  <li key={u.clave}>
+                    <button
+                      type="button"
+                      onClick={() => tocarProducto(u.clave)}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border-2 text-left transition-colors active:scale-[0.99] ${
+                        color ? color.suave : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
+                    >
+                      <span
+                        className={`w-7 h-7 shrink-0 rounded-md flex items-center justify-center text-xs font-bold ${
+                          color ? `${color.solido} text-white` : 'border-2 border-dashed border-gray-300 text-gray-300'
+                        }`}
+                      >
+                        {asignadaA !== undefined ? asignadaA + 1 : ''}
+                      </span>
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-sm font-medium text-gray-900">{u.nombre}</span>
+                        {u.notas && <span className="block text-[11px] text-gray-500">{u.notas}</span>}
+                      </span>
+                      <span className="text-sm tabular-nums text-gray-700 shrink-0">{money(u.precio)}</span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+
+            {(cuenta.descuento > 0 || cuenta.propina > 0) && (
+              <p className="text-[11px] text-gray-500">
+                El descuento y la propina se reparten según lo que consume cada quien.
+              </p>
+            )}
+            {sinAsignar > 0 && (
+              <p className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5">
+                {sinAsignar === 1 ? 'Falta 1 producto por asignar' : `Faltan ${sinAsignar} productos por asignar`}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="px-5 py-4 border-t border-gray-200 flex gap-3">
+          <button onClick={onClose} className="btn-outline flex-1">
+            Cancelar
+          </button>
+          <button
+            onClick={imprimir}
+            disabled={!puedeImprimir}
+            className="btn-primary flex-1 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Printer className="w-5 h-5" />
+            Imprimir cuenta
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default DividirCuentaModal

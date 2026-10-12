@@ -1,21 +1,136 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CheckCircle, Package, Loader2, Plus } from 'lucide-react'
 import { useComandas } from '../hooks/useComandas'
 import { useProductos } from '../hooks/useProductos'
 import { useInventario } from '../hooks/useInventario'
+import { comandasService } from '../../application/services/comandasService'
+import HistorialComandas from '../components/HistorialComandas'
+import { servicioDe } from '../utils/tipoServicio'
+import { useAuth } from '../context/AuthContext'
+import { useNotifications } from '../context/NotificationContext'
 import Swal from 'sweetalert2'
 
 const INTERVALO_REFRESCO_MS = 15000
 
+const AREAS = [
+  { id: 'todo', texto: 'Todo' },
+  { id: 'cocina', texto: 'Cocina' },
+  { id: 'barra', texto: 'Barra' },
+]
+const NOMBRE_AREA = { cocina: 'Cocina', barra: 'Barra' }
+// Cada tablet se queda en su área aunque cambie el usuario
+const CLAVE_AREA = 'comandas-area'
+
+const areaDe = (detalle) => detalle.area_preparacion || 'barra'
+
+/**
+ * Cantidad pendiente por comanda y producto en el área. Se compara por contenido
+ * y no por id: al editar una mesa el backend vuelve a crear los renglones
+ * pendientes con ids nuevos aunque no haya nada nuevo.
+ */
+const pendientesPorContenido = (comandas, areaFiltro) => {
+  const conteo = new Map()
+  comandas.forEach((comanda) => {
+    const detalles = comanda.detalles || []
+    detalles.forEach((d) => {
+      if (d.entregado || (areaFiltro && areaDe(d) !== areaFiltro)) return
+      const clave = [
+        comanda.id_comanda,
+        d.id_producto ?? d.nombre_producto ?? d.producto_nombre,
+        d.observaciones || '',
+        d.tipo_preparacion || '',
+      ].join('|')
+      conteo.set(clave, (conteo.get(clave) || 0) + (Number(d.cantidad) || 1))
+    })
+  })
+  return conteo
+}
+
+const comandasConNovedades = (anterior, actual) => {
+  const ids = new Set()
+  actual.forEach((cantidad, clave) => {
+    if (cantidad > (anterior.get(clave) || 0)) ids.add(Number(clave.split('|')[0]))
+  })
+  return ids
+}
+
+const areaGuardada = () => {
+  const guardada = localStorage.getItem(CLAVE_AREA)
+  return AREAS.some((a) => a.id === guardada) ? guardada : null
+}
+
+const areaPorRol = (rol) => {
+  const r = (rol || '').toLowerCase()
+  if (r === 'cocina') return 'cocina'
+  if (r === 'barra') return 'barra'
+  return 'todo'
+}
+
 const Barista = () => {
+  const { usuario } = useAuth()
+  const [areaElegida, setAreaElegida] = useState(areaGuardada)
+  const area = areaElegida || areaPorRol(usuario?.rol)
+  const areaFiltro = area === 'todo' ? null : area
+  const elegirArea = (id) => {
+    localStorage.setItem(CLAVE_AREA, id)
+    setAreaElegida(id)
+  }
+  const { addNotification } = useNotifications()
+  // El sondeo vive en un intervalo creado una sola vez: lee el área por ref
+  const areaFiltroRef = useRef(areaFiltro)
+  // null = todavía no hay referencia; la primera carga (o un cambio de área) no suena
+  const pendientesAnterioresRef = useRef(null)
+  const comandasRef = useRef([])
+
+  // Al cambiar de área lo ya visible en la nueva área no cuenta como nuevo
+  useEffect(() => {
+    areaFiltroRef.current = areaFiltro
+    if (pendientesAnterioresRef.current) {
+      pendientesAnterioresRef.current = pendientesPorContenido(comandasRef.current, areaFiltro)
+    }
+  }, [areaFiltro])
+
+  const avisarNovedades = (lista) => {
+    const actuales = pendientesPorContenido(lista, areaFiltroRef.current)
+    const anteriores = pendientesAnterioresRef.current
+    pendientesAnterioresRef.current = actuales
+    if (!anteriores) return
+
+    const ids = comandasConNovedades(anteriores, actuales)
+    if (ids.size === 0) return
+    const nuevas = lista.filter((c) => ids.has(c.id_comanda))
+    const unica = nuevas.length === 1 ? nuevas[0] : null
+    const nombre = unica?.pedido?.nombre_cliente || unica?.venta_nombre_cliente
+    addNotification({
+      tipo: 'comanda',
+      titulo: unica ? 'Nueva comanda' : `${nuevas.length} comandas nuevas`,
+      mensaje: unica
+        ? `Pedido #${unica.numero_dia ?? unica.id_comanda}${nombre ? ` · ${nombre}` : ''}`
+        : nuevas.map((c) => `#${c.numero_dia ?? c.id_comanda}`).join(', '),
+      accion: { tipo: 'navegar', ruta: '/barista' },
+      icono: 'package',
+    })
+  }
   const [comandas, setComandas] = useState([])
+  const [historial, setHistorial] = useState([])
   const [cargando, setCargando] = useState(true) // Iniciar como true para la primera carga
   const [esPrimeraCarga, setEsPrimeraCarga] = useState(true)
   const navigate = useNavigate()
   const { obtenerComandas, actualizarEstado, loading } = useComandas()
   const { productos } = useProductos()
   const { insumos } = useInventario()
+
+  const cargarHistorial = async () => {
+    try {
+      const data = await comandasService.obtenerHistorialDia()
+      if (Array.isArray(data)) setHistorial(data)
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error('Error al cargar historial de comandas:', error)
+      }
+    }
+  }
 
   // Cargar comandas pendientes y en preparación (NO incluir terminadas)
   const cargarComandas = async (esRefresh = false) => {
@@ -47,7 +162,10 @@ const Barista = () => {
           return fechaA - fechaB
         })
       
+      comandasRef.current = todasLasComandas
+      avisarNovedades(todasLasComandas)
       setComandas(todasLasComandas)
+      cargarHistorial()
       
       // Marcar que ya no es la primera carga
       if (esPrimeraCarga) {
@@ -67,7 +185,7 @@ const Barista = () => {
           icon: 'error',
           title: 'Error',
           text: 'No se pudieron cargar las comandas',
-          confirmButtonColor: '#10b981',
+          confirmButtonColor: '#3d6b4f',
         })
         setCargando(false)
       }
@@ -184,6 +302,8 @@ const Barista = () => {
     const ventaSinPagar = !!respuesta.venta_sin_pagar
 
     window.dispatchEvent(new CustomEvent('comanda-actualizada'))
+    // Solo terminó un área: la comanda sigue en preparación en la otra
+    if (respuesta.parcial) return
     window.dispatchEvent(new CustomEvent('comanda-terminada', {
       detail: {
         id_comanda: idComanda,
@@ -211,20 +331,20 @@ const Barista = () => {
     const comandaRef = typeof comanda === 'object' ? comanda : null
     try {
       const result = await Swal.fire({
-        title: '¿Marcar como terminada?',
+        title: areaFiltro ? `¿Marcar lista la parte de ${NOMBRE_AREA[areaFiltro]}?` : '¿Marcar como terminada?',
         text: '',
         icon: '',
         position: 'top',
         showCancelButton: true,
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
         cancelButtonColor: '#6b7280',
-        confirmButtonText: 'Sí, marcar como terminada',
+        confirmButtonText: areaFiltro ? 'Sí, está lista' : 'Sí, marcar como terminada',
         cancelButtonText: 'Cancelar',
       })
 
       if (result.isConfirmed) {
         try {
-          const respuesta = await actualizarEstado(idComanda, 'terminada')
+          const respuesta = await actualizarEstado(idComanda, 'terminada', false, areaFiltro)
           
           // Verificar si la respuesta contiene errores de stock
           if (respuesta?.error && respuesta?.errores) {
@@ -265,14 +385,14 @@ const Barista = () => {
               
               if (resultStock.isDenied) {
                 // Usuario eligió "Continuar de todos modos" - llamar API con permitir stock negativo
-                const respuestaContinuar = await actualizarEstado(idComanda, 'terminada', true)
+                const respuestaContinuar = await actualizarEstado(idComanda, 'terminada', true, areaFiltro)
                 if (respuestaContinuar?.error && !respuestaContinuar?.estado) {
                   await Swal.fire({
                     icon: 'error',
                     title: 'Error',
                     text: respuestaContinuar.error,
                     position: 'top',
-                    confirmButtonColor: '#10b981',
+                    confirmButtonColor: '#3d6b4f',
                   })
                   await cargarComandas(true)
                   return
@@ -328,21 +448,21 @@ const Barista = () => {
                 showConfirmButton: false,
                 cancelButtonText: 'Entendido',
                 denyButtonText: 'Continuar de todos modos',
-                denyButtonColor: '#10b981',
+                denyButtonColor: '#3d6b4f',
                 cancelButtonColor: '#6b7280',
                 width: '600px'
               })
               
               if (resultStockCatch.isDenied) {
                 try {
-                  const respuestaContinuar = await actualizarEstado(idComanda, 'terminada', true)
+                  const respuestaContinuar = await actualizarEstado(idComanda, 'terminada', true, areaFiltro)
                   if (respuestaContinuar?.error && !respuestaContinuar?.estado) {
                     await Swal.fire({
                       icon: 'error',
                       title: 'Error',
                       text: respuestaContinuar.error,
                       position: 'top',
-                      confirmButtonColor: '#10b981',
+                      confirmButtonColor: '#3d6b4f',
                     })
                   } else {
                     await cargarComandas(true)
@@ -354,7 +474,7 @@ const Barista = () => {
                     title: 'Error',
                     text: errContinuar.response?.data?.detail || errContinuar.message || 'Error al terminar la comanda',
                     position: 'top',
-                    confirmButtonColor: '#10b981',
+                    confirmButtonColor: '#3d6b4f',
                   })
                 }
               }
@@ -370,7 +490,7 @@ const Barista = () => {
             title: 'Error',
             text: errorMsg,
             position: 'top',
-            confirmButtonColor: '#10b981',
+            confirmButtonColor: '#3d6b4f',
           })
         }
       }
@@ -383,7 +503,7 @@ const Barista = () => {
         title: 'Error',
         text: 'Ocurrió un error inesperado. Por favor, intenta nuevamente.',
         position: 'top',
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
       })
     }
   }
@@ -394,29 +514,72 @@ const Barista = () => {
     return producto?.nombre || `Producto #${idProducto}`
   }
 
+  const tienePendientesEn = (comanda, idArea) =>
+    comanda.detalles?.some((d) => !d.entregado && areaDe(d) === idArea)
+  const conteoPorArea = {
+    todo: comandas.length,
+    cocina: comandas.filter((c) => tienePendientesEn(c, 'cocina')).length,
+    barra: comandas.filter((c) => tienePendientesEn(c, 'barra')).length,
+  }
+  const comandasVisibles = areaFiltro ? comandas.filter((c) => tienePendientesEn(c, areaFiltro)) : comandas
+
   return (
-    <div>
+    <div className="flex flex-col lg:flex-row gap-3 lg:flex-1 lg:min-h-0">
+      <div className="flex-1 min-w-0 lg:overflow-y-auto">
+      <div className="inline-flex mb-3 p-0.5 rounded-lg border border-gray-200 bg-white">
+        {AREAS.map(({ id, texto }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => elegirArea(id)}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              area === id ? 'bg-matcha-600 text-white' : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            {texto}
+            <span className={`ml-1.5 text-xs tabular-nums ${area === id ? 'text-white/80' : 'text-gray-400'}`}>
+              {conteoPorArea[id]}
+            </span>
+          </button>
+        ))}
+      </div>
       {cargando && comandas.length === 0 ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-matcha-600" />
         </div>
-      ) : comandas.length === 0 ? (
+      ) : comandasVisibles.length === 0 ? (
         <div className="card text-center py-12">
           <Package className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-          <p className="text-gray-500 text-lg">No hay comandas pendientes</p>
+          <p className="text-gray-500 text-lg">
+            {areaFiltro ? `No hay pendientes en ${NOMBRE_AREA[areaFiltro]}` : 'No hay comandas pendientes'}
+          </p>
           <p className="text-gray-400 text-sm mt-2">Las comandas pagadas aparecerán aquí</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
-          {comandas.map((comanda) => {
+        <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-3">
+          {comandasVisibles.map((comanda) => {
+            const detallesVisibles = areaFiltro
+              ? (comanda.detalles || []).filter((d) => areaDe(d) === areaFiltro)
+              : comanda.detalles || []
+            // Estado de las demás áreas, solo si la comanda lleva productos de más de una
+            const areasDeComanda = new Set((comanda.detalles || []).map(areaDe))
+            let estadoOtrasAreas =
+              areasDeComanda.size > 1
+                ? [...areasDeComanda]
+                    .filter((a) => a !== areaFiltro)
+                    .sort()
+                    .map((a) => ({ area: a, lista: !tienePendientesEn(comanda, a) }))
+                : []
+            // En "Todo" solo informa cuando un área ya terminó su parte
+            if (!areaFiltro && !estadoOtrasAreas.some((e) => e.lista)) estadoOtrasAreas = []
             // Si ya se entregó parte, lo pendiente es una segunda ronda: hay que distinguirla
-            const tieneEntregados = comanda.detalles?.some((d) => d.entregado)
+            const tieneEntregados = detallesVisibles.some((d) => d.entregado)
             // Se marca tanto lo pagado como lo pendiente: sin la píldora verde no
             // se sabe si una comanda ya cobrada está ahí por error.
             const pagoConocido = comanda.venta_pagada !== undefined && comanda.venta_pagada !== null
             const sinPagar = comanda.venta_pagada === 0 || comanda.venta_pagada === false
             const tipoServicio = comanda.pedido?.tipo_servicio || comanda.venta?.tipo_servicio
-            const esDelivery = tipoServicio === 'para-llevar' || tipoServicio === 'delivery'
+            const servicio = servicioDe(tipoServicio, comanda.pedido?.metodo_pago)
             const nombreCliente =
               comanda.pedido?.nombre_cliente ||
               comanda.venta?.nombre_cliente ||
@@ -449,13 +612,9 @@ const Barista = () => {
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0">
-                    {tipoServicio && (
-                      <span
-                        className={`text-[10px] font-bold tracking-wide uppercase leading-none ${
-                          esDelivery ? 'text-violet-700' : 'text-blue-700'
-                        }`}
-                      >
-                        {esDelivery ? 'Delivery' : 'Comer aquí'}
+                    {servicio && (
+                      <span className={`text-[10px] font-bold tracking-wide uppercase leading-none ${servicio.color}`}>
+                        {servicio.texto}
                       </span>
                     )}
                     {pagoConocido && (
@@ -494,6 +653,21 @@ const Barista = () => {
                   </button>
                 </div>
 
+                {estadoOtrasAreas.length > 0 && (
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1.5">
+                    {estadoOtrasAreas.map(({ area: otra, lista }) => (
+                      <span
+                        key={otra}
+                        className={`text-[10px] font-bold tracking-wide uppercase leading-none ${
+                          lista ? 'text-matcha-700' : 'text-gray-400'
+                        }`}
+                      >
+                        {NOMBRE_AREA[otra]} {lista ? '✓' : 'pendiente'}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
                 {mostrarLecheGlobal && (
                   <div className="pt-2">
                     <span
@@ -510,7 +684,11 @@ const Barista = () => {
 
                 {/* Items: una fila por producto, sin card individual */}
                 <div className="flex-1 min-h-0 max-h-72 overflow-y-auto divide-y divide-gray-100 py-1">
-                  {comanda.detalles?.map((detalle, index) => {
+                  {/* Solo visual: lo pendiente arriba para que la segunda ronda no quede
+                      escondida bajo el scroll; el orden real de la comanda no cambia. */}
+                  {[...detallesVisibles]
+                    .sort((a, b) => Boolean(a.entregado) - Boolean(b.entregado))
+                    .map((detalle, index) => {
                     const observaciones = detalle.observaciones ? detalle.observaciones.split(' - ') : []
                     const tipoLecheObs = observaciones.find(obs => obs.includes('Leche'))
                     const extrasObs = observaciones.find(obs => obs.includes('Extras:'))
@@ -532,11 +710,11 @@ const Barista = () => {
 
                     return (
                       <div
-                        key={index}
+                        key={detalle.id_detalle_comanda ?? index}
                         className={`flex items-start gap-2 py-1.5 ${yaEntregado ? 'opacity-50' : ''}`}
                       >
                         <span className={`shrink-0 text-sm font-bold tabular-nums ${yaEntregado ? 'text-gray-400' : 'text-gray-800'}`}>
-                          {detalle.cantidad}×
+                          {detalle.cantidad}
                         </span>
                         <div className="flex-1 min-w-0">
                           <p className={`text-sm font-medium leading-snug ${yaEntregado ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
@@ -574,9 +752,11 @@ const Barista = () => {
                                 </span>
                               )}
                               {notaObs && (
-                                <span className="w-full mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-900 border border-amber-200 italic">
-                                  {notaObs.replace(/^Nota:\s*/i, '')}
-                                </span>
+                                <div className="w-full mt-0.5">
+                                  <span className="inline-block max-w-full px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-900 border border-amber-200 italic">
+                                    {notaObs.replace(/^Nota:\s*/i, '')}
+                                  </span>
+                                </div>
                               )}
                               {otrasObs.map((obs, obsIndex) => (
                                 <span key={obsIndex} className="text-[10px] text-gray-600 italic">
@@ -592,7 +772,7 @@ const Barista = () => {
                 </div>
 
                 {comentarios && (
-                  <p className="mt-1 px-2 py-1 bg-yellow-50 border border-yellow-200 rounded text-[11px] text-yellow-800 italic">
+                  <p className="mt-1 w-fit max-w-full px-2 py-1 bg-yellow-50 border border-yellow-200 rounded text-[11px] text-yellow-800 italic">
                     {comentarios}
                   </p>
                 )}
@@ -617,6 +797,8 @@ const Barista = () => {
           })}
         </div>
       )}
+      </div>
+      <HistorialComandas comandas={historial} />
     </div>
   )
 }

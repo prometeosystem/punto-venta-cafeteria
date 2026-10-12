@@ -38,6 +38,23 @@ export const authService = {
     return response.data
   },
 
+  // Datos propios, sin rol. Regresa token nuevo porque la sesión va ligada al correo.
+  actualizarPerfil: async (datos) => {
+    const response = await api.put('/api/me/perfil', datos)
+    const { perfil, ...sesion } = response.data
+    guardarSesion({ ...sesion, usuario: perfil })
+    return perfil
+  },
+
+  // El código actual no se pide si el usuario tiene pendiente cambiar el de por defecto
+  cambiarCodigo: async (codigoActual, codigoNuevo) => {
+    const response = await api.put('/api/me/codigo', {
+      codigo_actual: codigoActual || null,
+      codigo_nuevo: codigoNuevo,
+    })
+    return response.data
+  },
+
   // Logout
   logout: () => {
     localStorage.removeItem('token')

@@ -54,6 +54,12 @@ export const usuariosService = {
     return response.data
   },
 
+  // Regresa al código por defecto; el empleado lo cambia al entrar
+  restablecerCodigo: async (idUsuario) => {
+    const response = await api.post(`/api/usuarios/${idUsuario}/codigo/restablecer`)
+    return response.data
+  },
+
   // Sin código el usuario deja de aparecer en la pantalla de inicio
   quitarCodigo: async (idUsuario) => {
     const response = await api.delete(`/api/usuarios/${idUsuario}/codigo`)

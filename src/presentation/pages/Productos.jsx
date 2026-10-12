@@ -5,6 +5,7 @@ import { useInventario } from '../hooks/useInventario'
 import { recetasService } from '../../application/services/recetasService'
 import { opcionesProductoService } from '../../application/services/opcionesProductoService'
 import { notificarOpcionesActualizadas } from '../hooks/useOpcionesProducto'
+import { esProductoComida } from '../utils/productOptionsConfig'
 import { API_BASE_URL } from '../../infrastructure/api'
 import Swal from 'sweetalert2'
 import ImageCropModal from '../components/ImageCropModal'
@@ -20,7 +21,7 @@ const GRUPOS_CON_BANDERA = {
 const Productos = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('Todas las categorías')
-  const [selectedStatus, setSelectedStatus] = useState('Todos los estados')
+  const [filtroLista, setFiltroLista] = useState('todos')
   const [mostrarModalProducto, setMostrarModalProducto] = useState(false)
   const [productoEditando, setProductoEditando] = useState(null)
   const [formData, setFormData] = useState({
@@ -32,6 +33,7 @@ const Productos = () => {
     lleva_leche: false,
     lleva_extras: false,
     lleva_proteina: false,
+    area: 'barra',
   })
   const [usandoCategoriaNueva, setUsandoCategoriaNueva] = useState(false)
   const [guardando, setGuardando] = useState(false)
@@ -106,25 +108,44 @@ const Productos = () => {
         icon: 'warning',
         title: 'El producto se guardó, pero sus opciones no',
         text: error?.response?.data?.detail || 'Vuelve a abrir el producto e inténtalo de nuevo.',
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
       })
     }
   }
+
+  const productoActivo = (product) => product.activo === 1 || product.activo === true
+  const productoConFoto = (product) => Boolean(product.tipo_imagen)
+  const resumenProductos = [
+    { id: 'todos', label: 'Total', valor: productos.length },
+    { id: 'activos', label: 'Activos', valor: productos.filter(productoActivo).length },
+    { id: 'inactivos', label: 'Inactivos', valor: productos.filter((p) => !productoActivo(p)).length },
+    { id: 'con-foto', label: 'Con foto', valor: productos.filter(productoConFoto).length },
+    { id: 'sin-foto', label: 'Sin foto', valor: productos.filter((p) => !productoConFoto(p)).length },
+  ]
 
   // Filtrar productos
   const filteredProducts = productos.filter((product) => {
     const matchesSearch = product.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.descripcion?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesCategory = selectedCategory === 'Todas las categorías' || product.categoria === selectedCategory
-    const matchesStatus = selectedStatus === 'Todos los estados' || 
-                         (selectedStatus === 'Activo' && product.activo) ||
-                         (selectedStatus === 'Inactivo' && !product.activo)
-    return matchesSearch && matchesCategory && matchesStatus
+    const matchesResumen = filtroLista === 'todos'
+      || (filtroLista === 'activos' && productoActivo(product))
+      || (filtroLista === 'inactivos' && !productoActivo(product))
+      || (filtroLista === 'con-foto' && productoConFoto(product))
+      || (filtroLista === 'sin-foto' && !productoConFoto(product))
+    return matchesSearch && matchesCategory && matchesResumen
   })
 
   // Obtener categorías únicas
   const categories = ['Todas las categorías', ...new Set(productos.map(p => p.categoria))]
   const categoriasUnicas = [...new Set(productos.map(p => p.categoria))]
+  // Área que ya usa la mayoría de los productos de la categoría
+  const areaSugerida = (categoria) => {
+    const enCategoria = productos.filter((p) => p.categoria === categoria)
+    if (!enCategoria.length) return esProductoComida(categoria) ? 'cocina' : 'barra'
+    const enCocina = enCategoria.filter((p) => p.area === 'cocina').length
+    return enCocina > enCategoria.length / 2 ? 'cocina' : 'barra'
+  }
 
   // Los insumos ya se cargan automáticamente en useInventario
   // No necesitamos cargarlos nuevamente al abrir el modal
@@ -222,6 +243,7 @@ const Productos = () => {
       lleva_leche: false,
       lleva_extras: false,
       lleva_proteina: false,
+      area: 'barra',
     })
     setUsandoCategoriaNueva(false)
     setImagen(null)
@@ -249,6 +271,7 @@ const Productos = () => {
       lleva_leche: producto.lleva_leche !== undefined ? producto.lleva_leche : false,
       lleva_extras: producto.lleva_extras !== undefined ? producto.lleva_extras : false,
       lleva_proteina: producto.lleva_proteina !== undefined ? producto.lleva_proteina : false,
+      area: producto.area || 'barra',
     })
     // Determinar si la categoría es nueva o existente
     setUsandoCategoriaNueva(categoria && !categoriasExistentes.includes(categoria))
@@ -279,7 +302,7 @@ const Productos = () => {
           icon: 'error',
           title: 'Error de validación',
           text: 'El precio debe ser un número válido mayor o igual a 0',
-          confirmButtonColor: '#10b981',
+          confirmButtonColor: '#3d6b4f',
         })
         setGuardando(false)
         return
@@ -296,6 +319,7 @@ const Productos = () => {
       formDataToSend.append('categoria', formData.categoria.trim())
       formDataToSend.append('precio', precio.toString())
       formDataToSend.append('activo', formData.activo.toString())
+      formDataToSend.append('area', formData.area)
 
       // Las banderas se derivan de los grupos marcados, no al revés: la casilla
       // y la asignación son lo mismo, y así no pueden quedar en desacuerdo.
@@ -377,7 +401,7 @@ const Productos = () => {
           icon: 'success',
           title: '¡Producto actualizado!',
           text: 'El producto se ha actualizado correctamente',
-          confirmButtonColor: '#10b981',
+          confirmButtonColor: '#3d6b4f',
           timer: 2000,
         })
       } else {
@@ -390,7 +414,7 @@ const Productos = () => {
           icon: 'success',
           title: '¡Producto creado!',
           text: 'El producto se ha creado correctamente',
-          confirmButtonColor: '#10b981',
+          confirmButtonColor: '#3d6b4f',
           timer: 2000,
         })
       }
@@ -413,7 +437,7 @@ const Productos = () => {
         icon: 'error',
         title: 'Error',
         text: errorMsg,
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
       })
     } finally {
       setGuardando(false)
@@ -472,7 +496,7 @@ const Productos = () => {
         icon: 'error',
         title: 'Error',
         text: 'La cantidad necesaria debe ser mayor a 0',
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
       })
       return
     }
@@ -482,7 +506,7 @@ const Productos = () => {
         icon: 'error',
         title: 'Error',
         text: 'Debes seleccionar un insumo',
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
       })
       return
     }
@@ -494,7 +518,7 @@ const Productos = () => {
           icon: 'error',
           title: 'Error',
           text: 'Debes completar el nombre del nuevo insumo',
-          confirmButtonColor: '#10b981',
+          confirmButtonColor: '#3d6b4f',
         })
         return
       }
@@ -506,7 +530,7 @@ const Productos = () => {
         icon: 'error',
         title: 'Error',
         text: 'Debes seleccionar una unidad de medida',
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
       })
       return
     }
@@ -565,7 +589,7 @@ const Productos = () => {
       text: 'Este producto se desactivará y no aparecerá en el punto de venta',
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#10b981',
+      confirmButtonColor: '#3d6b4f',
       cancelButtonColor: '#6b7280',
       confirmButtonText: 'Sí, desactivar',
       cancelButtonText: 'Cancelar',
@@ -579,7 +603,7 @@ const Productos = () => {
           icon: 'success',
           title: 'Producto desactivado',
           text: 'El producto ha sido desactivado correctamente',
-          confirmButtonColor: '#10b981',
+          confirmButtonColor: '#3d6b4f',
           timer: 2000,
         })
       } catch (error) {
@@ -588,7 +612,7 @@ const Productos = () => {
           icon: 'error',
           title: 'Error',
           text: errorMsg,
-          confirmButtonColor: '#10b981',
+          confirmButtonColor: '#3d6b4f',
         })
       }
     }
@@ -597,7 +621,30 @@ const Productos = () => {
   return (
     <div className="space-y-6">
       {/* Filtros, búsqueda y alta */}
-      <div className="card">
+      <div className="card space-y-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+          {resumenProductos.map((item) => {
+            const activo = filtroLista === item.id
+            return (
+              <button
+                key={item.id}
+                type="button"
+                aria-pressed={activo}
+                onClick={() => setFiltroLista(item.id === 'todos' || activo ? 'todos' : item.id)}
+                className={`rounded-lg border px-3 py-2 text-left transition-colors ${
+                  activo
+                    ? 'border-matcha-500 bg-matcha-50'
+                    : 'border-gray-200 bg-white hover:border-matcha-300'
+                }`}
+              >
+                <span className="block text-lg font-semibold text-gray-900 tabular-nums leading-none">
+                  {item.valor}
+                </span>
+                <span className="mt-1 block text-xs text-gray-500">{item.label}</span>
+              </button>
+            )
+          })}
+        </div>
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -617,15 +664,6 @@ const Productos = () => {
             {categories.map(cat => (
               <option key={cat} value={cat}>{cat}</option>
             ))}
-          </select>
-          <select 
-            className="input md:w-48"
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-          >
-            <option>Todos los estados</option>
-            <option>Activo</option>
-            <option>Inactivo</option>
           </select>
           <button
             onClick={abrirModalCrear}
@@ -685,6 +723,9 @@ const Productos = () => {
                     </td>
                     <td className="py-3 px-4">
                       <span className="text-sm text-gray-600">{product.categoria}</span>
+                      <span className="block text-[11px] text-gray-400">
+                        {product.area === 'cocina' ? 'Cocina' : 'Barra'}
+                      </span>
                     </td>
                     <td className="py-3 px-4">
                       <span className="font-semibold text-matcha-600">
@@ -792,8 +833,15 @@ const Productos = () => {
                               setUsandoCategoriaNueva(true)
                               setFormData({ ...formData, categoria: '' })
                             } else {
-                              // Usuario seleccionó una categoría existente
-                              setFormData({ ...formData, categoria: categoriaSeleccionada })
+                              // Usuario seleccionó una categoría existente. Al crear se
+                              // propone el área de la categoría; al editar se respeta.
+                              setFormData({
+                                ...formData,
+                                categoria: categoriaSeleccionada,
+                                ...(!productoEditando && categoriaSeleccionada
+                                  ? { area: areaSugerida(categoriaSeleccionada) }
+                                  : {}),
+                              })
                             }
                           }}
                           className="input flex-1"
@@ -828,6 +876,32 @@ const Productos = () => {
                         </div>
                       )}
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Área de preparación
+                    </label>
+                    <div className="grid grid-cols-2 gap-2 max-w-xs">
+                      {[
+                        { id: 'cocina', texto: 'Cocina' },
+                        { id: 'barra', texto: 'Barra' },
+                      ].map(({ id, texto }) => (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, area: id })}
+                          className={`py-2 rounded-lg border-2 text-sm font-medium transition-colors ${
+                            formData.area === id
+                              ? 'border-matcha-500 bg-matcha-50 text-matcha-700'
+                              : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                          }`}
+                        >
+                          {texto}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">En Comandas, cada área solo ve sus productos.</p>
                   </div>
 
                   {/* Precio y Estado */}
@@ -967,7 +1041,7 @@ const Productos = () => {
                                 icon: 'error',
                                 title: 'Formato no permitido',
                                 text: 'Solo se permiten imágenes JPEG, PNG o WebP',
-                                confirmButtonColor: '#10b981',
+                                confirmButtonColor: '#3d6b4f',
                               })
                               e.target.value = ''
                               return
@@ -979,7 +1053,7 @@ const Productos = () => {
                                 icon: 'error',
                                 title: 'Imagen demasiado grande',
                                 text: 'El tamaño máximo permitido es 5MB',
-                                confirmButtonColor: '#10b981',
+                                confirmButtonColor: '#3d6b4f',
                               })
                               e.target.value = ''
                               return
@@ -1026,7 +1100,7 @@ const Productos = () => {
                               icon: 'info',
                               title: 'No hay imagen',
                               text: 'Primero selecciona una imagen',
-                              confirmButtonColor: '#10b981',
+                              confirmButtonColor: '#3d6b4f',
                             })
                           }
                         }}

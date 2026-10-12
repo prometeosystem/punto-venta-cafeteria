@@ -1,3 +1,18 @@
+// Verde de la marca, derivado del pino del login y el sidebar. green y emerald
+// apuntan a la misma escala para que no se cuele el verde brillante de Tailwind.
+const verde = {
+  50: '#eef4ef',
+  100: '#e4efe6',
+  200: '#c9dccb',
+  300: '#a3c4ab',
+  400: '#6f9a7b',
+  500: '#3d6b4f',
+  600: '#2c5342',
+  700: '#24463a',
+  800: '#1d3a2f',
+  900: '#16291f',
+}
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -7,19 +22,9 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Paleta de colores según mockups
-        matcha: {
-          50: '#d4e8d4',
-          100: '#b8ddc6',
-          200: '#9dd2b8',
-          300: '#6faa6f',
-          400: '#5a8f5a',
-          500: '#5a8f5a', // Matcha principal
-          600: '#4a7a4a',
-          700: '#3a653a',
-          800: '#2a502a',
-          900: '#1a3a1a',
-        },
+        matcha: verde,
+        green: verde,
+        emerald: verde,
         coffee: {
           50: '#f5f0e8',
           100: '#e8ddd0',
@@ -32,18 +37,21 @@ export default {
           800: '#2d2318', // Café oscuro
           900: '#1a150d',
         },
-        green: {
-          50: '#d4e8d4',
-          100: '#b8ddc6',
-          200: '#9dd2b8',
-          300: '#6faa6f',
-          400: '#5a8f5a',
-          500: '#5a8f5a',
-          600: '#4a7a4a',
-          700: '#3a653a',
-          800: '#2a502a',
-          900: '#1a3a1a',
+        // Verde oscuro del login, usado en el sidebar
+        pino: {
+          700: '#2a3a2d',
+          800: '#1a241c',
+          900: '#121a14',
         },
+      },
+      // Esquinas más rectas que la escala por defecto de Tailwind
+      borderRadius: {
+        DEFAULT: '0.1875rem',
+        md: '0.25rem',
+        lg: '0.3125rem',
+        xl: '0.375rem',
+        '2xl': '0.5rem',
+        '3xl': '0.75rem',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

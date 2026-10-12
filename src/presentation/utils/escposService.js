@@ -2,6 +2,7 @@
  * Generador ESC/POS para impresoras térmicas (58mm y 80mm).
  */
 import logoTicketUrl from '../../assets/logo-ticket.png'
+import { seccionesTicket, fechaHoraTicket } from './cuentaTicket'
 
 const ESC = 0x1b
 const GS = 0x1d
@@ -35,10 +36,9 @@ export const FEED_FINAL = 5
 
 /**
  * Qué tanto del ancho del papel ocupa el logo del encabezado.
- * El logo es un banner alargado (más de 3:1), así que necesita buena parte del
- * ancho para que el eslogan salga legible en papel térmico.
+ * Es solo la palabra ZONA 2, así que con la mitad del ancho ya se lee bien.
  */
-const LOGO_ANCHO_RELATIVO = 0.72
+const LOGO_ANCHO_RELATIVO = 0.5
 
 export const DEFAULT_PAPER = '80'
 
@@ -188,12 +188,6 @@ export const getLogoRasterBytes = async (paperWidth = getPaperWidth()) => {
   return bytes
 }
 
-const tipoServicioLabel = {
-  'comer-aqui': 'Comer aqui',
-  'para-llevar': 'Para llevar',
-  delivery: 'Delivery',
-}
-
 /** Porcentaje sugerido de propina en la cuenta. */
 export const PROPINA_SUGERIDA_PCT = 10
 
@@ -207,15 +201,7 @@ export const PROPINA_SUGERIDA_PCT = 10
 export function generateCafeTicketBytes(ticket = {}, options = {}) {
   const width = charsFor(options.paperWidth || getPaperWidth())
   const esCuenta = ticket.tipo === 'cuenta'
-  const fecha =
-    ticket.fecha ||
-    new Date().toLocaleString('es-MX', {
-      dateStyle: 'short',
-      timeStyle: 'short',
-    })
-
-  const negocio = ticket.negocio || 'ZONA 2'
-  const lugar = ticket.lugar || 'Brunch and Run'
+  const { fecha, hora } = fechaHoraTicket()
   const commands = []
 
   commands.push(EscPosCommands.INIT)
@@ -227,70 +213,63 @@ export function generateCafeTicketBytes(ticket = {}, options = {}) {
     // Sin logo el ticket sigue saliendo, con el nombre en texto
     commands.push(EscPosCommands.BOLD_ON)
     commands.push(EscPosCommands.DOUBLE_SIZE)
-    commands.push(textToBytes(`${negocio}\n`))
+    commands.push(textToBytes(`${ticket.negocio || 'ZONA 2'}\n`))
     commands.push(EscPosCommands.NORMAL_SIZE)
     commands.push(EscPosCommands.BOLD_OFF)
-    commands.push(textToBytes(`${lugar}\n`))
   }
   commands.push(textToBytes(separator('=', width)))
 
   commands.push(EscPosCommands.ALIGN_LEFT)
-  commands.push(textToBytes(`${fecha}\n`))
-  if (ticket.numero != null) {
-    commands.push(textToBytes(`Ticket #: ${ticket.numero}\n`))
-  }
-  if (ticket.ticketId) {
-    commands.push(textToBytes(`ID: ${ticket.ticketId}\n`))
-  }
-  if (ticket.cliente) {
-    commands.push(textToBytes(`Cliente: ${ticket.cliente}\n`))
-  }
-  if (ticket.tipoServicio) {
-    const svc = tipoServicioLabel[ticket.tipoServicio] || ticket.tipoServicio
-    commands.push(textToBytes(`Servicio: ${svc}\n`))
-  }
+  const numero = ticket.numero != null ? `Ticket #${ticket.numero}` : ''
+  commands.push(textToBytes(linePair(numero, fecha, width)))
+  const atendio = ticket.cajero ? fitLeft(`Atendio: ${sanitizeForPrinter(ticket.cajero)}`, hora, width) : ''
+  commands.push(textToBytes(linePair(atendio, hora, width)))
   if (ticket.metodoPago && !esCuenta) {
     commands.push(textToBytes(`Pago: ${String(ticket.metodoPago).toUpperCase()}\n`))
   }
-  if (ticket.cajero) {
-    commands.push(textToBytes(`Atendio: ${ticket.cajero}\n`))
-  }
 
   commands.push(textToBytes(separator('-', width)))
 
-  for (const item of ticket.items || []) {
-    const cant = item.cantidad || 1
-    const nombre = item.nombre || 'Producto'
-    const sub = item.subtotal ?? Number(item.precio) * Number(cant)
-    const importe = formatMoney(sub)
-    const left = fitLeft(`${cant}x ${nombre}`, importe, width)
-    commands.push(textToBytes(linePair(left, importe, width)))
-    if (item.observaciones) {
-      commands.push(textToBytes(`  ${item.observaciones}\n`))
+  seccionesTicket(ticket).forEach((seccion, indice) => {
+    if (indice > 0) commands.push(textToBytes(separator('=', width)))
+    for (const item of seccion.items || []) {
+      const cant = item.cantidad || 1
+      const nombre = sanitizeForPrinter(item.nombre || 'Producto')
+      const sub = item.subtotal ?? Number(item.precio) * Number(cant)
+      const importe = formatMoney(sub)
+      const left = fitLeft(`${cant}x ${nombre}`, importe, width)
+      commands.push(textToBytes(linePair(left, importe, width)))
+      if (item.observaciones) {
+        commands.push(textToBytes(`  ${item.observaciones}\n`))
+      }
     }
-  }
 
-  commands.push(textToBytes(separator('-', width)))
-  commands.push(textToBytes(linePair('Subtotal', formatMoney(ticket.subtotal), width)))
-  if (Number(ticket.propina) > 0) {
-    commands.push(textToBytes(linePair('Propina', formatMoney(ticket.propina), width)))
-  }
-  if (Number(ticket.descuento) > 0) {
-    commands.push(
-      textToBytes(linePair('Descuento', `-${formatMoney(ticket.descuento).slice(1)}`, width))
-    )
-  }
-  commands.push(EscPosCommands.BOLD_ON)
-  commands.push(textToBytes(linePair('TOTAL', formatMoney(ticket.total), width)))
-  commands.push(EscPosCommands.BOLD_OFF)
-
-  // La sugerencia se omite si el cliente ya definió propina en el sistema.
-  if (esCuenta && !(Number(ticket.propina) > 0)) {
-    const sugerida = (Number(ticket.total) || 0) * (PROPINA_SUGERIDA_PCT / 100)
     commands.push(textToBytes(separator('-', width)))
-    commands.push(
-      textToBytes(linePair(`Propina sugerida ${PROPINA_SUGERIDA_PCT}%`, formatMoney(sugerida), width))
-    )
+    commands.push(textToBytes(linePair('Subtotal', formatMoney(seccion.subtotal), width)))
+    if (Number(seccion.descuento) > 0) {
+      commands.push(textToBytes(linePair('Descuento', `-${formatMoney(seccion.descuento)}`, width)))
+    }
+    if (Number(seccion.propina) > 0) {
+      commands.push(textToBytes(linePair('Propina', formatMoney(seccion.propina), width)))
+    }
+    commands.push(EscPosCommands.BOLD_ON)
+    commands.push(textToBytes(linePair('TOTAL', formatMoney(seccion.total), width)))
+    commands.push(EscPosCommands.BOLD_OFF)
+
+    // La sugerencia se omite si el cliente ya definió propina en el sistema.
+    if (esCuenta && !(Number(seccion.propina) > 0)) {
+      const sugerida = (Number(seccion.total) || 0) * (PROPINA_SUGERIDA_PCT / 100)
+      commands.push(
+        textToBytes(linePair(`Propina sugerida ${PROPINA_SUGERIDA_PCT}%`, formatMoney(sugerida), width))
+      )
+    }
+  })
+
+  if (ticket.division?.modo === 'productos') {
+    commands.push(textToBytes(separator('=', width)))
+    commands.push(EscPosCommands.BOLD_ON)
+    commands.push(textToBytes(linePair('TOTAL MESA', formatMoney(ticket.total), width)))
+    commands.push(EscPosCommands.BOLD_OFF)
   }
 
   if (ticket.comentarios) {

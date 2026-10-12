@@ -163,7 +163,7 @@ const NotificationsBell = ({ variant = 'header' }) => {
       <>
         <button
           onClick={() => setAbierto(true)}
-          className="relative p-2.5 rounded-lg text-gray-300 hover:bg-coffee-700 hover:text-white transition-colors"
+          className="relative p-2.5 rounded-lg text-gray-300 hover:bg-pino-700 hover:text-white transition-colors"
           title="Notificaciones"
           aria-label="Notificaciones"
         >

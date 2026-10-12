@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Plus, Minus, Trash2, ShoppingCart, ArrowLeft, Loader2, X, Search, Coins, Percent, Check, CheckCircle, Receipt, ChefHat, Lock, Bike, Utensils, CreditCard, Banknote, ArrowLeftRight } from 'lucide-react'
+import { Plus, Minus, Trash2, ShoppingCart, ArrowLeft, Loader2, X, Search, Coins, Percent, Check, CheckCircle, ChefHat, Lock, Bike, Utensils, ShoppingBag, CreditCard, Banknote, ArrowLeftRight, Image as ImageIcon, LayoutGrid, Folder } from 'lucide-react'
 import { useProductos } from '../hooks/useProductos'
 import { useVentas } from '../hooks/useVentas'
 import { useComandas } from '../hooks/useComandas'
@@ -8,8 +8,12 @@ import { useAuth } from '../context/AuthContext'
 import { useCaja } from '../hooks/useCaja'
 import { imprimirTicket, itemsDesdeCarrito } from '../utils/imprimirTicket'
 import { obtenerMetodosPagoActivos } from '../utils/metodosPagoConfig'
+import { obtenerImagenCacheada, obtenerPosConFotos } from '../utils/posVistaConfig'
+import { API_BASE_URL } from '../../infrastructure/api'
 import { isAdmin, puedeCobrar } from '../utils/rolePermissions'
 import ModalAutorizacion from '../components/ModalAutorizacion'
+import BilletesEfectivo from '../components/BilletesEfectivo'
+import DividirCuentaModal from '../components/DividirCuentaModal'
 import { usePrinterContext } from '../context/PrinterContext'
 import {
   PROTEINA_SCOOP_PRECIO,
@@ -31,6 +35,7 @@ import {
   tieneScoopProteina,
 } from '../utils/productOptionsConfig'
 import { useOpcionesProducto } from '../hooks/useOpcionesProducto'
+import { reportesService } from '../../application/services/reportesService'
 import Swal from 'sweetalert2'
 
 /**
@@ -107,10 +112,12 @@ const PuntoVenta = () => {
   const panelOrdenRef = useRef(null)
   const [cart, setCart] = useState([])
   const [categoriaActiva, setCategoriaActiva] = useState(null)
+  const [idsMasVendidos, setIdsMasVendidos] = useState([])
   const [metodoPago, setMetodoPago] = useState(null)
   const [idCliente, setIdCliente] = useState(null)
   const [procesando, setProcesando] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  const [verTodos, setVerTodos] = useState(() => localStorage.getItem('zona2_pos_vista') === 'todos')
   const [highlightedProduct, setHighlightedProduct] = useState(null)
   const [mostrarModalFinalizar, setMostrarModalFinalizar] = useState(false)
   const [mostrarModalNombreCliente, setMostrarModalNombreCliente] = useState(false)
@@ -131,6 +138,9 @@ const PuntoVenta = () => {
   const { usuario } = useAuth()
   const { estado: estadoCaja, loading: cajaLoading } = useCaja(15000)
   const [metodosPagoActivos, setMetodosPagoActivos] = useState(() => obtenerMetodosPagoActivos())
+  const [posConFotos, setPosConFotos] = useState(() => obtenerPosConFotos())
+  const [fotosPorId, setFotosPorId] = useState({})
+  const [cacheFotos, setCacheFotos] = useState(0)
   const [numeroTicket, setNumeroTicket] = useState(null)
   
   // Estados para propina
@@ -158,6 +168,7 @@ const PuntoVenta = () => {
 
   // Efectivo con el que paga el cliente, para calcular el cambio
   const [montoRecibido, setMontoRecibido] = useState('')
+  const [mostrarDividirCuenta, setMostrarDividirCuenta] = useState(false)
 
   // Estado para enviar ticket por WhatsApp
   const [numeroWhatsApp, setNumeroWhatsApp] = useState('')
@@ -172,6 +183,7 @@ const PuntoVenta = () => {
   // Estados para producto personalizado
   const [nombreProductoPersonalizado, setNombreProductoPersonalizado] = useState('')
   const [precioProductoPersonalizado, setPrecioProductoPersonalizado] = useState('')
+  const [areaProductoPersonalizado, setAreaProductoPersonalizado] = useState('barra')
   const [mostrarModalPersonalizado, setMostrarModalPersonalizado] = useState(false)
 
   // Si la caja está cerrada, redirigir a abrir caja
@@ -192,16 +204,39 @@ const PuntoVenta = () => {
         return activos.some((m) => m.id === prev) ? prev : null
       })
     }
+    const syncFotos = () => setPosConFotos(obtenerPosConFotos())
     const onStorage = (e) => {
       if (e.key === 'zona2_metodos_pago') sync()
+      if (e.key === 'zona2_pos_fotos') syncFotos()
     }
     window.addEventListener('metodos-pago-config-changed', sync)
+    const limpiarFotos = () => setCacheFotos((n) => n + 1)
+    window.addEventListener('pos-fotos-changed', syncFotos)
+    window.addEventListener('pos-fotos-cache-cleared', limpiarFotos)
     window.addEventListener('storage', onStorage)
     return () => {
       window.removeEventListener('metodos-pago-config-changed', sync)
+      window.removeEventListener('pos-fotos-changed', syncFotos)
+      window.removeEventListener('pos-fotos-cache-cleared', limpiarFotos)
       window.removeEventListener('storage', onStorage)
     }
   }, [])
+
+  // Las fotos salen de la caché del dispositivo. La red solo se usa la primera vez.
+  useEffect(() => {
+    if (!posConFotos || productos.length === 0) return undefined
+    let vivo = true
+    Promise.all(productos.map(async (producto) => {
+      const url = producto.tipo_imagen
+        ? `${API_BASE_URL}/api/productos/imagen/${producto.id_producto}`
+        : null
+      const local = url ? await obtenerImagenCacheada(url) : null
+      return [producto.id_producto, local]
+    })).then((entradas) => {
+      if (vivo) setFotosPorId(Object.fromEntries(entradas))
+    })
+    return () => { vivo = false }
+  }, [posConFotos, productos, cacheFotos])
 
   // Cargar número de ticket actual
   const cargarNumeroTicket = async () => {
@@ -243,6 +278,15 @@ const PuntoVenta = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => {
+    reportesService
+      .obtenerMasVendidosPos(8)
+      .then((data) => {
+        if (Array.isArray(data)) setIdsMasVendidos(data.map((p) => p.id_producto))
+      })
+      .catch(() => setIdsMasVendidos([]))
+  }, [])
+
   /** Carga una comanda en el panel de orden para agregarle productos. */
   const abrirComandaParaEditar = async (idComanda) => {
     try {
@@ -265,7 +309,7 @@ const PuntoVenta = () => {
         icon: 'error',
         title: 'No se pudo abrir la comanda',
         text: error.response?.data?.detail || error.message || 'Intenta de nuevo',
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
       })
     }
   }
@@ -628,7 +672,7 @@ const PuntoVenta = () => {
         icon: 'warning',
         title: 'Número requerido',
         text: 'Por favor ingresa un número de WhatsApp válido (10 dígitos mínimo)',
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
       })
       return
     }
@@ -647,7 +691,7 @@ const PuntoVenta = () => {
       icon: 'success',
       title: '¡Enviar ticket!',
       text: 'Se abrirá WhatsApp con el ticket. Completa el envío desde allí.',
-      confirmButtonColor: '#10b981',
+      confirmButtonColor: '#3d6b4f',
       timer: 2000,
     })
   }
@@ -659,7 +703,7 @@ const PuntoVenta = () => {
         icon: 'warning',
         title: 'Carrito vacío',
         text: 'El carrito está vacío',
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
       })
       return
     }
@@ -669,7 +713,7 @@ const PuntoVenta = () => {
         icon: 'warning',
         title: 'Método de pago requerido',
         text: 'Por favor selecciona un método de pago',
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
       })
       return
     }
@@ -686,19 +730,44 @@ const PuntoVenta = () => {
    * A diferencia del recibo, no lleva método de pago y sugiere propina.
    * Si recibe una comanda la usa como origen; si no, usa la orden en pantalla.
    */
-  const imprimirCuenta = async (comanda = null) => {
-    const itemsOrden = comanda ? convertirComandaTerminadaACarrito(comanda) : cart
+  const imprimirCuenta = async (comanda = null, division = null) => {
+    const datos = datosCuenta(comanda)
 
-    if (!itemsOrden.length) {
+    if (!datos.items.length) {
       await Swal.fire({
         icon: 'info',
         title: 'Sin productos',
         text: 'Agrega productos a la orden antes de imprimir la cuenta.',
-      confirmButtonColor: '#10b981',
+      confirmButtonColor: '#3d6b4f',
       })
       return
     }
 
+    const referencia = comanda || comandaTerminadaSeleccionada
+    const ticket = {
+      negocio: 'ZONA 2',
+      tipo: 'cuenta',
+      numero: referencia?.id_venta ?? null,
+      cajero: usuario ? `${usuario.nombre || ''} ${usuario.apellido_paterno || ''}`.trim() : null,
+      comentarios: comanda ? null : comentarios || null,
+      items: itemsDesdeCarrito(datos.items),
+      subtotal: datos.subtotal,
+      descuento: datos.descuento,
+      propina: datos.propina,
+      total: datos.total,
+      division,
+    }
+
+    await enviarTicketAImpresora(
+      ticket,
+      division ? 'Cuentas impresas' : 'Cuenta impresa',
+      division ? 'Entrega a cada quien su parte.' : 'Entrégala al cliente.'
+    )
+  }
+
+  /** Productos y montos de la cuenta: de una comanda dada o de la orden en pantalla. */
+  const datosCuenta = (comanda = null) => {
+    const itemsOrden = comanda ? convertirComandaTerminadaACarrito(comanda) : cart
     const base = itemsOrden.reduce(
       (sum, item) => sum + precioItem(item) * (Number(item.quantity) || 0),
       0
@@ -717,26 +786,17 @@ const PuntoVenta = () => {
           ? montoPropina || 0
           : 0
 
-    const referencia = comanda || comandaTerminadaSeleccionada
-    const ticket = {
-      negocio: 'ZONA 2',
-      lugar: 'Brunch and Run',
-      tipo: 'cuenta',
-      numero: referencia?.numero_dia ?? referencia?.numero_pedido_dia ?? numeroTicket,
-      cliente: comanda
-        ? comanda.venta_nombre_cliente || null
-        : nombreCliente || comandaTerminadaSeleccionada?.venta_nombre_cliente || null,
-      tipoServicio: comanda ? comanda.venta_tipo_servicio || null : tipoServicio || null,
-      cajero: usuario ? `${usuario.nombre || ''} ${usuario.apellido_paterno || ''}`.trim() : null,
-      comentarios: comanda ? null : comentarios || null,
-      items: itemsDesdeCarrito(itemsOrden),
+    return {
+      items: itemsOrden,
       subtotal,
       descuento,
       propina,
       total: totalDespuesDescuento + propina,
+      precioUnitario: (item) => {
+        const extras = desglosarExtrasCarrito([{ ...item, quantity: 1 }])
+        return precioItem(item) + extras.extraLeche + extras.extraExtras + extras.extraProteina
+      },
     }
-
-    await enviarTicketAImpresora(ticket, 'Cuenta impresa', 'Entrégala al cliente.')
   }
 
   /**
@@ -764,7 +824,7 @@ const PuntoVenta = () => {
           showCancelButton: true,
           confirmButtonText: 'Imprimir en navegador',
           cancelButtonText: 'Cerrar',
-          confirmButtonColor: '#10b981',
+          confirmButtonColor: '#3d6b4f',
         })
         if (!retry.isConfirmed) return
       }
@@ -776,7 +836,7 @@ const PuntoVenta = () => {
           icon: 'warning',
           title: 'No se pudo imprimir',
           text: printResult.error,
-          confirmButtonColor: '#10b981',
+          confirmButtonColor: '#3d6b4f',
         })
     }
   }
@@ -790,7 +850,7 @@ const PuntoVenta = () => {
         showCancelButton: true,
         confirmButtonText: 'Ir a Caja',
         cancelButtonText: 'Cancelar',
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
       })
       if (result.isConfirmed) navigate('/caja')
       return false
@@ -803,7 +863,7 @@ const PuntoVenta = () => {
         showCancelButton: true,
         confirmButtonText: 'Continuar',
         cancelButtonText: 'Cancelar',
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
       })
       if (!continuar.isConfirmed) return false
     }
@@ -920,6 +980,7 @@ const PuntoVenta = () => {
           id_producto: idProducto,
           cantidad,
           nombre_producto: item.personalizado ? (item.nombre || item.nombre_producto) : null,
+          area: idProducto === null ? item.area || 'barra' : null,
           observaciones: item.observaciones || null,
           tipo_preparacion: item.tipoPreparacion || null, // Incluir tipo de preparación
         }
@@ -995,7 +1056,7 @@ const PuntoVenta = () => {
         icon: 'error',
         title: 'Error',
         text: errorMsg,
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
       })
     } finally {
       setProcesando(false)
@@ -1009,7 +1070,7 @@ const PuntoVenta = () => {
         icon: 'warning',
         title: 'Carrito vacío',
         text: 'No hay productos para enviar',
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
       })
       return
     }
@@ -1081,6 +1142,7 @@ const PuntoVenta = () => {
           id_producto: idProducto,
           cantidad,
           nombre_producto: item.personalizado ? (item.nombre || item.nombre_producto) : null,
+          area: idProducto === null ? item.area || 'barra' : null,
           observaciones: item.observaciones || null,
           tipo_preparacion: item.tipoPreparacion || null,
         }
@@ -1116,7 +1178,7 @@ const PuntoVenta = () => {
         icon: 'error',
         title: 'Error',
         text: errorMsg,
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
       })
     } finally {
       setProcesando(false)
@@ -1165,7 +1227,7 @@ const PuntoVenta = () => {
         icon: 'error',
         title: 'Error',
         text: errorMsg,
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
       })
     } finally {
       setProcesando(false)
@@ -1246,7 +1308,7 @@ const PuntoVenta = () => {
         icon: 'error',
         title: 'Valor inválido',
         text: 'Por favor ingresa un valor válido',
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
       })
       return
     }
@@ -1258,7 +1320,7 @@ const PuntoVenta = () => {
           icon: 'error',
           title: 'Porcentaje inválido',
           text: 'El porcentaje no puede ser mayor a 100%',
-          confirmButtonColor: '#10b981',
+          confirmButtonColor: '#3d6b4f',
         })
         return
       }
@@ -1276,6 +1338,7 @@ const PuntoVenta = () => {
   const abrirModalPersonalizado = () => {
     setNombreProductoPersonalizado('')
     setPrecioProductoPersonalizado('')
+    setAreaProductoPersonalizado('barra')
     setMostrarModalPersonalizado(true)
   }
 
@@ -1294,7 +1357,7 @@ const PuntoVenta = () => {
         icon: 'error',
         title: 'Nombre requerido',
         text: 'Por favor ingresa un nombre para el producto',
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
       })
       return
     }
@@ -1304,7 +1367,7 @@ const PuntoVenta = () => {
         icon: 'error',
         title: 'Precio inválido',
         text: 'Por favor ingresa un precio válido mayor a 0',
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
       })
       return
     }
@@ -1315,6 +1378,7 @@ const PuntoVenta = () => {
       id_producto: null, // Enviar null al backend para productos personalizados
       nombre: nombre,
       precio: precio,
+      area: areaProductoPersonalizado,
       personalizado: true // Marca para identificar productos personalizados
     }
 
@@ -1441,6 +1505,7 @@ const PuntoVenta = () => {
         tipoProteina: tipoProteina || null,
         tipoPreparacion: detalle.tipo_preparacion || tipoPreparacion || null,
         comentario: comentario || null,
+        area: detalle.area_preparacion || null,
         fromComandaTerminada: true,
       }
       cartItem.observaciones = buildItemObservaciones(cartItem)
@@ -1517,7 +1582,7 @@ const PuntoVenta = () => {
         icon: 'success',
         title: 'Comanda cancelada',
         text: 'Quedó registrada como cancelada; el inventario no se modificó.',
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
         timer: 2200,
       })
       } catch (error) {
@@ -1526,7 +1591,7 @@ const PuntoVenta = () => {
         icon: 'error',
         title: 'No se pudo cancelar',
         text: typeof detalle === 'string' ? detalle : 'Intenta de nuevo.',
-          confirmButtonColor: '#10b981',
+          confirmButtonColor: '#3d6b4f',
         })
     } finally {
       setCancelandoComanda(false)
@@ -1557,7 +1622,7 @@ const PuntoVenta = () => {
         icon: 'info',
         title: 'Sin productos nuevos',
         text: 'Agrega al menos un producto para guardar los cambios.',
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
       })
       return
     }
@@ -1573,6 +1638,7 @@ const PuntoVenta = () => {
         observaciones: item.observaciones || null,
         tipo_preparacion: item.tipoPreparacion || null,
         nombre_producto: item.personalizado ? (item.nombre || item.nombre_producto) : (item.nombre || null),
+        area: idProducto === null ? item.area || 'barra' : null,
       }
     })
 
@@ -1597,7 +1663,7 @@ const PuntoVenta = () => {
         icon: 'error',
         title: 'Error al guardar',
         text: errorMsg,
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
       })
     } finally {
       setProcesando(false)
@@ -1630,6 +1696,16 @@ const PuntoVenta = () => {
     setProductoExpandido(null)
   }
 
+  const alternarVistaCatalogo = () => {
+    setVerTodos((prev) => {
+      const siguiente = !prev
+      localStorage.setItem('zona2_pos_vista', siguiente ? 'todos' : 'categorias')
+      return siguiente
+    })
+    setCategoriaActiva(null)
+    setProductoExpandido(null)
+  }
+
   // Filtrar productos según búsqueda
   const productosFiltrados = productos.filter(producto => 
     producto.activo && (
@@ -1638,6 +1714,10 @@ const PuntoVenta = () => {
       producto.categoria?.toLowerCase().includes(searchTerm.toLowerCase())
     )
   )
+
+  const productosMasVendidos = idsMasVendidos
+    .map((id) => productos.find((p) => p.id_producto === id && p.activo))
+    .filter(Boolean)
 
   // Función para seleccionar producto desde búsqueda
   const seleccionarProductoDesdeBusqueda = (producto) => {
@@ -1681,20 +1761,46 @@ const PuntoVenta = () => {
   const renderProductTile = (product) => {
     const isHighlighted = highlightedProduct === product.id_producto
     const isSelected = productoExpandido === product.id_producto
+    const foto = posConFotos ? fotosPorId[product.id_producto] : null
+    const precio = `$${parseFloat(product.precio).toFixed(2)}`
 
   return (
       <button
         key={product.id_producto}
         type="button"
         onClick={() => handleProductClick(product)}
-        className={`rounded-xl border-2 transition-all p-3 text-left min-h-[88px] active:scale-[0.98] ${
+        className={`relative overflow-hidden rounded-xl border-2 transition-all text-left active:scale-[0.98] ${
+          posConFotos ? 'min-h-[132px] p-0' : 'min-h-[88px] p-3'
+        } ${
           isHighlighted || isSelected
             ? 'border-matcha-500 bg-matcha-50'
             : 'border-gray-200 bg-white hover:border-matcha-400'
         }`}
       >
-        <p className="font-medium text-gray-900 text-sm leading-snug">{product.nombre}</p>
-        <p className="text-sm text-matcha-600 font-semibold mt-1">${parseFloat(product.precio).toFixed(2)}</p>
+        {posConFotos ? (
+          <>
+            {foto ? (
+              <img
+                src={foto}
+                alt=""
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+            ) : (
+              <span className="absolute inset-0 flex items-center justify-center bg-gray-100 pb-8 text-gray-400">
+                <ImageIcon className="w-8 h-8" aria-hidden="true" />
+              </span>
+            )}
+            <span className="absolute inset-x-0 bottom-0 bg-black/55 px-2.5 py-2">
+              <span className="block font-medium text-white text-sm leading-snug">{product.nombre}</span>
+              <span className="block text-sm text-white font-semibold">{precio}</span>
+            </span>
+          </>
+        ) : (
+          <>
+            <p className="font-medium text-gray-900 text-sm leading-snug">{product.nombre}</p>
+            <p className="text-sm text-matcha-600 font-semibold mt-1">{precio}</p>
+          </>
+        )}
       </button>
     )
   }
@@ -1722,9 +1828,6 @@ const PuntoVenta = () => {
     : modalLlevaExtras
       ? [{ clave: 'extras', nombre: 'Extras', seleccion: 'multiple', opciones: getExtrasDisponibles() }]
       : []
-  const modalSoloNota =
-    modalEsComida && !modalLlevaLeche && !modalLlevaExtras && !modalLlevaProteina && gruposDelModal.length === 0
-
   return (
     <div className="h-full min-h-0 pt-3 px-2 pb-2 flex flex-col landscape:flex-row gap-2 overflow-hidden">
       {/* Catálogo */}
@@ -1752,6 +1855,15 @@ const PuntoVenta = () => {
               </button>
             )}
           </div>
+          <button
+            type="button"
+            onClick={alternarVistaCatalogo}
+            title={verTodos ? 'Ver por categorías' : 'Ver todos'}
+            aria-label={verTodos ? 'Ver por categorías' : 'Ver todos'}
+            className="shrink-0 flex h-[42px] w-[42px] items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 hover:border-matcha-400 hover:text-matcha-700"
+          >
+            {verTodos ? <Folder className="w-5 h-5" /> : <LayoutGrid className="w-5 h-5" />}
+          </button>
         </div>
 
         {/* Área con scroll propio: categorías o productos */}
@@ -1764,31 +1876,56 @@ const PuntoVenta = () => {
                 {productosFiltrados.map((product) => renderProductTile(product))}
                   </div>
             )
-          ) : !categoriaActiva ? (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(115px,1fr))] gap-2">
+          ) : verTodos ? (
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2">
               <button
                 type="button"
                 onClick={abrirModalPersonalizado}
-                className="min-h-[76px] rounded-xl border-2 border-gray-200 bg-gray-50 hover:border-matcha-500 hover:bg-matcha-50 active:scale-[0.98] transition-all p-2 flex flex-col items-center justify-center text-center"
+                className="min-h-[88px] rounded-xl border-2 border-gray-200 bg-gray-50 hover:border-matcha-500 hover:bg-matcha-50 active:scale-[0.98] transition-all p-3 flex flex-col items-center justify-center text-center"
               >
                 <span className="font-semibold text-gray-900 text-sm leading-tight">
                   Personalizado
                 </span>
               </button>
-              {categories.map((category) => {
-                const count = productosDeCategoria(category).length
-                return (
-                  <button
-                    key={category}
-                    type="button"
-                    onClick={() => abrirCategoria(category)}
-                    className="min-h-[76px] rounded-xl border-2 border-gray-200 bg-gray-50 hover:border-matcha-500 hover:bg-matcha-50 active:scale-[0.98] transition-all p-2 flex flex-col items-center justify-center text-center"
-                  >
-                    <span className="font-semibold text-gray-900 text-sm leading-tight">{category}</span>
-                    <span className="text-[11px] text-gray-500 mt-0.5">{count} items</span>
-                  </button>
-                )
-              })}
+              {productos.filter((p) => p.activo).map((product) => renderProductTile(product))}
+            </div>
+          ) : !categoriaActiva ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2">
+                <button
+                  type="button"
+                  onClick={abrirModalPersonalizado}
+                  className="min-h-[88px] rounded-xl border-2 border-gray-200 bg-gray-50 hover:border-matcha-500 hover:bg-matcha-50 active:scale-[0.98] transition-all p-3 flex flex-col items-center justify-center text-center"
+                >
+                  <span className="font-semibold text-gray-900 text-sm leading-tight">
+                    Personalizado
+                  </span>
+                </button>
+                {categories.map((category) => {
+                  const count = productosDeCategoria(category).length
+                  return (
+                    <button
+                      key={category}
+                      type="button"
+                      onClick={() => abrirCategoria(category)}
+                      className="min-h-[88px] rounded-xl border-2 border-gray-200 bg-gray-50 hover:border-matcha-500 hover:bg-matcha-50 active:scale-[0.98] transition-all p-3 flex flex-col items-center justify-center text-center"
+                    >
+                      <span className="font-semibold text-gray-900 text-sm leading-tight">{category}</span>
+                      <span className="text-xs text-gray-500 mt-1">{count} items</span>
+                    </button>
+                  )
+                })}
+              </div>
+              {productosMasVendidos.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5 px-0.5">
+                    Más vendidos
+                  </p>
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2">
+                    {productosMasVendidos.map((product) => renderProductTile(product))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-2">
@@ -1919,6 +2056,15 @@ const PuntoVenta = () => {
                       return null
                     }
                     const tipoLecheNombre = getNombreTipoLeche(item.tipoLeche)
+                    const detalles = [
+                      item.size && { texto: item.size, color: 'text-matcha-700' },
+                      item.tipoPreparacion && (item.tipoPreparacion === 'heladas'
+                        ? { texto: 'Frío', color: 'text-cyan-700' }
+                        : { texto: 'Frapeada', color: 'text-orange-700' }),
+                      item.tipoProteina && { texto: getNombreProteina(item.tipoProteina), color: 'text-yellow-700' },
+                      tipoLecheNombre && { texto: `Leche: ${tipoLecheNombre}`, color: 'text-blue-700' },
+                      ...extrasNombres.map((nombre) => ({ texto: nombre, color: 'text-purple-700' })),
+                    ].filter(Boolean)
                     // Lo que ya se entregó al cliente no se toca, ni editando la
                     // comanda ni cobrándola: el backend cobra el total guardado,
                     // así que cambiarlo aquí solo desajustaría lo que se ve.
@@ -1932,7 +2078,7 @@ const PuntoVenta = () => {
                         }`}
                       >
                         <div className="flex-1">
-                          <p className={`font-medium text-sm ${bloqueado ? 'text-gray-500' : 'text-gray-900'}`}>
+                          <p className={`font-medium text-sm leading-tight ${bloqueado ? 'text-gray-500' : 'text-gray-900'}`}>
                             {item.nombre || item.name}
                           </p>
                           {bloqueado && (
@@ -1940,51 +2086,23 @@ const PuntoVenta = () => {
                               YA ENTREGADO
                             </span>
                           )}
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            {/* Etiqueta de tamaño si existe */}
-                            {item.size && (
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-matcha-100 text-matcha-700 border border-matcha-300">
-                                {item.size}
-                              </span>
-                            )}
-                            {/* Etiqueta de tipo de preparación (frío/frapeada) */}
-                            {item.tipoPreparacion && (
-                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
-                                item.tipoPreparacion === 'heladas'
-                                  ? 'bg-cyan-100 text-cyan-700 border-cyan-300'
-                                  : 'bg-orange-100 text-orange-700 border-orange-300'
-                              }`}>
-                                {item.tipoPreparacion === 'heladas' ? 'Frío' : 'Frapeada'}
-                              </span>
-                            )}
-                            {/* Etiqueta de tipo de proteína */}
-                            {item.tipoProteina && (
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 border border-yellow-300">
-                                {getNombreProteina(item.tipoProteina)}
-                              </span>
-                            )}
-                            {/* Etiqueta de tipo de leche */}
-                            {tipoLecheNombre && (
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-300">
-                                Leche: {tipoLecheNombre}
-                              </span>
-                            )}
-                            {/* Etiquetas de extras */}
-                            {extrasNombres.map((nombre, index) => (
-                              <span 
-                                key={index}
-                                className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 border border-purple-300"
-                              >
-                                {nombre}
-                              </span>
-                            ))}
-                          </div>
+                          
+                          {detalles.length > 0 && (
+                            <p className="mt-1 text-xs font-medium leading-snug">
+                              {detalles.map((d, i) => (
+                                <span key={i}>
+                                  {i > 0 && <span className="text-gray-400"> • </span>}
+                                  <span className={d.color}>{d.texto}</span>
+                                </span>
+                              ))}
+                            </p>
+                          )}
                           {item.comentario && (
-                            <p className="text-xs text-amber-800 italic mt-1.5 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                            <p className="mt-1 text-xs text-amber-800 italic leading-snug">
                               {item.comentario}
                             </p>
                           )}
-                          <p className="text-sm text-gray-500 mt-2">
+                          <p className="text-sm text-gray-500 leading-tight">
                             ${precioItem(item).toFixed(2)} c/u
                           </p>
                         </div>
@@ -2085,6 +2203,28 @@ const PuntoVenta = () => {
                     )
                   })()}
 
+                  {/* La cuenta solo se imprime con una mesa abierta cargada y sin productos
+                      nuevos pendientes de enviar a cocina. */}
+                  {comandaTerminadaSeleccionada && !hayItemsNuevos && (
+                  <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => imprimirCuenta()}
+                    className="py-3 text-base border-2 border-slate-600 text-slate-700 bg-white hover:bg-slate-100 active:scale-[0.98] transition-all rounded-lg font-semibold"
+                    title="Imprime la cuenta para entregarla al cliente (no cobra la orden)"
+                  >
+                    Imprimir Cuenta
+                  </button>
+                  <button
+                    onClick={() => setMostrarDividirCuenta(true)}
+                    disabled={!cart.length}
+                    className="py-3 text-base border-2 border-slate-600 text-slate-700 bg-white hover:bg-slate-100 active:scale-[0.98] transition-all rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Imprime la cuenta dividida entre varias personas"
+                  >
+                    Dividir Cuenta
+                  </button>
+                  </div>
+                  )}
+
                   {/* Mesa abierta con productos nuevos: primero van a cocina, no a caja.
                       Cobrar antes de guardarlos usaría el total viejo de la venta. */}
                   {comandaEnEdicion || (comandaTerminadaSeleccionada && hayItemsNuevos) ? (
@@ -2119,16 +2259,6 @@ const PuntoVenta = () => {
                     </>
                   ) : (
                   <>
-                  {/* Cuenta para el cliente: se imprime antes de cobrar */}
-                  <button
-                    onClick={() => imprimirCuenta()}
-                    className="w-full py-3 text-base border-2 border-coffee-500 text-coffee-700 bg-coffee-50 hover:bg-coffee-100 rounded-lg font-semibold flex items-center justify-center gap-2"
-                    title="Imprime la cuenta para entregarla al cliente (no cobra la orden)"
-                  >
-                    <Receipt className="w-5 h-5" />
-                    Imprimir Cuenta
-                  </button>
-
                   {!comandaTerminadaSeleccionada && (
                     <>
                   {/* Enviar sin pagar: preparar primero, cobrar cuando esté lista */}
@@ -2237,18 +2367,10 @@ const PuntoVenta = () => {
                           <p className="font-bold text-amber-600">${parseFloat(comanda.total || 0).toFixed(2)}</p>
                         </div>
                       </button>
-                      <div className="mt-2 flex items-center justify-between gap-2">
+                      <div className="mt-2">
                         <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-200 text-amber-800">
                           Sin pagar
                         </span>
-                        <button
-                          onClick={() => imprimirCuenta(comanda)}
-                          className="px-3 py-1.5 text-xs border border-coffee-400 text-coffee-700 bg-white hover:bg-coffee-50 rounded-lg font-medium flex items-center gap-1.5"
-                          title="Imprimir la cuenta de esta comanda sin cobrarla"
-                        >
-                          <Receipt className="w-3.5 h-3.5" />
-                          Cuenta
-                      </button>
                       </div>
                     </div>
                   )
@@ -2304,6 +2426,30 @@ const PuntoVenta = () => {
                   />
                 </div>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  ¿Dónde se prepara?
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'cocina', texto: 'Cocina' },
+                    { id: 'barra', texto: 'Barra' },
+                  ].map(({ id, texto }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setAreaProductoPersonalizado(id)}
+                      className={`py-2 rounded-lg border-2 text-sm font-medium transition-colors ${
+                        areaProductoPersonalizado === id
+                          ? 'border-matcha-500 bg-matcha-50 text-matcha-700'
+                          : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                      }`}
+                    >
+                      {texto}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="flex gap-2 pt-1">
                 <button
                   type="button"
@@ -2333,27 +2479,27 @@ const PuntoVenta = () => {
           onClick={cerrarModalOpcionesProducto}
         >
           <div
-            className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-lg shadow-xl max-w-md md:max-w-2xl w-full max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between p-2 border-b border-gray-200">
               <div className="min-w-0 pr-2">
                 <h2 className="text-xl font-bold text-gray-900 truncate">{productoOpcionesModal.nombre}</h2>
               </div>
-                      <button
+              <button
                 type="button"
                 onClick={cerrarModalOpcionesProducto}
                 className="p-2 rounded-lg hover:bg-gray-100 transition-colors shrink-0"
               >
                 <X className="w-5 h-5 text-gray-600" />
               </button>
-                          </div>
+            </div>
 
             <div className="p-4 space-y-5">
               {modalLlevaLeche && (
                 <div>
                   <p className="text-sm font-medium text-gray-700 mb-2">Tipo de leche</p>
-                  <div className="grid grid-cols-1 gap-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                     {getLechesDisponibles().map((opt) => (
                       <button
                         key={opt.value}
@@ -2369,19 +2515,16 @@ const PuntoVenta = () => {
                         {opt.extra > 0 ? ` (+$${opt.extra})` : ''}
                       </button>
                     ))}
-                        </div>
-                          </div>
+                  </div>
+                </div>
               )}
 
               {gruposDelModal.map((grupo) => {
                 const eligeUna = grupo.seleccion === 'unica'
                 return (
                   <div key={grupo.clave}>
-                    <div className="flex items-baseline gap-2 mb-2">
-                      <p className="text-sm font-medium text-gray-700">{grupo.nombre}</p>
-                      
-                          </div>
-                    <div className="grid grid-cols-1 gap-2">
+                    <p className="text-sm font-medium text-gray-700 mb-2">{grupo.nombre}</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                       {grupo.opciones.map((opcion) => {
                         const activo = (opcionesModal.extras || []).includes(opcion.id)
                         return (
@@ -2397,7 +2540,6 @@ const PuntoVenta = () => {
                                 : 'border-gray-200 text-gray-800'
                             }`}
                           >
-                            {/* Redondo si sólo cabe una, cuadrado si caben varias */}
                             <span
                               className={`w-5 h-5 shrink-0 border-2 flex items-center justify-center ${
                                 eligeUna ? 'rounded-full' : 'rounded'
@@ -2417,10 +2559,10 @@ const PuntoVenta = () => {
                           </button>
                         )
                       })}
-                        </div>
                     </div>
-                  )
-                })}
+                  </div>
+                )
+              })}
 
               {modalLlevaProteina && (
                 <div>
@@ -2522,7 +2664,7 @@ const PuntoVenta = () => {
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { valor: 'comer-aqui', texto: 'Comer aquí', Icono: Utensils },
-                  { valor: 'para-llevar', texto: 'Delivery', Icono: Bike },
+                  { valor: 'para-llevar', texto: 'Para llevar', Icono: ShoppingBag },
                 ].map(({ valor, texto, Icono }) => (
                   <button
                     key={valor}
@@ -2561,13 +2703,24 @@ const PuntoVenta = () => {
       )}
 
       {/* Modal Finalizar Pedido */}
+      {mostrarDividirCuenta && (
+        <DividirCuentaModal
+          cuenta={datosCuenta()}
+          onClose={() => setMostrarDividirCuenta(false)}
+          onImprimir={async (division) => {
+            setMostrarDividirCuenta(false)
+            await imprimirCuenta(null, division)
+          }}
+        />
+      )}
+
       {mostrarModalFinalizar && (
         <div
           className={OVERLAY_MODAL}
           onClick={() => setMostrarModalFinalizar(false)}
         >
           <div
-            className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-lg shadow-xl max-w-md md:max-w-2xl w-full max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Contenido */}
@@ -2599,6 +2752,7 @@ const PuntoVenta = () => {
 
               {/* Cuando el cliente paga de una vez, la orden nunca pasó por el
                   modal de comandas y este es el único lugar donde dar el nombre. */}
+              <div className="grid grid-cols-1 md:grid-cols-2 md:items-end gap-5 md:gap-4 empty:hidden">
               {!comandaEnEdicion && !comandaTerminadaSeleccionada && (
               <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -2619,7 +2773,7 @@ const PuntoVenta = () => {
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { valor: 'comer-aqui', texto: 'Comer aquí', Icono: Utensils },
-                    { valor: 'para-llevar', texto: 'Delivery', Icono: Bike },
+                    { valor: 'para-llevar', texto: 'Para llevar', Icono: ShoppingBag },
                   ].map(({ valor, texto, Icono }) => (
                     <button
                       key={valor}
@@ -2637,6 +2791,7 @@ const PuntoVenta = () => {
                   ))}
                 </div>
               )}
+              </div>
 
               {/* Totales */}
               <div className="border-t border-gray-200 pt-4 space-y-2">
@@ -2700,6 +2855,11 @@ const PuntoVenta = () => {
                     <label className="block text-sm font-medium text-gray-700">
                       Paga con <span className="text-gray-400">(Opcional)</span>
                 </label>
+                    <BilletesEfectivo
+                      total={totalACobrar}
+                      montoRecibido={montoRecibido}
+                      onChange={setMontoRecibido}
+                    />
                 <input
                       type="number"
                       inputMode="decimal"
@@ -2755,7 +2915,7 @@ const PuntoVenta = () => {
           onClick={() => setMostrarModalPropina(false)}
         >
           <div
-            className="bg-white rounded-lg shadow-xl max-w-md w-full"
+            className="bg-white rounded-lg shadow-xl max-w-md md:max-w-2xl w-full"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -2825,8 +2985,9 @@ const PuntoVenta = () => {
                 </p>
 
                 <div className="space-y-3">
+                  <div className="flex flex-col md:flex-row gap-2 md:gap-3">
                   {/* Selector de tipo */}
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 md:flex-1">
                     <button
                       onClick={() => setTipoPropinaPersonalizada('porcentaje')}
                       className={`flex-1 py-2 px-3 rounded-lg border-2 transition-all text-sm ${
@@ -2850,7 +3011,7 @@ const PuntoVenta = () => {
                   </div>
 
                   {/* Input para valor personalizado */}
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 md:flex-1">
                     <div className="flex-1 relative">
                       <input
                         type="number"
@@ -2873,6 +3034,7 @@ const PuntoVenta = () => {
                     >
                       Aplicar
                     </button>
+                  </div>
                   </div>
 
                   {/* Sin esto no hay forma de notar que un 18.9 escrito en modo
@@ -2913,7 +3075,7 @@ const PuntoVenta = () => {
           onClick={() => setMostrarModalDescuento(false)}
         >
           <div
-            className="bg-white rounded-lg shadow-xl max-w-md w-full"
+            className="bg-white rounded-lg shadow-xl max-w-md md:max-w-2xl w-full"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
@@ -2926,7 +3088,7 @@ const PuntoVenta = () => {
               </button>
             </div>
             <div className="p-6 space-y-4">
-              <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-4">
                 {[5, 10, 15, 20, 50, 100].map((porcentaje) => {
                   const seleccionado = descuentoTipo === 'porcentaje' && descuentoValor === porcentaje
                   const pideCodigo = descuentoNecesitaAutorizacion('porcentaje', porcentaje)
@@ -2951,7 +3113,8 @@ const PuntoVenta = () => {
               </div>
               <div className="border-t border-gray-200 pt-4">
                 <p className="text-sm text-gray-600 mb-3">O especifica un descuento personalizado:</p>
-                <div className="flex gap-2">
+                <div className="flex flex-col md:flex-row gap-3">
+                <div className="flex gap-2 md:flex-1">
                   <button
                     onClick={() => setTipoDescuentoPersonalizado('porcentaje')}
                     className={`flex-1 py-2 px-3 rounded-lg border-2 transition-all text-sm ${
@@ -2973,7 +3136,7 @@ const PuntoVenta = () => {
                     Monto fijo ($)
                   </button>
                 </div>
-                <div className="flex gap-2 mt-3">
+                <div className="flex gap-2 md:flex-1">
                   <div className="flex-1 relative">
                     <input
                       type="number"
@@ -2996,6 +3159,7 @@ const PuntoVenta = () => {
                   >
                     Aplicar
                   </button>
+                </div>
                 </div>
               </div>
             </div>

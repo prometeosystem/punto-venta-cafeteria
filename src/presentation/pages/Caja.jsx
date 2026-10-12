@@ -3,6 +3,8 @@ import { useLocation } from 'react-router-dom'
 import { useCaja } from '../hooks/useCaja'
 import { Loader2, AlertCircle } from 'lucide-react'
 import Swal from 'sweetalert2'
+import { useAuth } from '../context/AuthContext'
+import { isAdmin } from '../utils/rolePermissions'
 
 const formatMoney = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n || 0)
 
@@ -24,6 +26,8 @@ const conSeparadorMiles = (valor) => {
 const Caja = () => {
   const location = useLocation()
   const { estado, loading, error, abrirCaja, cerrarCaja } = useCaja()
+  const { usuario } = useAuth()
+  const totalMesas = (estado?.mesas_abiertas || []).reduce((sum, m) => sum + (m.total || 0), 0)
   const [montoInicial, setMontoInicial] = useState('300')
   const [motivoMonto, setMotivoMonto] = useState('')
   const [montoContado, setMontoContado] = useState('')
@@ -36,7 +40,7 @@ const Caja = () => {
         icon: 'info',
         title: 'Caja cerrada',
         text: 'Debes abrir caja antes de usar el punto de venta.',
-        confirmButtonColor: '#2d5a27',
+        confirmButtonColor: '#3d6b4f',
       })
     }
   }, [location.state])
@@ -73,20 +77,49 @@ const Caja = () => {
       Swal.fire('Atención', 'Debe justificar la diferencia en el arqueo', 'warning')
       return
     }
+    const mesas = estado?.mesas_abiertas || []
+    const avisoMesas = mesas.length
+      ? `<div style="margin-top:12px;padding:8px 10px;border-radius:6px;background:#fffbeb;border:1px solid #fcd34d;color:#92400e;font-size:13px;text-align:left">
+          <b>${mesas.length === 1 ? 'Hay 1 mesa abierta' : `Hay ${mesas.length} mesas abiertas`} por ${formatMoney(totalMesas)}.</b><br>
+          Se cobrarán en la siguiente caja.
+        </div>`
+      : ''
+    const pedirCodigo = mesas.length > 0 && !isAdmin(usuario?.rol)
+
     const confirm = await Swal.fire({
       title: '¿Cerrar caja?',
-      html: `Esperado: ${formatMoney(esperado)}<br>Contado: ${formatMoney(contado)}<br>Diferencia: ${formatMoney(diferencia)}`,
+      html: `Esperado: ${formatMoney(esperado)}<br>Contado: ${formatMoney(contado)}<br>Diferencia: ${formatMoney(diferencia)}${avisoMesas}`,
       icon: '',
       showCancelButton: true,
-      confirmButtonText: 'Cerrar caja',
+      confirmButtonText: pedirCodigo ? 'Continuar' : 'Cerrar caja',
     })
     if (!confirm.isConfirmed) return
+
+    let autorizacion = null
+    if (pedirCodigo) {
+      const { value } = await Swal.fire({
+        // Arriba: en tablet el teclado tapa media pantalla
+        position: 'top',
+        heightAuto: false,
+        title: 'Autorización',
+        text: 'Hay mesas abiertas. Un administrador debe autorizar el cierre con su código.',
+        input: 'password',
+        inputAttributes: { inputmode: 'numeric', autocomplete: 'off', maxlength: 32 },
+        showCancelButton: true,
+        confirmButtonText: 'Cerrar caja',
+        cancelButtonText: 'Cancelar',
+        inputValidator: (v) => (!v?.trim() ? 'Escribe el código' : null),
+      })
+      if (!value) return
+      autorizacion = value.trim()
+    }
 
     setProcesando(true)
     const idSesion = estado?.sesion?.id_sesion_caja
     const result = await cerrarCaja(idSesion, {
       monto_contado: contado,
       justificacion_diferencia: diferencia !== 0 ? justificacion : null,
+      autorizacion,
     })
     setProcesando(false)
     if (result.error) {
@@ -272,6 +305,28 @@ const Caja = () => {
             <AlertCircle className="w-4 h-4" /> Cierre con arqueo
           </h2>
           <div className="space-y-2.5">
+            {estado.mesas_abiertas?.length > 0 && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-800">
+                <p className="font-semibold">
+                  {estado.mesas_abiertas.length === 1
+                    ? 'Hay 1 mesa abierta'
+                    : `Hay ${estado.mesas_abiertas.length} mesas abiertas`}{' '}
+                  · {formatMoney(totalMesas)}
+                </p>
+                <ul className="mt-1 space-y-0.5">
+                  {estado.mesas_abiertas.map((m) => (
+                    <li key={m.id_venta} className="flex justify-between gap-2">
+                      <span className="truncate">{m.nombre_cliente || 'Sin nombre'}</span>
+                      <span className="tabular-nums shrink-0">{formatMoney(m.total)}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-1 text-amber-700">
+                  No cuentan en este arqueo: se cobran en la siguiente caja.
+                  {!isAdmin(usuario?.rol) && ' Cerrar requiere autorización.'}
+                </p>
+              </div>
+            )}
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Efectivo contado</label>
               <div className="relative">

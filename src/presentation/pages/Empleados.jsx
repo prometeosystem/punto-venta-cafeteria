@@ -3,6 +3,7 @@ import { Plus, Search, Mail, Phone, Users, Loader2, X, Edit, Trash2, KeyRound } 
 import { useUsuarios } from '../hooks/useUsuarios'
 import { useAuth } from '../context/AuthContext'
 import Swal from 'sweetalert2'
+import { CODIGO_DEFAULT, problemaCodigo } from '../utils/codigoAcceso'
 
 const Empleados = () => {
   const [searchTerm, setSearchTerm] = useState('')
@@ -22,7 +23,7 @@ const Empleados = () => {
     activo: true,
   })
 
-  const { usuarios, estadisticas, loading, crearUsuario, editarUsuario, eliminarUsuario, obtenerUsuarios, definirCodigo, quitarCodigo } = useUsuarios()
+  const { usuarios, estadisticas, loading, crearUsuario, editarUsuario, eliminarUsuario, obtenerUsuarios, definirCodigo, restablecerCodigo, quitarCodigo } = useUsuarios()
   const { usuario: usuarioActual } = useAuth()
 
   const esSuperadmin = (u) => u?.rol === 'superadministrador'
@@ -49,12 +50,12 @@ const Empleados = () => {
   const handleCodigo = async (empleado) => {
     const tieneCodigo = empleado.tiene_codigo === 1 || empleado.tiene_codigo === true
 
-    const { value: codigo, isDenied } = await Swal.fire({
+    const { value: codigo, isConfirmed, isDenied } = await Swal.fire({
       // Arriba y sin icono: en tablet el teclado tapa media pantalla
       position: 'top',
       heightAuto: false,
       title: tieneCodigo ? 'Cambiar código' : 'Asignar código',
-      text: `6 dígitos para ${getFullName(empleado)}`,
+      text: `6 dígitos para ${getFullName(empleado)}. Vacío = ${CODIGO_DEFAULT}, y se le pide cambiarlo al entrar.`,
       input: 'text',
       inputAttributes: { inputmode: 'numeric', maxlength: 6, autocomplete: 'off' },
       showCancelButton: true,
@@ -62,28 +63,32 @@ const Empleados = () => {
       confirmButtonText: 'Guardar',
       denyButtonText: 'Quitar código',
       cancelButtonText: 'Cancelar',
-      confirmButtonColor: '#10b981',
-      inputValidator: (valor) => {
-        if (!/^\d{6}$/.test(valor || '')) return 'Deben ser exactamente 6 dígitos'
-        if (new Set(valor).size === 1) return 'No puede ser el mismo dígito repetido'
-        return null
-      },
+      confirmButtonColor: '#3d6b4f',
+      inputValidator: (valor) => (valor ? problemaCodigo(valor) : null),
     })
 
     try {
       if (isDenied) {
         await quitarCodigo(empleado.id_usuario)
         await Swal.fire({ icon: 'success', title: 'Código eliminado', timer: 1400, showConfirmButton: false })
-      } else if (codigo) {
+      } else if (isConfirmed && codigo) {
         await definirCodigo(empleado.id_usuario, codigo)
         await Swal.fire({ icon: 'success', title: 'Código guardado', timer: 1400, showConfirmButton: false })
+      } else if (isConfirmed) {
+        await restablecerCodigo(empleado.id_usuario)
+        await Swal.fire({
+          icon: 'success',
+          title: `Código: ${CODIGO_DEFAULT}`,
+          text: 'Se le pedirá cambiarlo al iniciar sesión',
+          confirmButtonColor: '#3d6b4f',
+        })
       }
     } catch (err) {
       await Swal.fire({
         icon: 'error',
         title: 'No se pudo guardar',
         text: err?.detail || err?.message || 'Intenta de nuevo',
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
       })
     }
   }
@@ -271,56 +276,36 @@ const Empleados = () => {
           icon: 'error',
           title: 'Error de validación',
           text: 'El nombre es requerido',
-          confirmButtonColor: '#10b981',
+          confirmButtonColor: '#3d6b4f',
         })
         setGuardando(false)
         return
       }
 
-      if (!formData.correo.trim()) {
-        await Swal.fire({
-          icon: 'error',
-          title: 'Error de validación',
-          text: 'El correo es requerido',
-          confirmButtonColor: '#10b981',
-        })
-        setGuardando(false)
-        return
-      }
-
-      // Validar formato de correo
+      // El correo es opcional; si viene, que sea válido
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      if (!emailRegex.test(formData.correo.trim())) {
+      if (formData.correo.trim() && !emailRegex.test(formData.correo.trim())) {
         await Swal.fire({
           icon: 'error',
           title: 'Error de validación',
           text: 'El formato del correo no es válido',
-          confirmButtonColor: '#10b981',
+          confirmButtonColor: '#3d6b4f',
         })
         setGuardando(false)
         return
       }
 
       // El código de acceso sólo se pide al dar de alta; después se cambia
-      // con el botón de la llave.
+      // con el botón de la llave. Vacío, el backend asigna el de por defecto.
       const codigo = (formData.codigo || '').trim()
-      if (!empleadoEditando) {
-        if (!/^\d{6}$/.test(codigo)) {
+      if (!empleadoEditando && codigo) {
+        const problema = problemaCodigo(codigo)
+        if (problema) {
           await Swal.fire({
             icon: 'error',
             title: 'Error de validación',
-            text: 'El código de acceso debe ser de 6 dígitos',
-            confirmButtonColor: '#10b981',
-          })
-          setGuardando(false)
-          return
-        }
-        if (new Set(codigo).size === 1) {
-          await Swal.fire({
-            icon: 'error',
-            title: 'Error de validación',
-            text: 'El código no puede ser el mismo dígito repetido',
-            confirmButtonColor: '#10b981',
+            text: problema,
+            confirmButtonColor: '#3d6b4f',
           })
           setGuardando(false)
           return
@@ -339,7 +324,7 @@ const Empleados = () => {
         nombre: formData.nombre.trim(),
         apellido_paterno: opcional(formData.apellido_paterno),
         apellido_materno: opcional(formData.apellido_materno),
-        correo: formData.correo.trim(),
+        correo: opcional(formData.correo),
         celular: opcional(formData.celular),
         rol: formData.rol,
         activo: formData.activo,
@@ -347,7 +332,7 @@ const Empleados = () => {
 
       // El código sólo viaja al crear; al editar se cambia con la llave
       if (!empleadoEditando) {
-        empleadoData.codigo = codigo
+        empleadoData.codigo = codigo || null
       }
 
       if (empleadoEditando) {
@@ -357,7 +342,7 @@ const Empleados = () => {
           icon: 'success',
           title: '¡Empleado actualizado!',
           text: 'El empleado se ha actualizado correctamente',
-          confirmButtonColor: '#10b981',
+          confirmButtonColor: '#3d6b4f',
           timer: 2000,
         })
       } else {
@@ -367,7 +352,7 @@ const Empleados = () => {
           icon: 'success',
           title: '¡Empleado creado!',
           text: 'El empleado se ha creado correctamente',
-          confirmButtonColor: '#10b981',
+          confirmButtonColor: '#3d6b4f',
           timer: 2000,
         })
       }
@@ -427,7 +412,7 @@ const Empleados = () => {
         icon: 'error',
         title: 'Error al guardar empleado',
         text: errorMsg,
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#3d6b4f',
         width: '500px',
       })
     } finally {
@@ -444,7 +429,7 @@ const Empleados = () => {
       showCancelButton: true,
       confirmButtonText: 'Sí, desactivar',
       cancelButtonText: 'Cancelar',
-      confirmButtonColor: '#10b981',
+      confirmButtonColor: '#3d6b4f',
       cancelButtonColor: '#6b7280',
     })
 
@@ -455,7 +440,7 @@ const Empleados = () => {
           icon: 'success',
           title: '¡Empleado desactivado!',
           text: 'El empleado se ha desactivado correctamente',
-          confirmButtonColor: '#10b981',
+          confirmButtonColor: '#3d6b4f',
           timer: 2000,
         })
         await obtenerUsuarios()
@@ -510,7 +495,7 @@ const Empleados = () => {
           icon: 'error',
           title: 'Error',
           text: errorMsg,
-          confirmButtonColor: '#10b981',
+          confirmButtonColor: '#3d6b4f',
           width: '500px',
         })
       }
@@ -637,9 +622,11 @@ const Empleados = () => {
                           : 'border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-700'
                       }`}
                       title={
-                        employee.tiene_codigo
-                          ? 'Cambiar código de acceso'
-                          : 'Sin código: no aparece en la pantalla de inicio'
+                        !employee.tiene_codigo
+                          ? 'Sin código: no aparece en la pantalla de inicio'
+                          : employee.debe_cambiar_codigo
+                            ? `Tiene el código por defecto (${CODIGO_DEFAULT}) pendiente de cambiar`
+                            : 'Cambiar código de acceso'
                       }
                     >
                       <KeyRound className="w-4 h-4" />
@@ -727,11 +714,10 @@ const Empleados = () => {
                 {/* Correo */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Correo <span className="text-red-500">*</span>
+                    Correo
                   </label>
                   <input
                     type="email"
-                    required
                     value={formData.correo}
                     onChange={(e) => setFormData({ ...formData, correo: e.target.value })}
                     className="input w-full"
@@ -744,24 +730,22 @@ const Empleados = () => {
                 {!empleadoEditando && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Código de acceso <span className="text-red-500">*</span>
+                      Código de acceso
                     </label>
                     <input
                       type="text"
                       inputMode="numeric"
                       maxLength={6}
-                      required
                       value={formData.codigo}
                       onChange={(e) =>
                         setFormData({ ...formData, codigo: e.target.value.replace(/\D/g, '') })
                       }
                       className="input w-full tracking-widest"
-                      placeholder="6 dígitos"
+                      placeholder={`Vacío = ${CODIGO_DEFAULT}`}
                       autoComplete="off"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Con este código entra desde la tablet. Se puede cambiar después con
-                      el botón de la llave.
+                      Si lo dejas vacío entra con {CODIGO_DEFAULT} y se le pide cambiarlo al iniciar sesión.
                     </p>
                   </div>
                 )}
@@ -802,23 +786,25 @@ const Empleados = () => {
                   </select>
                 </div>
 
-                {/* Estado Activo */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Estado
-                  </label>
-                  <div className="flex items-center gap-4 mt-2">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.activo}
-                        onChange={(e) => setFormData({ ...formData, activo: e.target.checked })}
-                        className="w-4 h-4 text-matcha-600 rounded focus:ring-matcha-500"
-                      />
-                      <span className="text-sm text-gray-700">Activo</span>
+                {/* Estado: solo al editar, para reactivar a alguien. Al crear siempre es activo. */}
+                {empleadoEditando && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Estado
                     </label>
+                    <div className="flex items-center gap-4 mt-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.activo}
+                          onChange={(e) => setFormData({ ...formData, activo: e.target.checked })}
+                          className="w-4 h-4 text-matcha-600 rounded focus:ring-matcha-500"
+                        />
+                        <span className="text-sm text-gray-700">Activo</span>
+                      </label>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Botones */}

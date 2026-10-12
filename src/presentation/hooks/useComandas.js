@@ -95,11 +95,11 @@ export const useComandas = () => {
     }
   }
 
-  const actualizarEstado = async (idComanda, nuevoEstado, permitirStockNegativo = false) => {
+  const actualizarEstado = async (idComanda, nuevoEstado, permitirStockNegativo = false, area = null) => {
     setLoading(true)
     setError(null)
     try {
-      const response = await comandasService.actualizarEstadoComanda(idComanda, nuevoEstado, permitirStockNegativo)
+      const response = await comandasService.actualizarEstadoComanda(idComanda, nuevoEstado, permitirStockNegativo, area)
       return response
     } catch (err) {
       const errorMessage = err.response?.data?.detail || err.message || 'Error al actualizar estado'

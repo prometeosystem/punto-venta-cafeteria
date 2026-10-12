@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Bell, CreditCard, Loader2, Tags, ChevronRight } from 'lucide-react'
+import { Bell, CreditCard, Image, Loader2, Tags, ChevronRight } from 'lucide-react'
 import { useUsuarios } from '../hooks/useUsuarios'
 import { useVentas } from '../hooks/useVentas'
 import { useProductos } from '../hooks/useProductos'
@@ -11,6 +11,7 @@ import {
   obtenerMetodosPagoConfig,
   guardarMetodosPagoConfig,
 } from '../utils/metodosPagoConfig'
+import { guardarPosConFotos, obtenerPosConFotos, vaciarCacheImagenes } from '../utils/posVistaConfig'
 import OpcionesProductoConfig from '../components/OpcionesProductoConfig'
 import Swal from 'sweetalert2'
 
@@ -22,6 +23,7 @@ const Configuracion = () => {
   const { obtenerComandas } = useComandas()
 
   const [metodosPagoConfig, setMetodosPagoConfig] = useState(() => obtenerMetodosPagoConfig())
+  const [posConFotos, setPosConFotos] = useState(() => obtenerPosConFotos())
   const [estadisticas, setEstadisticas] = useState({
     totalVentas: 0,
     totalComandas: 0,
@@ -144,6 +146,48 @@ const Configuracion = () => {
       </div>
 
       <OpcionesProductoConfig />
+
+      <div className="card">
+        <div className="flex items-center gap-3 mb-2">
+          <Image className="w-5 h-5 text-matcha-600" />
+          <h2 className="text-lg font-semibold text-gray-900">
+            Punto de Venta
+          </h2>
+        </div>
+        <label className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+          <div>
+            <p className="text-gray-900 font-medium">Productos con foto</p>
+            <p className="text-sm text-gray-500">
+              Usa la foto guardada en cada producto. Si no tiene, la card muestra un icono.
+            </p>
+          </div>
+          <input
+            type="checkbox"
+            checked={posConFotos}
+            onChange={() => setPosConFotos(guardarPosConFotos(!posConFotos))}
+            className="w-4 h-4 shrink-0 ml-3"
+          />
+        </label>
+        <button
+          type="button"
+          onClick={async () => {
+            try {
+              await vaciarCacheImagenes()
+              Swal.fire({
+                icon: 'success',
+                title: 'Fotos actualizadas',
+                text: 'Se borraron las fotos guardadas. Al abrir el punto de venta se vuelven a buscar.',
+                confirmButtonColor: '#3d6b4f',
+              })
+            } catch {
+              Swal.fire('Error', 'No se pudieron borrar las fotos guardadas', 'error')
+            }
+          }}
+          className="mt-3 text-sm font-medium text-matcha-700 hover:text-matcha-800"
+        >
+          Eliminar imágenes anteriores y descargar nuevas
+        </button>
+      </div>
 
       {/* Métodos de pago en Punto de Venta */}
       <div className="card">

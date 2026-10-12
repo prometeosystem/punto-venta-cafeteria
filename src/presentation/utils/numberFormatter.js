@@ -49,3 +49,21 @@ export const formatCantidad = (num) => {
 export const formatPrecio = (num) => {
   return formatNumber(num, true);
 };
+
+/**
+ * Cantidad de inventario con hasta 4 decimales, sin rellenar ceros.
+ * 0.018 kg no debe mostrarse como 0.02.
+ */
+export const formatMedida = (num) => {
+  if (num === null || num === undefined || num === '') {
+    return '0'
+  }
+  const number = typeof num === 'string' ? parseFloat(num) : num
+  if (isNaN(number)) {
+    return '0'
+  }
+  return number.toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 4,
+  })
+}

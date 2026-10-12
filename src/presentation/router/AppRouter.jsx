@@ -21,6 +21,7 @@ const MovimientosCaja = lazy(() => import('../pages/MovimientosCaja'))
 const CategoriasMovimiento = lazy(() => import('../pages/CategoriasMovimiento'))
 const Contabilidad = lazy(() => import('../pages/Contabilidad'))
 const TestNotificationSounds = lazy(() => import('../pages/TestNotificationSounds'))
+const MiPerfil = lazy(() => import('../pages/MiPerfil'))
 
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-[200px]">
@@ -63,6 +64,7 @@ function AppRouter() {
         <Route path="contabilidad" element={<RoleProtectedRoute><LazyPage><Contabilidad /></LazyPage></RoleProtectedRoute>} />
         <Route path="configuracion" element={<RoleProtectedRoute><LazyPage><Configuracion /></LazyPage></RoleProtectedRoute>} />
         <Route path="test-sonidos" element={<RoleProtectedRoute><LazyPage><TestNotificationSounds /></LazyPage></RoleProtectedRoute>} />
+        <Route path="mi-perfil" element={<RoleProtectedRoute><LazyPage><MiPerfil /></LazyPage></RoleProtectedRoute>} />
       </Route>
     </Routes>
   )

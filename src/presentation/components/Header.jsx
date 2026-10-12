@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Menu, LogOut, ChevronUp, Maximize, Minimize } from 'lucide-react'
+import { Menu, LogOut, ChevronUp, Maximize, Minimize, UserRound } from 'lucide-react'
 import { useLayout } from '../context/LayoutContext'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -24,6 +24,7 @@ const ROUTE_TITLES = {
   '/configuracion': 'Configuración',
   '/test-sonidos': 'Prueba de Sonidos',
   '/clientes': 'Clientes',
+  '/mi-perfil': 'Mi perfil',
 }
 
 const Header = () => {
@@ -134,6 +135,16 @@ const Header = () => {
                   <div className="text-sm font-semibold text-gray-900">{getFullName()}</div>
                   <div className="text-xs text-gray-500">{usuario?.correo || ''}</div>
                 </div>
+                <button
+                  onClick={() => {
+                    setShowDropdown(false)
+                    navigate('/mi-perfil')
+                  }}
+                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <UserRound className="w-4 h-4" />
+                  Mi perfil
+                </button>
                 <button
                   onClick={handleLogout}
                   className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"

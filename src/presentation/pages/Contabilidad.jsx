@@ -259,7 +259,7 @@ const Contabilidad = () => {
                           formatter={(v) => [formatMoney(v), 'Ingresos']}
                           labelFormatter={(label) => `Día ${String(label)}`}
                         />
-                        <Bar dataKey="total" fill="#5a8f5a" radius={[4, 4, 0, 0]} minPointSize={4} />
+                        <Bar dataKey="total" fill="#3d6b4f" radius={[4, 4, 0, 0]} minPointSize={4} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>

@@ -111,13 +111,9 @@ const ModalAutorizacion = ({
                   setError('')
                 }}
                 onKeyDown={(e) => e.key === 'Enter' && confirmar()}
-                placeholder="Código de administrador"
                 className="input-field w-full text-lg"
                 disabled={ocupado}
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Es el mismo código con el que un administrador inicia sesión.
-              </p>
             </div>
           )}
 
