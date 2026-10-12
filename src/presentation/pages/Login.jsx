@@ -15,7 +15,7 @@ const TOQUES_PARA_REVELAR = 7
 const COLOR_ROL = {
   superadministrador: 'bg-purple-100 text-purple-700',
   administrador: 'bg-blue-100 text-blue-700',
-  vendedor: 'bg-matcha-100 text-matcha-700',
+  vendedor: 'bg-matcha-300 text-matcha-900',
   cocina: 'bg-orange-100 text-orange-700',
   mesero: 'bg-amber-100 text-amber-700',
 }
