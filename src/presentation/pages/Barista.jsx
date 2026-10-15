@@ -553,7 +553,6 @@ const Barista = () => {
           <p className="text-gray-500 text-lg">
             {areaFiltro ? `No hay pendientes en ${NOMBRE_AREA[areaFiltro]}` : 'No hay comandas pendientes'}
           </p>
-          <p className="text-gray-400 text-sm mt-2">Las comandas pagadas aparecerán aquí</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-3">
@@ -720,11 +719,6 @@ const Barista = () => {
                           <p className={`text-sm font-medium leading-snug ${yaEntregado ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
                             {detalle.producto_nombre || obtenerNombreProducto(detalle.id_producto)}
                           </p>
-                          {tieneEntregados && !yaEntregado && (
-                            <span className="inline-block mt-0.5 px-1.5 py-px rounded text-[10px] font-bold bg-green-100 text-green-800 border border-green-300">
-                              NUEVO
-                            </span>
-                          )}
                           {tieneDetalles && (
                             <div className="flex flex-wrap gap-1 mt-0.5">
                               {tipoPreparacion && (

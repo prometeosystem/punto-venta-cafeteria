@@ -292,41 +292,41 @@ const Inventario = () => {
   return (
     <div className="space-y-6">
       {/* Resumen */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="card">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Total de Items</p>
-              <p className="text-2xl font-bold text-gray-900">{insumos.length}</p>
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
+        <div className="rounded-xl border border-gray-200 bg-white px-2.5 py-2 sm:p-4">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="shrink-0 rounded-lg bg-matcha-100 p-1.5 sm:p-2.5">
+              <Package className="w-4 h-4 sm:w-5 sm:h-5 text-matcha-600" />
             </div>
-            <div className="p-3 bg-matcha-100 rounded-lg">
-              <Package className="w-6 h-6 text-matcha-600" />
+            <div className="min-w-0">
+              <p className="truncate text-[11px] leading-tight text-gray-500 sm:text-sm">Total</p>
+              <p className="text-lg font-bold leading-tight text-gray-900 sm:text-2xl">{insumos.length}</p>
             </div>
           </div>
         </div>
-        <div className="card">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Stock Bajo</p>
-              <p className="text-2xl font-bold text-yellow-600">
+        <div className="rounded-xl border border-gray-200 bg-white px-2.5 py-2 sm:p-4">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="shrink-0 rounded-lg bg-yellow-100 p-1.5 sm:p-2.5">
+              <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-600" />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-[11px] leading-tight text-gray-500 sm:text-sm">Stock bajo</p>
+              <p className="text-lg font-bold leading-tight text-yellow-600 sm:text-2xl">
                 {insumos.filter(i => getStatus(i) === 'low').length}
               </p>
             </div>
-            <div className="p-3 bg-yellow-100 rounded-lg">
-              <AlertTriangle className="w-6 h-6 text-yellow-600" />
-            </div>
           </div>
         </div>
-        <div className="card">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Crítico</p>
-              <p className="text-2xl font-bold text-red-600">
+        <div className="rounded-xl border border-gray-200 bg-white px-2.5 py-2 sm:p-4">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="shrink-0 rounded-lg bg-red-100 p-1.5 sm:p-2.5">
+              <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-[11px] leading-tight text-gray-500 sm:text-sm">Crítico</p>
+              <p className="text-lg font-bold leading-tight text-red-600 sm:text-2xl">
                 {insumos.filter(i => getStatus(i) === 'critical').length}
               </p>
-            </div>
-            <div className="p-3 bg-red-100 rounded-lg">
-              <AlertTriangle className="w-6 h-6 text-red-600" />
             </div>
           </div>
         </div>

@@ -240,9 +240,9 @@ const Caja = () => {
                 <span className="text-[11px] text-gray-500">Efectivo</span>
                 <span className="font-bold text-coffee-800">{formatMoney(estado.ventas_efectivo)}</span>
               </div>
-              <div className="px-3 py-2 flex items-baseline justify-between gap-2 bg-blue-50">
-                <span className="text-[11px] text-blue-600 font-medium">Tarjeta / Transferencia</span>
-                <span className="font-bold text-blue-700">{formatMoney(ventasTarjetaTransferencia)}</span>
+              <div className="px-3 py-2 flex items-baseline justify-between gap-2">
+                <span className="text-[11px] text-gray-500">Tarjeta / Transferencia</span>
+                <span className="font-bold text-coffee-800">{formatMoney(ventasTarjetaTransferencia)}</span>
               </div>
             </div>
           </div>

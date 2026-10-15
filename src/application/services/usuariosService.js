@@ -42,6 +42,11 @@ export const usuariosService = {
     return response.data
   },
 
+  obtenerAvisos: async () => {
+    const response = await api.get('/api/usuarios/avisos')
+    return response.data
+  },
+
   // Obtener estadísticas de empleados
   obtenerEstadisticas: async () => {
     const response = await api.get('/api/usuarios/estadisticas')

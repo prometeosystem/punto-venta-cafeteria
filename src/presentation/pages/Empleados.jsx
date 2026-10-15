@@ -5,6 +5,22 @@ import { useAuth } from '../context/AuthContext'
 import Swal from 'sweetalert2'
 import { CODIGO_DEFAULT, problemaCodigo } from '../utils/codigoAcceso'
 
+const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+const DIAS_POR_MES = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
+const formularioVacio = () => ({
+  nombre: '',
+  apellido_paterno: '',
+  apellido_materno: '',
+  correo: '',
+  codigo: '',
+  celular: '',
+  dia: '',
+  mes: '',
+  rol: 'vendedor',
+  activo: true,
+})
+
 const Empleados = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [mostrarModalCrear, setMostrarModalCrear] = useState(false)
@@ -12,18 +28,9 @@ const Empleados = () => {
   const [empleadoSeleccionado, setEmpleadoSeleccionado] = useState(null)
   const [empleadoEditando, setEmpleadoEditando] = useState(null)
   const [guardando, setGuardando] = useState(false)
-  const [formData, setFormData] = useState({
-    nombre: '',
-    apellido_paterno: '',
-    apellido_materno: '',
-    correo: '',
-    codigo: '',
-    celular: '',
-    rol: 'vendedor',
-    activo: true,
-  })
+  const [formData, setFormData] = useState(formularioVacio)
 
-  const { usuarios, estadisticas, loading, crearUsuario, editarUsuario, eliminarUsuario, obtenerUsuarios, definirCodigo, restablecerCodigo, quitarCodigo } = useUsuarios()
+  const { usuarios, estadisticas, loading, crearUsuario, editarUsuario, eliminarUsuario, obtenerUsuarios, restablecerCodigo } = useUsuarios()
   const { usuario: usuarioActual } = useAuth()
 
   const esSuperadmin = (u) => u?.rol === 'superadministrador'
@@ -44,45 +51,31 @@ const Empleados = () => {
   }
 
   /**
-   * Asigna el código de 6 dígitos con el que el empleado entra desde la tablet.
-   * Sin código su tarjeta no aparece en la pantalla de inicio.
+   * Si el empleado olvidó su código, vuelve a 123456 y al entrar se le pide
+   * elegir otro. Sin código no aparece en el login, así que esto también lo devuelve.
    */
   const handleCodigo = async (empleado) => {
-    const tieneCodigo = empleado.tiene_codigo === 1 || empleado.tiene_codigo === true
-
-    const { value: codigo, isConfirmed, isDenied } = await Swal.fire({
-      // Arriba y sin icono: en tablet el teclado tapa media pantalla
+    const { isConfirmed } = await Swal.fire({
       position: 'top',
       heightAuto: false,
-      title: tieneCodigo ? 'Cambiar código' : 'Asignar código',
-      text: `6 dígitos para ${getFullName(empleado)}. Vacío = ${CODIGO_DEFAULT}, y se le pide cambiarlo al entrar.`,
-      input: 'text',
-      inputAttributes: { inputmode: 'numeric', maxlength: 6, autocomplete: 'off' },
+      title: 'Restablecer código',
+      text: `El código de ${getFullName(empleado)} volverá a ser ${CODIGO_DEFAULT}. Al entrar se le pedirá elegir uno nuevo.`,
       showCancelButton: true,
-      showDenyButton: tieneCodigo,
-      confirmButtonText: 'Guardar',
-      denyButtonText: 'Quitar código',
+      confirmButtonText: 'Restablecer',
       cancelButtonText: 'Cancelar',
       confirmButtonColor: '#3d6b4f',
-      inputValidator: (valor) => (valor ? problemaCodigo(valor) : null),
     })
 
+    if (!isConfirmed) return
+
     try {
-      if (isDenied) {
-        await quitarCodigo(empleado.id_usuario)
-        await Swal.fire({ icon: 'success', title: 'Código eliminado', timer: 1400, showConfirmButton: false })
-      } else if (isConfirmed && codigo) {
-        await definirCodigo(empleado.id_usuario, codigo)
-        await Swal.fire({ icon: 'success', title: 'Código guardado', timer: 1400, showConfirmButton: false })
-      } else if (isConfirmed) {
-        await restablecerCodigo(empleado.id_usuario)
-        await Swal.fire({
-          icon: 'success',
-          title: `Código: ${CODIGO_DEFAULT}`,
-          text: 'Se le pedirá cambiarlo al iniciar sesión',
-          confirmButtonColor: '#3d6b4f',
-        })
-      }
+      await restablecerCodigo(empleado.id_usuario)
+      await Swal.fire({
+        icon: 'success',
+        title: `Código: ${CODIGO_DEFAULT}`,
+        text: 'Se le pedirá cambiarlo al iniciar sesión',
+        confirmButtonColor: '#3d6b4f',
+      })
     } catch (err) {
       await Swal.fire({
         icon: 'error',
@@ -208,16 +201,7 @@ const Empleados = () => {
   // Abrir modal para crear empleado
   const abrirModalCrear = () => {
     setEmpleadoEditando(null)
-    setFormData({
-      nombre: '',
-      apellido_paterno: '',
-      apellido_materno: '',
-      correo: '',
-      codigo: '',
-      celular: '',
-      rol: 'vendedor',
-      activo: true,
-    })
+    setFormData(formularioVacio())
     setMostrarModalCrear(true)
   }
 
@@ -231,6 +215,8 @@ const Empleados = () => {
       correo: empleado.correo || '',
       codigo: '',
       celular: empleado.celular || '',
+      dia: empleado.dia ? String(empleado.dia) : '',
+      mes: empleado.mes ? String(empleado.mes) : '',
       rol: empleado.rol || 'vendedor',
       activo: empleado.activo === 1 || empleado.activo === true,
     })
@@ -247,16 +233,7 @@ const Empleados = () => {
   const cerrarModalCrear = () => {
     setMostrarModalCrear(false)
     setEmpleadoEditando(null)
-    setFormData({
-      nombre: '',
-      apellido_paterno: '',
-      apellido_materno: '',
-      correo: '',
-      codigo: '',
-      celular: '',
-      rol: 'vendedor',
-      activo: true,
-    })
+    setFormData(formularioVacio())
   }
 
   const cerrarModalDetalles = () => {
@@ -320,12 +297,27 @@ const Empleados = () => {
       // el backend los interpreta como "no cambiar" y no se podrían borrar.
       const opcional = (valor) => valor?.trim() || null
 
+      const dia = formData.dia ? Number(formData.dia) : null
+      const mes = formData.mes ? Number(formData.mes) : null
+      if ((dia == null) !== (mes == null)) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'Error de validación',
+          text: 'Indica el día y el mes, o deja ambos vacíos',
+          confirmButtonColor: '#3d6b4f',
+        })
+        setGuardando(false)
+        return
+      }
+
       const empleadoData = {
         nombre: formData.nombre.trim(),
         apellido_paterno: opcional(formData.apellido_paterno),
         apellido_materno: opcional(formData.apellido_materno),
         correo: opcional(formData.correo),
         celular: opcional(formData.celular),
+        dia,
+        mes,
         rol: formData.rol,
         activo: formData.activo,
       }
@@ -505,19 +497,19 @@ const Empleados = () => {
   return (
     <div className="space-y-6">
       {/* Estadísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         {stats.map((stat, index) => {
           const Icon = stat.icon
           return (
-            <div key={index} className="card">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">{stat.title}</p>
-                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                  <p className="text-xs text-gray-500 mt-1">{stat.subtitle}</p>
+            <div key={index} className="rounded-xl border border-gray-200 bg-white px-2.5 py-2 sm:p-4">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className={`shrink-0 rounded-lg p-1.5 sm:p-2.5 ${stat.color}`}>
+                  <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
-                <div className={`p-3 rounded-lg ${stat.color}`}>
-                  <Icon className="w-6 h-6" />
+                <div className="min-w-0">
+                  <p className="truncate text-[11px] leading-tight text-gray-500 sm:text-sm">{stat.title}</p>
+                  <p className="text-lg font-bold leading-tight text-gray-900 sm:text-2xl">{stat.value}</p>
+                  <p className="hidden sm:block text-xs text-gray-500 mt-0.5">{stat.subtitle}</p>
                 </div>
               </div>
             </div>
@@ -623,10 +615,10 @@ const Empleados = () => {
                       }`}
                       title={
                         !employee.tiene_codigo
-                          ? 'Sin código: no aparece en la pantalla de inicio'
+                          ? `Sin código. Restablecer a ${CODIGO_DEFAULT} para que vuelva al inicio`
                           : employee.debe_cambiar_codigo
                             ? `Tiene el código por defecto (${CODIGO_DEFAULT}) pendiente de cambiar`
-                            : 'Cambiar código de acceso'
+                            : 'Restablecer código si lo olvidó'
                       }
                     >
                       <KeyRound className="w-4 h-4" />
@@ -762,6 +754,39 @@ const Empleados = () => {
                     className="input w-full"
                     placeholder="1234567890"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Día y mes
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <select
+                      value={formData.dia}
+                      onChange={(e) => setFormData({ ...formData, dia: e.target.value })}
+                      className="input w-full min-w-0"
+                    >
+                      <option value="">Día</option>
+                      {Array.from({ length: formData.mes ? DIAS_POR_MES[Number(formData.mes) - 1] : 31 }, (_, i) => i + 1).map((dia) => (
+                        <option key={dia} value={dia}>{dia}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={formData.mes}
+                      onChange={(e) => {
+                        const mes = e.target.value
+                        const maximo = mes ? DIAS_POR_MES[Number(mes) - 1] : 31
+                        const dia = formData.dia && Number(formData.dia) > maximo ? '' : formData.dia
+                        setFormData({ ...formData, mes, dia })
+                      }}
+                      className="input w-full min-w-0"
+                    >
+                      <option value="">Mes</option>
+                      {MESES.map((nombre, indice) => (
+                        <option key={nombre} value={indice + 1}>{nombre}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 {/* Rol */}

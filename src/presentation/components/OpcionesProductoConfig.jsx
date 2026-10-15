@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Check, Loader2, Plus, RotateCcw, SlidersHorizontal, Trash2, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, Loader2, Plus, RotateCcw, SlidersHorizontal, Trash2, X } from 'lucide-react'
 import Swal from 'sweetalert2'
 import { opcionesProductoService } from '../../application/services/opcionesProductoService'
 import { notificarOpcionesActualizadas } from '../hooks/useOpcionesProducto'
@@ -21,6 +21,7 @@ const OpcionesProductoConfig = () => {
   const [edicionGrupo, setEdicionGrupo] = useState({})
   const [nuevaOpcion, setNuevaOpcion] = useState({})
   const [nuevoGrupo, setNuevoGrupo] = useState({ nombre: '', seleccion: 'multiple' })
+  const [abierto, setAbierto] = useState(false)
 
   const cargar = useCallback(async () => {
     try {
@@ -245,19 +246,28 @@ const OpcionesProductoConfig = () => {
 
   return (
     <div className="card">
-      <div className="flex items-center gap-3 mb-2">
-        <SlidersHorizontal className="w-5 h-5 text-matcha-600" />
-        <h2 className="text-lg font-semibold text-gray-900">Grupos de opciones</h2>
-      </div>
-      
+      <button
+        type="button"
+        onClick={() => setAbierto((valor) => !valor)}
+        aria-expanded={abierto}
+        className="flex w-full items-center gap-3 text-left"
+      >
+        <SlidersHorizontal className="w-5 h-5 text-matcha-600 shrink-0" />
+        <h2 className="flex-1 text-lg font-semibold text-gray-900">Grupos de opciones</h2>
+        {abierto ? (
+          <ChevronUp className="w-5 h-5 text-gray-500 shrink-0" aria-hidden="true" />
+        ) : (
+          <ChevronDown className="w-5 h-5 text-gray-500 shrink-0" aria-hidden="true" />
+        )}
+      </button>
 
-      {cargando ? (
+      {abierto && cargando ? (
         <div className="flex items-center gap-2 text-gray-500 py-6">
           <Loader2 className="w-4 h-4 animate-spin" />
           Cargando catálogo...
         </div>
-      ) : (
-        <div className="space-y-4">
+      ) : abierto ? (
+        <div className="space-y-4 mt-4">
           {/* Columnas CSS y no grid: con grid cada fila mide lo que el grupo más
               alto y quedaban huecos. Así los grupos se apilan llenando el espacio. */}
           <div className="columns-1 xl:columns-2 gap-4">
@@ -507,7 +517,7 @@ const OpcionesProductoConfig = () => {
             </button>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   )
 }

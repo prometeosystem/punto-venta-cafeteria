@@ -1,8 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
 import {
-  TrendingUp,
-  DollarSign,
-  Package,
   Loader2,
   AlertCircle,
   CheckCircle2,
@@ -11,10 +8,6 @@ import {
   Percent,
   Eye,
   X,
-  Banknote,
-  CreditCard,
-  Bike,
-  ArrowLeftRight,
   Search,
   ChevronLeft,
   ChevronRight,
@@ -44,22 +37,9 @@ import {
 
 const RechartsAvailable = true
 
-const ICONOS_METODO = {
-  efectivo: Banknote,
-  tarjeta: CreditCard,
-  delivery: Bike,
-  transferencia: ArrowLeftRight,
-}
-
-const COLORES_METODO = {
-  efectivo: { bg: 'bg-emerald-100', text: 'text-emerald-700', icon: 'text-emerald-600' },
-  tarjeta: { bg: 'bg-blue-100', text: 'text-blue-700', icon: 'text-blue-600' },
-  delivery: { bg: 'bg-violet-100', text: 'text-violet-700', icon: 'text-violet-600' },
-  transferencia: { bg: 'bg-sky-100', text: 'text-sky-700', icon: 'text-sky-600' },
-}
-
 const labelMetodoPago = (metodo) => {
   if (!metodo) return '—'
+  if (metodo === 'mixto') return 'Efectivo y tarjeta'
   const found = METODOS_PAGO_DISPONIBLES.find((m) => m.id === metodo)
   return found?.label || String(metodo).replace(/-/g, ' ')
 }
@@ -435,33 +415,31 @@ const Reportes = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full space-y-4 sm:space-y-6">
       {/* Filtros de fecha */}
-      <div className="card">
-        <div className="flex flex-col md:flex-row gap-4 items-end">
-          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Fecha Inicio
-              </label>
-              <input
-                type="date"
-                className="input"
-                value={fechaInicio}
-                onChange={(e) => setFechaInicio(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Fecha Fin
-              </label>
-              <input
-                type="date"
-                className="input"
-                value={fechaFin}
-                onChange={(e) => setFechaFin(e.target.value)}
-              />
-            </div>
+      <div className="card min-w-0 overflow-hidden !p-4 sm:p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
+          <div className="min-w-0">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Fecha Inicio
+            </label>
+            <input
+              type="date"
+              className="input"
+              value={fechaInicio}
+              onChange={(e) => setFechaInicio(e.target.value)}
+            />
+          </div>
+          <div className="min-w-0">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Fecha Fin
+            </label>
+            <input
+              type="date"
+              className="input"
+              value={fechaFin}
+              onChange={(e) => setFechaFin(e.target.value)}
+            />
           </div>
         </div>
       </div>
@@ -473,115 +451,47 @@ const Reportes = () => {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="card">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Ventas Totales</p>
-                  <p className="text-2xl font-bold text-gray-900">${formatPrecio(ventasTotales)}</p>
-                  <p className="text-xs text-gray-500 mt-1">Período seleccionado</p>
-                </div>
-                <div className="p-3 bg-matcha-100 rounded-lg">
-                  <DollarSign className="w-6 h-6 text-matcha-600" />
-                </div>
-              </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+            <div className="rounded-xl border border-gray-200 bg-white px-2.5 py-2 sm:p-4 min-w-0">
+              <p className="truncate text-[11px] leading-tight text-gray-500 sm:text-sm">Ventas totales</p>
+              <p className="text-lg font-bold leading-tight text-gray-900 sm:text-2xl">${formatPrecio(ventasTotales)}</p>
             </div>
-
-            <div className="card">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Total Descuentos</p>
-                  <p className="text-2xl font-bold text-amber-600">${formatPrecio(totalDescuentos)}</p>
-                  <p className="text-xs text-gray-500 mt-1">Período seleccionado</p>
-                </div>
-                <div className="p-3 bg-amber-100 rounded-lg">
-                  <Percent className="w-6 h-6 text-amber-600" />
-                </div>
-              </div>
+            <div className="rounded-xl border border-gray-200 bg-white px-2.5 py-2 sm:p-4 min-w-0">
+              <p className="truncate text-[11px] leading-tight text-gray-500 sm:text-sm">Descuentos</p>
+              <p className="text-lg font-bold leading-tight text-amber-600 sm:text-2xl">${formatPrecio(totalDescuentos)}</p>
             </div>
-
-            <div className="card">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Total Propinas</p>
-                  <p className="text-2xl font-bold text-matcha-600">${formatPrecio(totalPropinas)}</p>
-                  <p className="text-xs text-gray-500 mt-1">Período seleccionado</p>
-                </div>
-                <div className="p-3 bg-matcha-100 rounded-lg">
-                  <Coins className="w-6 h-6 text-matcha-600" />
-                </div>
-              </div>
+            <div className="rounded-xl border border-gray-200 bg-white px-2.5 py-2 sm:p-4 min-w-0">
+              <p className="truncate text-[11px] leading-tight text-gray-500 sm:text-sm">Propinas</p>
+              <p className="text-lg font-bold leading-tight text-matcha-600 sm:text-2xl">${formatPrecio(totalPropinas)}</p>
             </div>
-
-            <div className="card">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Ticket Promedio</p>
-                  <p className="text-2xl font-bold text-gray-900">${formatPrecio(ticketPromedio)}</p>
-                  <p className="text-xs text-gray-500 mt-1">Por venta</p>
-                </div>
-                <div className="p-3 bg-green-100 rounded-lg">
-                  <TrendingUp className="w-6 h-6 text-green-600" />
-                </div>
-              </div>
+            <div className="rounded-xl border border-gray-200 bg-white px-2.5 py-2 sm:p-4 min-w-0">
+              <p className="truncate text-[11px] leading-tight text-gray-500 sm:text-sm">Ticket promedio</p>
+              <p className="text-lg font-bold leading-tight text-gray-900 sm:text-2xl">${formatPrecio(ticketPromedio)}</p>
             </div>
           </div>
 
-          {/* Productos, cantidad de ventas y métodos de pago */}
-          <div className="flex flex-wrap gap-4">
-            <div className="card flex-1 min-w-[200px]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Productos Vendidos</p>
-                  <p className="text-2xl font-bold text-gray-900">{productosVendidos}</p>
-                  <p className="text-xs text-gray-500 mt-1">Unidades totales</p>
-                </div>
-                <div className="p-3 bg-coffee-100 rounded-lg">
-                  <Package className="w-6 h-6 text-coffee-600" />
-                </div>
-              </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+            <div className="rounded-xl border border-gray-200 bg-white px-2.5 py-2 sm:p-4 min-w-0">
+              <p className="truncate text-[11px] leading-tight text-gray-500 sm:text-sm">Productos vendidos</p>
+              <p className="text-lg font-bold leading-tight text-gray-900 sm:text-2xl">{productosVendidos}</p>
             </div>
-
-            <div className="card flex-1 min-w-[200px]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Cantidad de ventas</p>
-                  <p className="text-2xl font-bold text-gray-900">{pedidosTotales}</p>
-                  <p className="text-xs text-gray-500 mt-1">Tickets del período</p>
-                </div>
-                <div className="p-3 bg-matcha-100 rounded-lg">
-                  <Package className="w-6 h-6 text-matcha-600" />
-                </div>
-              </div>
+            <div className="rounded-xl border border-gray-200 bg-white px-2.5 py-2 sm:p-4 min-w-0">
+              <p className="truncate text-[11px] leading-tight text-gray-500 sm:text-sm">Ventas</p>
+              <p className="text-lg font-bold leading-tight text-gray-900 sm:text-2xl">{pedidosTotales}</p>
             </div>
-
-            {conteoPorMetodo.map((metodo) => {
-              const Icono = ICONOS_METODO[metodo.id] || CreditCard
-              const colores = COLORES_METODO[metodo.id] || COLORES_METODO.tarjeta
-              return (
-                <div key={metodo.id} className="card flex-1 min-w-[200px]">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600 mb-1">{metodo.label}</p>
-                      <p className={`text-2xl font-bold ${colores.text}`}>{metodo.cantidad}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {metodo.cantidad === 1 ? 'venta' : 'ventas'}
-                      </p>
-                    </div>
-                    <div className={`p-3 ${colores.bg} rounded-lg`}>
-                      <Icono className={`w-6 h-6 ${colores.icon}`} />
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
+            {conteoPorMetodo.map((metodo) => (
+              <div key={metodo.id} className="rounded-xl border border-gray-200 bg-white px-2.5 py-2 sm:p-4 min-w-0">
+                <p className="truncate text-[11px] leading-tight text-gray-500 sm:text-sm">{metodo.label}</p>
+                <p className="text-lg font-bold leading-tight text-gray-900 sm:text-2xl">{metodo.cantidad}</p>
+              </div>
+            ))}
           </div>
         </>
       )}
 
       {/* Gráficos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-w-0">
+        <div className="card min-w-0 overflow-hidden !p-4 sm:p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
             Ventas por Día
           </h2>
@@ -638,7 +548,7 @@ const Reportes = () => {
           )}
         </div>
 
-        <div className="card">
+        <div className="card min-w-0 overflow-hidden !p-4 sm:p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
             Productos Más Vendidos
           </h2>
@@ -691,14 +601,14 @@ const Reportes = () => {
       </div>
 
       {/* Tabla de ventas detalladas (arriba de recomendaciones) */}
-      <div className="card">
+      <div className="card min-w-0 overflow-hidden !p-4 sm:p-6">
         <div className="mb-4">
           <h2 className="text-lg font-semibold text-gray-900">
             Ventas del período
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-4 min-w-0">
           <div className="relative xl:col-span-2">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             <input
@@ -767,7 +677,45 @@ const Reportes = () => {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        {loading ? (
+          <div className="py-8 text-center text-gray-500 lg:hidden">
+            <Loader2 className="w-6 h-6 animate-spin text-matcha-600 mx-auto" />
+          </div>
+        ) : ventas.length === 0 ? (
+          <p className="py-8 text-center text-gray-500 lg:hidden">No hay ventas en el período seleccionado</p>
+        ) : ventasFiltradas.length === 0 ? (
+          <p className="py-8 text-center text-gray-500 lg:hidden">No hay ventas que coincidan con la búsqueda o filtros</p>
+        ) : (
+          <ul className="lg:hidden divide-y divide-gray-100">
+            {ventasPaginadas.map((venta) => (
+              <li key={venta.id_venta} className="py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-900">Ticket {venta.id_venta}</p>
+                    <p className="text-xs text-gray-500">{formatearFechaHora(venta.fecha_venta)}</p>
+                    <p className="mt-0.5 truncate text-sm text-gray-700">
+                      {nombreCliente(venta)} · {cantidadProductos(venta)} {cantidadProductos(venta) === 1 ? 'producto' : 'productos'}
+                    </p>
+                    <p className="text-xs capitalize text-gray-500">{labelMetodoPago(venta.metodo_pago)}</p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="font-semibold text-matcha-600">${formatPrecio(venta.total)}</p>
+                    <button
+                      type="button"
+                      onClick={() => abrirModalDetalles(venta)}
+                      className="mt-1 inline-flex items-center gap-1 rounded-lg border border-matcha-200 px-2.5 py-1 text-xs font-medium text-matcha-700"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      Ver
+                    </button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="hidden lg:block min-w-0 overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200">
@@ -867,7 +815,7 @@ const Reportes = () => {
         </div>
 
         {ventasFiltradas.length > 0 && (
-          <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+          <div className="flex flex-wrap items-center justify-between gap-2 mt-4 pt-4 border-t border-gray-200">
             <p className="text-sm text-gray-600">
               Página {paginaActual} de {totalPaginas}
             </p>
@@ -896,17 +844,17 @@ const Reportes = () => {
       </div>
 
       {/* Recomendaciones de Compra */}
-      <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">
+      <div className="card min-w-0 overflow-hidden !p-4 sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
+          <div className="min-w-0">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900">
               Recomendaciones de Compra - Próximo Mes
             </h2>
             <p className="text-sm text-gray-600 mt-1">
               Análisis basado en consumo histórico de los últimos 3 meses
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={generarPDF}
               disabled={!comprasRecomendadas || !comprasRecomendadas.recomendaciones || comprasRecomendadas.recomendaciones.length === 0}
@@ -932,34 +880,65 @@ const Reportes = () => {
           </div>
         ) : comprasRecomendadas && comprasRecomendadas.recomendaciones ? (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <p className="text-sm text-blue-600 mb-1">Insumos Recomendados</p>
-                <p className="text-2xl font-bold text-blue-900">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-6">
+              <div className="min-w-0 rounded-lg border border-blue-200 bg-blue-50 p-3 sm:p-4">
+                <p className="text-xs text-blue-600 mb-1 sm:text-sm">Insumos</p>
+                <p className="text-lg font-bold text-blue-900 sm:text-2xl">
                   {comprasRecomendadas.resumen.total_insumos_recomendados}
                 </p>
               </div>
-              <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-                <p className="text-sm text-red-600 mb-1">Urgentes</p>
-                <p className="text-2xl font-bold text-red-900">
+              <div className="min-w-0 rounded-lg border border-red-200 bg-red-50 p-3 sm:p-4">
+                <p className="text-xs text-red-600 mb-1 sm:text-sm">Urgentes</p>
+                <p className="text-lg font-bold text-red-900 sm:text-2xl">
                   {comprasRecomendadas.resumen.insumos_urgentes}
                 </p>
               </div>
-              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                <p className="text-sm text-green-600 mb-1">Costo Estimado</p>
-                <p className="text-2xl font-bold text-green-900">
+              <div className="min-w-0 rounded-lg border border-green-200 bg-green-50 p-3 sm:p-4">
+                <p className="text-xs text-green-600 mb-1 sm:text-sm">Costo estimado</p>
+                <p className="text-lg font-bold leading-tight text-green-900 sm:text-2xl">
                   ${formatPrecio(comprasRecomendadas.resumen.total_costo_estimado)}
                 </p>
               </div>
-              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                <p className="text-sm text-gray-600 mb-1">Período Analizado</p>
-                <p className="text-sm font-semibold text-gray-900">
+              <div className="min-w-0 rounded-lg border border-gray-200 bg-gray-50 p-3 sm:p-4">
+                <p className="text-xs text-gray-600 mb-1 sm:text-sm">Período</p>
+                <p className="text-lg font-semibold text-gray-900 sm:text-2xl">
                   {comprasRecomendadas.resumen.periodo_analisis_dias} días
                 </p>
               </div>
             </div>
 
-            <div className="overflow-x-auto">
+            <ul className="lg:hidden divide-y divide-gray-100">
+              {comprasRecomendadas.recomendaciones.length === 0 ? (
+                <li className="py-8 text-center text-gray-500">
+                  <CheckCircle2 className="w-10 h-10 mx-auto mb-2 text-green-500" />
+                  <p>No hay recomendaciones de compra en este momento</p>
+                </li>
+              ) : (
+                comprasRecomendadas.recomendaciones.map((rec) => (
+                  <li key={rec.id_insumo} className="py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-900">{rec.nombre}</p>
+                        <p className="text-xs text-gray-500">
+                          Stock {rec.stock_actual} {rec.unidad_medida} · mín. {rec.stock_minimo}
+                        </p>
+                        <p className="text-sm text-matcha-700">
+                          Pedir {formatMedida(rec.cantidad_recomendada)} {rec.unidad_medida}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold border ${getUrgenciaColor(rec.urgencia)}`}>
+                          {rec.urgencia}
+                        </span>
+                        <p className="mt-1 font-semibold text-green-600">${formatPrecio(rec.costo_estimado)}</p>
+                      </div>
+                    </div>
+                  </li>
+                ))
+              )}
+            </ul>
+
+            <div className="hidden lg:block min-w-0 overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-200">

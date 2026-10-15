@@ -13,7 +13,7 @@ const BILLETES = [
 ]
 
 // Los billetes se suman: el cliente puede pagar con 200 + 50
-const BilletesEfectivo = ({ total, montoRecibido, onChange }) => {
+const BilletesEfectivo = ({ montoRecibido, onChange }) => {
   const sumar = (valor) => {
     const actual = parseFloat(montoRecibido)
     onChange(String((Number.isFinite(actual) ? actual : 0) + valor))
@@ -35,21 +35,12 @@ const BilletesEfectivo = ({ total, montoRecibido, onChange }) => {
         ))}
         <button
           type="button"
-          onClick={() => onChange(total.toFixed(2))}
-          className="aspect-[9/5] rounded-md border-2 border-matcha-500 bg-matcha-50 text-matcha-700 text-sm font-semibold active:scale-95 transition-transform"
-        >
-          Exacto
-        </button>
-      </div>
-      {montoRecibido !== '' && (
-        <button
-          type="button"
           onClick={() => onChange('')}
-          className="text-xs font-medium text-gray-500 hover:text-gray-800 underline underline-offset-2"
+          className="aspect-[9/5] rounded-md border-2 border-gray-300 bg-white text-gray-700 text-sm font-semibold leading-tight px-1 active:scale-95 transition-transform"
         >
           Borrar monto
         </button>
-      )}
+      </div>
     </div>
   )
 }

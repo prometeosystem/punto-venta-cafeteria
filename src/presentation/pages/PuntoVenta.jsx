@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Plus, Minus, Trash2, ShoppingCart, ArrowLeft, Loader2, X, Search, Coins, Percent, Check, CheckCircle, ChefHat, Lock, Bike, Utensils, ShoppingBag, CreditCard, Banknote, ArrowLeftRight, Image as ImageIcon, LayoutGrid, Folder } from 'lucide-react'
+import { Plus, Minus, Trash2, ShoppingCart, Loader2, X, Search, Coins, Percent, Check, CheckCircle, ChefHat, Lock, Bike, Utensils, ShoppingBag, CreditCard, Banknote, ArrowLeftRight, Image as ImageIcon, LayoutGrid, Folder, ChevronUp, ChevronDown } from 'lucide-react'
 import { useProductos } from '../hooks/useProductos'
 import { useVentas } from '../hooks/useVentas'
 import { useComandas } from '../hooks/useComandas'
@@ -74,6 +74,11 @@ const opcionesDelProducto = (product) => {
 const OVERLAY_MODAL =
   'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center p-4 overflow-y-auto'
 
+const firmaMesasAbiertas = (lista) =>
+  (lista || [])
+    .map((c) => [c.id_comanda, c.total, c.venta_nombre_cliente, c.numero_dia, c.estado].join(':'))
+    .join('|')
+
 /**
  * A partir de este porcentaje un descuento deja de ser cortesía y necesita
  * autorización. El backend valida lo mismo, esto solo evita el viaje en vano.
@@ -105,15 +110,35 @@ const claseMetodoPago = (id, seleccionado) =>
       : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:bg-gray-50'
   }`
 
+const CLAVE_MESAS_ABIERTAS = 'zona2_pos_mesas_abiertas'
+
+const vistaMovilVertical = () =>
+  typeof window !== 'undefined' &&
+  window.matchMedia('(orientation: portrait) and (max-width: 1024px)').matches
+
+const mesasAbiertasGuardadas = () => {
+  if (vistaMovilVertical()) return false
+  try {
+    return localStorage.getItem(CLAVE_MESAS_ABIERTAS) !== 'comprimida'
+  } catch {
+    return true
+  }
+}
+
 const PuntoVenta = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const printer = usePrinterContext()
   const panelOrdenRef = useRef(null)
   const [cart, setCart] = useState([])
+  const [lineaEditandoId, setLineaEditandoId] = useState(null)
+  const [ordenDesplegada, setOrdenDesplegada] = useState(false)
+  const [mesasDesplegadas, setMesasDesplegadas] = useState(mesasAbiertasGuardadas)
   const [categoriaActiva, setCategoriaActiva] = useState(null)
   const [idsMasVendidos, setIdsMasVendidos] = useState([])
   const [metodoPago, setMetodoPago] = useState(null)
+  const [montoEfectivoPago, setMontoEfectivoPago] = useState('')
+  const [montoTarjetaPago, setMontoTarjetaPago] = useState('')
   const [idCliente, setIdCliente] = useState(null)
   const [procesando, setProcesando] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -186,6 +211,39 @@ const PuntoVenta = () => {
   const [areaProductoPersonalizado, setAreaProductoPersonalizado] = useState('barra')
   const [mostrarModalPersonalizado, setMostrarModalPersonalizado] = useState(false)
 
+  // En el celular vertical la lista nace cerrada. En las demás vistas se
+  // recupera lo último que eligió la persona, aunque cambie de pantalla.
+  useEffect(() => {
+    const consulta = window.matchMedia('(orientation: portrait) and (max-width: 1024px)')
+    const aplicar = () => {
+      if (consulta.matches) {
+        setMesasDesplegadas(false)
+        return
+      }
+      try {
+        setMesasDesplegadas(localStorage.getItem(CLAVE_MESAS_ABIERTAS) !== 'comprimida')
+      } catch {
+        setMesasDesplegadas(true)
+      }
+    }
+    consulta.addEventListener('change', aplicar)
+    return () => consulta.removeEventListener('change', aplicar)
+  }, [])
+
+  const alternarMesasAbiertas = () => {
+    setMesasDesplegadas((abierta) => {
+      const siguiente = !abierta
+      if (!vistaMovilVertical()) {
+        try {
+          localStorage.setItem(CLAVE_MESAS_ABIERTAS, siguiente ? 'abierta' : 'comprimida')
+        } catch {
+          // Si el navegador bloquea el almacenamiento, el cambio sigue en esta vista.
+        }
+      }
+      return siguiente
+    })
+  }
+
   // Si la caja está cerrada, redirigir a abrir caja
   useEffect(() => {
     if (cajaLoading) return
@@ -201,6 +259,10 @@ const PuntoVenta = () => {
       setMetodosPagoActivos(activos)
       setMetodoPago((prev) => {
         if (!prev) return prev
+        if (prev === 'mixto') {
+          const ids = new Set(activos.map((m) => m.id))
+          return ids.has('efectivo') && ids.has('tarjeta') ? prev : null
+        }
         return activos.some((m) => m.id === prev) ? prev : null
       })
     }
@@ -254,20 +316,29 @@ const PuntoVenta = () => {
   const cargarComandasTerminadasSinPagar = async () => {
     try {
       const data = await obtenerComandasTerminadasSinPagar()
-      setComandasTerminadasSinPagar(Array.isArray(data) ? data : [])
+      const lista = Array.isArray(data) ? data : []
+      // Solo se pinta de nuevo si cambió una mesa. Si no, el catálogo no parpadea.
+      setComandasTerminadasSinPagar((prev) =>
+        firmaMesasAbiertas(prev) === firmaMesasAbiertas(lista) ? prev : lista
+      )
     } catch (error) {
       console.error('Error al cargar comandas terminadas sin pagar:', error)
-      setComandasTerminadasSinPagar([])
     }
   }
   useEffect(() => {
     cargarComandasTerminadasSinPagar()
-    const interval = setInterval(cargarComandasTerminadasSinPagar, 5000)
+    // Respaldo por si la mesa se abrió en otra tablet. No redibuja si la lista sigue igual.
+    const interval = setInterval(cargarComandasTerminadasSinPagar, 15000)
     const handleComandaActualizada = () => cargarComandasTerminadasSinPagar()
+    const alVolver = () => {
+      if (document.visibilityState === 'visible') cargarComandasTerminadasSinPagar()
+    }
     window.addEventListener('comanda-actualizada', handleComandaActualizada)
+    document.addEventListener('visibilitychange', alVolver)
     return () => {
       clearInterval(interval)
       window.removeEventListener('comanda-actualizada', handleComandaActualizada)
+      document.removeEventListener('visibilitychange', alVolver)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -394,7 +465,7 @@ const PuntoVenta = () => {
   
   const abrirModalProducto = (product) => {
     const productId = product.id_producto
-    if (productoExpandido === productId) {
+    if (productoExpandido === productId && !lineaEditandoId) {
       setProductoExpandido(null)
       return
     }
@@ -428,7 +499,35 @@ const PuntoVenta = () => {
       return
     }
 
+    setLineaEditandoId(null)
     abrirModalProducto(product)
+  }
+
+  const productoDeLinea = (item) =>
+    productos.find((p) => p.id_producto === (item.originalId ?? item.id_producto))
+
+  const lineaSePuedeEditar = (item) => {
+    if (item.entregado || item.personalizado) return false
+    const product = productoDeLinea(item)
+    if (!product) return false
+    const { llevaLeche, llevaExtras, llevaProteina } = opcionesDelProducto(product)
+    return llevaLeche || llevaExtras || llevaProteina || esProductoComida(product)
+  }
+
+  const editarLineaOrden = (item) => {
+    const product = productoDeLinea(item)
+    if (!product || !lineaSePuedeEditar(item)) return
+    setLineaEditandoId(item.id)
+    setProductoExpandido(product.id_producto)
+    setOpcionesProductos((prev) => ({
+      ...prev,
+      [product.id_producto]: {
+        tipoLeche: item.tipoLeche || 'entera',
+        extras: item.extras || [],
+        tipoProteina: item.tipoProteina || null,
+        comentario: item.comentario || '',
+      },
+    }))
   }
 
   const cerrarModalOpcionesProducto = () => {
@@ -443,6 +542,7 @@ const PuntoVenta = () => {
         },
       }))
     }
+    setLineaEditandoId(null)
     setProductoExpandido(null)
   }
   
@@ -456,20 +556,85 @@ const PuntoVenta = () => {
     }
     const { llevaLeche, llevaExtras, llevaProteina } = opcionesDelProducto(product)
     
-    addToCart(
-      {
-        ...product,
-        id: product.id_producto,
-        name: product.nombre,
-        price: product.precio,
-      },
-      llevaLeche ? opciones.tipoLeche : null,
-      llevaExtras ? opciones.extras : [],
-      llevaProteina ? opciones.tipoProteina : null,
-      esProductoComida(product) ? opciones.comentario : null
-    )
+    const tipoLeche = llevaLeche ? opciones.tipoLeche : null
+    const extras = llevaExtras ? opciones.extras : []
+    const tipoProteina = llevaProteina ? opciones.tipoProteina : null
+    const comentario = esProductoComida(product) ? opciones.comentario : null
+
+    if (lineaEditandoId) {
+      const linea = cart.find((item) => item.id === lineaEditandoId)
+      const comentarioLimpio = (comentario || '').trim() || null
+      const extrasOrdenados = [...(extras || [])].sort()
+      const mismaFirma = (item) =>
+        item.originalId === product.id_producto &&
+        item.tipoLeche === tipoLeche &&
+        JSON.stringify([...(item.extras || [])].sort()) === JSON.stringify(extrasOrdenados) &&
+        item.tipoProteina === tipoProteina &&
+        (item.comentario || null) === comentarioLimpio
+      const observaciones = buildItemObservaciones({
+        tipoLeche,
+        extras,
+        tipoProteina,
+        comentario: comentarioLimpio,
+      })
+      const tipoLecheHash = tipoLeche || 'none'
+      const extrasHash = extrasOrdenados.length ? extrasOrdenados.join(',') : 'none'
+      const uniqueId = `${product.id_producto}-${tipoLecheHash}-${extrasHash}-${tipoProteina || 'none'}-${comentarioLimpio || 'none'}`
+      const otra = linea && cart.find((item) => item.id !== linea.id && mismaFirma(item))
+
+      if (!linea) {
+        addToCart(
+          { ...product, id: product.id_producto, name: product.nombre, price: product.precio },
+          tipoLeche,
+          extras,
+          tipoProteina,
+          comentario
+        )
+      } else if (otra) {
+        setCart(
+          cart
+            .filter((item) => item.id !== linea.id)
+            .map((item) =>
+              item.id === otra.id
+                ? { ...item, quantity: item.quantity + linea.quantity }
+                : item
+            )
+        )
+      } else {
+        setCart(
+          cart.map((item) =>
+            item.id === linea.id
+              ? {
+                  ...item,
+                  id: uniqueId,
+                  originalId: product.id_producto,
+                  tipoLeche,
+                  extras,
+                  tipoProteina,
+                  comentario: comentarioLimpio,
+                  observaciones,
+                }
+              : item
+          )
+        )
+      }
+    } else {
+      addToCart(
+        {
+          ...product,
+          id: product.id_producto,
+          name: product.nombre,
+          price: product.precio,
+        },
+        tipoLeche,
+        extras,
+        tipoProteina,
+        comentario
+      )
+    }
     
     // Colapsar el panel y resetear opciones
+    setLineaEditandoId(null)
     setProductoExpandido(null)
     setOpcionesProductos({
       ...opcionesProductos,
@@ -722,7 +887,56 @@ const PuntoVenta = () => {
     // método de pago sea Delivery (ahí el servicio ya está implícito).
     setTipoServicio(metodoPago === 'delivery' ? 'para-llevar' : 'comer-aqui')
     setMontoRecibido('')
+    setMontoEfectivoPago('')
+    setMontoTarjetaPago('')
     setMostrarModalFinalizar(true)
+  }
+
+  const alternarMetodoPago = (id) => {
+    const combinable = id === 'efectivo' || id === 'tarjeta'
+    if (!combinable) {
+      setMetodoPago(id)
+      return
+    }
+    if (metodoPago === 'mixto') {
+      setMetodoPago(id === 'efectivo' ? 'tarjeta' : 'efectivo')
+      return
+    }
+    if (
+      (metodoPago === 'efectivo' && id === 'tarjeta') ||
+      (metodoPago === 'tarjeta' && id === 'efectivo')
+    ) {
+      setMetodoPago('mixto')
+      return
+    }
+    setMetodoPago(id)
+  }
+
+  const metodoSeleccionado = (id) =>
+    metodoPago === id || (metodoPago === 'mixto' && (id === 'efectivo' || id === 'tarjeta'))
+
+  const partesDelPago = (totalConPropina) => {
+    if (metodoPago !== 'mixto') return { valido: true }
+    const efectivo = parseFloat(montoEfectivoPago)
+    const tarjeta = parseFloat(montoTarjetaPago)
+    const suma = (Number.isFinite(efectivo) ? efectivo : 0) + (Number.isFinite(tarjeta) ? tarjeta : 0)
+    const valido = efectivo > 0 && tarjeta > 0 && Math.abs(suma - totalConPropina) < 0.02
+    return { valido, efectivo, tarjeta, faltan: totalConPropina - suma }
+  }
+
+  const asignarPartePago = (campo, valor, totalConPropina) => {
+    const numero = parseFloat(valor)
+    const resto = Number.isFinite(numero)
+      ? Math.max(0, Math.round((totalConPropina - numero) * 100) / 100)
+      : null
+    const otro = resto == null ? '' : resto.toFixed(2)
+    if (campo === 'efectivo') {
+      setMontoEfectivoPago(valor)
+      setMontoTarjetaPago(otro)
+    } else {
+      setMontoTarjetaPago(valor)
+      setMontoEfectivoPago(otro)
+    }
   }
 
   /**
@@ -842,7 +1056,7 @@ const PuntoVenta = () => {
   }
 
   const verificarCajaParaCobro = async () => {
-    if (metodoPago === 'efectivo' && !estadoCaja?.abierta) {
+    if ((metodoPago === 'efectivo' || metodoPago === 'mixto') && !estadoCaja?.abierta) {
       const result = await Swal.fire({
         title: 'Caja cerrada',
         text: 'No hay caja abierta. Debe abrir caja antes de cobrar en efectivo.',
@@ -879,6 +1093,17 @@ const PuntoVenta = () => {
 
   // Función para procesar venta completa (o pago de comanda terminada si hay una seleccionada)
   const procesarVenta = async () => {
+    const totalConPropina = resumenOrden().totalFinal
+    const partes = partesDelPago(totalConPropina)
+    if (metodoPago === 'mixto' && !partes.valido) {
+      await Swal.fire({
+        icon: 'warning',
+        title: 'Revisa el pago',
+        text: 'Efectivo y tarjeta tienen que ser mayores a cero y sumar el total.',
+        confirmButtonColor: '#3d6b4f',
+      })
+      return
+    }
     const cajaOk = await verificarCajaParaCobro()
     if (!cajaOk) return
 
@@ -892,6 +1117,8 @@ const PuntoVenta = () => {
       if (comandaTerminadaSeleccionada) {
         const bodyPago = {
           metodo_pago: metodoPago,
+          monto_efectivo: metodoPago === 'mixto' ? partes.efectivo : undefined,
+          monto_tarjeta: metodoPago === 'mixto' ? partes.tarjeta : undefined,
           tipo_servicio: tipoServicio || undefined,
           descuento_tipo: totalDescuento > 0 ? descuentoTipo : undefined,
           descuento_valor: totalDescuento > 0 ? descuentoValor : undefined,
@@ -953,6 +1180,9 @@ const PuntoVenta = () => {
         nombre_cliente: nombreCliente || null,
         total: totalFinalVenta,
         metodo_pago: metodoPago,
+        monto_efectivo: metodoPago === 'mixto' ? partes.efectivo : null,
+        monto_tarjeta: metodoPago === 'mixto' ? partes.tarjeta : null,
+        propina_monto: propinaACobrar > 0 ? propinaACobrar : null,
         tipo_servicio: tipoServicio,
         tipo_leche: null,
         comentarios: comentarios || null,
@@ -997,13 +1227,23 @@ const PuntoVenta = () => {
       if (propinaPorcentaje && propinaACobrar > 0 && comandaResponse?.id_comanda && usuario?.id_usuario) {
         try {
           const { propinasService } = await import('../../application/services/propinasService')
-          await propinasService.registrarPropina({
-            id_comanda: comandaResponse.id_comanda,
-            monto_porcentaje: propinaPorcentajeNumerico,
-            monto_dinero: propinaACobrar,
-            metodo_pago: metodoPago,
-            id_usuario: usuario.id_usuario
-          })
+          const ventaSinPropina = Math.max(0, totalConPropina - propinaACobrar)
+          const propinas = metodoPago === 'mixto'
+            ? [
+                { metodo: 'efectivo', monto: Math.max(0, partes.efectivo - Math.min(partes.efectivo, ventaSinPropina)) },
+                { metodo: 'tarjeta', monto: Math.max(0, propinaACobrar - Math.max(0, partes.efectivo - Math.min(partes.efectivo, ventaSinPropina))) },
+              ]
+            : [{ metodo: metodoPago, monto: propinaACobrar }]
+          for (const parte of propinas) {
+            if (parte.monto <= 0) continue
+            await propinasService.registrarPropina({
+              id_comanda: comandaResponse.id_comanda,
+              monto_porcentaje: propinaPorcentajeNumerico,
+              monto_dinero: parte.monto,
+              metodo_pago: parte.metodo,
+              id_usuario: usuario.id_usuario
+            })
+          }
         } catch (error) {
           console.error('Error al registrar propina:', error)
           // No bloquear el flujo si falla el registro de propina
@@ -1188,6 +1428,17 @@ const PuntoVenta = () => {
   // Procesar pago de comanda terminada sin pagar (con propina, descuento y tipo servicio si se indicaron)
   const procesarPagoComandaTerminada = async () => {
     if (!comandaTerminadaSeleccionada || !metodoPago) return
+    const totalConPropina = resumenOrden().totalFinal
+    const partes = partesDelPago(totalConPropina)
+    if (metodoPago === 'mixto' && !partes.valido) {
+      await Swal.fire({
+        icon: 'warning',
+        title: 'Revisa el pago',
+        text: 'Efectivo y tarjeta tienen que ser mayores a cero y sumar el total.',
+        confirmButtonColor: '#3d6b4f',
+      })
+      return
+    }
     const cajaOk = await verificarCajaParaCobro()
     if (!cajaOk) return
     setProcesando(true)
@@ -1195,6 +1446,8 @@ const PuntoVenta = () => {
     try {
       const bodyPago = {
         metodo_pago: metodoPago,
+        monto_efectivo: metodoPago === 'mixto' ? partes.efectivo : undefined,
+        monto_tarjeta: metodoPago === 'mixto' ? partes.tarjeta : undefined,
         tipo_servicio: tipoServicio || undefined,
         descuento_tipo: totalDescuento > 0 ? descuentoTipo : undefined,
         descuento_valor: totalDescuento > 0 ? descuentoValor : undefined,
@@ -1686,14 +1939,9 @@ const PuntoVenta = () => {
     productos.filter((p) => p.categoria === category && p.activo)
 
   const abrirCategoria = (category) => {
-    setCategoriaActiva(category)
+    setCategoriaActiva((prev) => (prev === category ? null : category))
     setProductoExpandido(null)
     setSearchTerm('')
-  }
-
-  const volverACategorias = () => {
-    setCategoriaActiva(null)
-    setProductoExpandido(null)
   }
 
   const alternarVistaCatalogo = () => {
@@ -1828,8 +2076,12 @@ const PuntoVenta = () => {
     : modalLlevaExtras
       ? [{ clave: 'extras', nombre: 'Extras', seleccion: 'multiple', opciones: getExtrasDisponibles() }]
       : []
+  const piezasOrden = cart.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)
+  const totalBarraOrden = resumenOrden().totalFinal
+  const mesasAbiertas = comandasTerminadasSinPagar.length
+
   return (
-    <div className="h-full min-h-0 pt-3 px-2 pb-2 flex flex-col landscape:flex-row gap-2 overflow-hidden">
+    <div className="relative h-full min-h-0 pt-3 px-2 pb-2 flex flex-col landscape:flex-row gap-2 overflow-hidden">
       {/* Catálogo */}
       <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-2 overflow-hidden">
         {/* Barra superior: solo buscador */}
@@ -1839,7 +2091,7 @@ const PuntoVenta = () => {
             <input
               type="text"
               placeholder="Buscar..."
-              className="input pl-8 w-full py-2.5 text-sm"
+              className={`input pl-8 w-full py-2.5 text-sm ${searchTerm ? 'pr-12' : ''}`}
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value)
@@ -1848,10 +2100,14 @@ const PuntoVenta = () => {
             />
             {searchTerm && (
               <button
+                type="button"
                 onClick={() => setSearchTerm('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-100"
+                aria-label="Borrar búsqueda"
+                className="group absolute inset-y-0 right-0 flex w-11 items-center justify-center"
               >
-                <X className="w-3.5 h-3.5 text-gray-400" />
+                <span className="flex h-7 w-7 items-center justify-center rounded-md bg-red-500/10 text-red-600 transition-colors group-hover:bg-red-500/20 group-active:bg-red-500/25">
+                  <X className="w-4 h-4" />
+                </span>
               </button>
             )}
           </div>
@@ -1889,34 +2145,55 @@ const PuntoVenta = () => {
               </button>
               {productos.filter((p) => p.activo).map((product) => renderProductTile(product))}
             </div>
-          ) : !categoriaActiva ? (
+          ) : (
             <div className="space-y-3">
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2">
+              {/* En celular las categorías van en una fila deslizable; desde sm, en cuadrícula */}
+              <div className="sin-barra-scroll -mx-2 flex gap-2 overflow-x-auto px-2 sm:mx-0 sm:grid sm:grid-cols-[repeat(auto-fill,minmax(140px,1fr))] sm:overflow-visible sm:px-0">
                 <button
                   type="button"
                   onClick={abrirModalPersonalizado}
-                  className="min-h-[88px] rounded-xl border-2 border-gray-200 bg-gray-50 hover:border-matcha-500 hover:bg-matcha-50 active:scale-[0.98] transition-all p-3 flex flex-col items-center justify-center text-center"
+                  className="shrink-0 whitespace-nowrap rounded-xl border-2 border-gray-200 bg-gray-50 active:scale-[0.98] transition-transform px-3 py-2 flex flex-col items-center justify-center text-center sm:min-h-[64px] sm:whitespace-normal sm:p-2"
                 >
                   <span className="font-semibold text-gray-900 text-sm leading-tight">
                     Personalizado
                   </span>
                 </button>
                 {categories.map((category) => {
-                  const count = productosDeCategoria(category).length
+                  const activa = categoriaActiva === category
                   return (
                     <button
                       key={category}
                       type="button"
-                      onClick={() => abrirCategoria(category)}
-                      className="min-h-[88px] rounded-xl border-2 border-gray-200 bg-gray-50 hover:border-matcha-500 hover:bg-matcha-50 active:scale-[0.98] transition-all p-3 flex flex-col items-center justify-center text-center"
+                      onClick={(event) => {
+                        abrirCategoria(category)
+                        event.currentTarget.blur()
+                      }}
+                      aria-pressed={activa}
+                      className={`shrink-0 whitespace-nowrap rounded-xl border-2 active:scale-[0.98] transition-transform px-3 py-2 flex flex-col items-center justify-center text-center sm:min-h-[64px] sm:whitespace-normal sm:p-2 ${
+                        activa
+                          ? 'border-matcha-500 bg-matcha-50'
+                          : 'border-gray-200 bg-gray-50'
+                      }`}
                     >
                       <span className="font-semibold text-gray-900 text-sm leading-tight">{category}</span>
-                      <span className="text-xs text-gray-500 mt-1">{count} items</span>
                     </button>
                   )
                 })}
               </div>
-              {productosMasVendidos.length > 0 && (
+              {categoriaActiva ? (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5 px-0.5">
+                    {categoriaActiva}
+                  </p>
+                  {productosDeCategoria(categoriaActiva).length === 0 ? (
+                    <p className="py-6 text-center text-sm text-gray-400">Sin productos en esta categoría</p>
+                  ) : (
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2">
+                      {productosDeCategoria(categoriaActiva).map((product) => renderProductTile(product))}
+                    </div>
+                  )}
+                </div>
+              ) : productosMasVendidos.length > 0 ? (
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5 px-0.5">
                     Más vendidos
@@ -1925,33 +2202,58 @@ const PuntoVenta = () => {
                     {productosMasVendidos.map((product) => renderProductTile(product))}
                   </div>
                 </div>
-              )}
+              ) : null}
             </div>
-          ) : (
-            <div className="space-y-2">
-              
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2 pt-1">
-                {/* Casilla volver también en la grilla */}
-                                <button
-                                  type="button"
-                  onClick={volverACategorias}
-                  className="min-h-[88px] rounded-xl border-2 border-dashed border-gray-300 bg-white hover:bg-gray-50 p-3 flex flex-col items-center justify-center text-gray-600 text-sm font-medium"
-                                >
-                  <ArrowLeft className="w-5 h-5 mb-1" />
-                  Categorías
-                                </button>
-                {productosDeCategoria(categoriaActiva).map((product) => renderProductTile(product))}
-                              </div>
-                            </div>
-                          )}
+          )}
                         </div>
         </div>
 
-        {/* Ticket / orden — scroll propio */}
+        {!ordenDesplegada && (
+          <button
+            type="button"
+            onClick={() => setOrdenDesplegada(true)}
+            className="landscape:hidden shrink-0 flex w-full items-center gap-3 rounded-2xl bg-[#1c2b1c] px-4 py-3 text-left text-white shadow-lg"
+          >
+            <span className="flex h-9 min-w-9 items-center justify-center rounded-full bg-white/15 px-2 text-sm font-semibold">
+              {piezasOrden}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold">
+                {piezasOrden === 0
+                  ? 'Ver orden'
+                  : `${piezasOrden} ${piezasOrden === 1 ? 'producto' : 'productos'}`}
+              </span>
+              {mesasAbiertas > 0 && (
+                <span className="block text-xs text-white/70">
+                  {mesasAbiertas} {mesasAbiertas === 1 ? 'mesa abierta' : 'mesas abiertas'}
+                </span>
+              )}
+            </span>
+            <span className="text-base font-bold tabular-nums">${totalBarraOrden.toFixed(2)}</span>
+            <ChevronUp className="w-5 h-5 shrink-0 text-white/80" aria-hidden="true" />
+          </button>
+        )}
+
+        {/* Ticket / orden. En vertical queda detrás de la tarjeta de abajo. */}
         <div
           ref={panelOrdenRef}
-          className="w-full flex-none min-h-0 max-h-[50%] landscape:w-[340px] landscape:max-w-[360px] landscape:max-h-none lg:landscape:w-[360px] flex flex-col overflow-y-auto overscroll-contain gap-2"
+          className={`min-h-0 flex-col gap-2 overflow-y-auto overscroll-contain bg-gray-50 p-2 landscape:static landscape:inset-auto landscape:z-auto landscape:flex landscape:w-[340px] landscape:max-w-[360px] landscape:shrink-0 landscape:bg-transparent landscape:p-0 lg:landscape:w-[360px] ${
+            ordenDesplegada
+              ? 'absolute inset-0 z-20 flex'
+              : 'hidden'
+          }`}
         >
+          <div className="landscape:hidden sticky top-0 z-10 -mx-2 -mt-2 mb-1 flex items-center justify-between bg-gray-50 px-3 py-2">
+            <p className="text-base font-semibold text-gray-900">Tu orden</p>
+            <button
+              type="button"
+              onClick={() => setOrdenDesplegada(false)}
+              className="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-matcha-700"
+            >
+              Ocultar
+              <ChevronDown className="w-4 h-4" aria-hidden="true" />
+            </button>
+          </div>
           {/* Orden actual (incluye la comanda de una mesa abierta lista para cobrar) */}
             <div className="card shrink-0 !p-3">
             
@@ -2069,23 +2371,12 @@ const PuntoVenta = () => {
                     // comanda ni cobrándola: el backend cobra el total guardado,
                     // así que cambiarlo aquí solo desajustaría lo que se ve.
                     const bloqueado = Boolean(item.entregado)
-                    
-                    return (
-                      <div
-                        key={item.id}
-                        className={`flex items-start justify-between p-3 rounded-lg ${
-                          bloqueado ? 'bg-gray-100 border border-dashed border-gray-300' : 'bg-gray-50'
-                        }`}
-                      >
-                        <div className="flex-1">
+                    const puedeEditar = lineaSePuedeEditar(item)
+                    const detalleLinea = (
+                      <>
                           <p className={`font-medium text-sm leading-tight ${bloqueado ? 'text-gray-500' : 'text-gray-900'}`}>
                             {item.nombre || item.name}
                           </p>
-                          {bloqueado && (
-                            <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold bg-gray-200 text-gray-600">
-                              YA ENTREGADO
-                            </span>
-                          )}
                           
                           {detalles.length > 0 && (
                             <p className="mt-1 text-xs font-medium leading-snug">
@@ -2105,7 +2396,28 @@ const PuntoVenta = () => {
                           <p className="text-sm text-gray-500 leading-tight">
                             ${precioItem(item).toFixed(2)} c/u
                           </p>
-                        </div>
+                      </>
+                    )
+                    
+                    return (
+                      <div
+                        key={item.id}
+                        className={`flex items-start justify-between p-3 rounded-lg ${
+                          bloqueado ? 'bg-gray-100 border border-dashed border-gray-300' : 'bg-gray-50'
+                        }`}
+                      >
+                        {puedeEditar ? (
+                          <button
+                            type="button"
+                            onClick={() => editarLineaOrden(item)}
+                            className="flex-1 min-w-0 text-left"
+                            title="Editar nota, extras o leche"
+                          >
+                            {detalleLinea}
+                          </button>
+                        ) : (
+                          <div className="flex-1">{detalleLinea}</div>
+                        )}
                         {bloqueado ? (
                           <span className="ml-2 text-sm font-semibold text-gray-500">
                             x{item.quantity}
@@ -2285,17 +2597,23 @@ const PuntoVenta = () => {
                         <button
                           key={metodo.id}
                           type="button"
-                          onClick={() => setMetodoPago(metodo.id)}
-                          className={claseMetodoPago(metodo.id, metodoPago === metodo.id)}
+                          onClick={() => alternarMetodoPago(metodo.id)}
+                          className={claseMetodoPago(metodo.id, metodoSeleccionado(metodo.id))}
                           title={metodo.label}
                           aria-label={metodo.label}
-                          aria-pressed={metodoPago === metodo.id}
+                          aria-pressed={metodoSeleccionado(metodo.id)}
                         >
                           <Icono className="w-6 h-6" />
                         </button>
                       )
                     })}
-                  </div>
+                    </div>
+                  {(metodoPago === 'efectivo' || metodoPago === 'tarjeta') && (
+                    <p className="text-xs text-center text-gray-500">Toca el otro para dividir el pago</p>
+                  )}
+                  {metodoPago === 'mixto' && (
+                    <p className="text-xs text-center text-gray-500">Pago dividido entre efectivo y tarjeta</p>
+                  )}
                   <button
                     onClick={abrirModalFinalizar}
                     disabled={!metodoPago || procesando || ventaLoading || comandaLoading}
@@ -2326,13 +2644,24 @@ const PuntoVenta = () => {
           {/* Mesas abiertas: ya se entregó lo pedido pero la cuenta sigue viva */}
           {comandasTerminadasSinPagar.length > 0 && (
             <div className="card mb-2 !p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <CheckCircle className="w-5 h-5 text-amber-600" />
-                <h2 className="text-base font-semibold text-gray-900">Mesas abiertas</h2>
+              <button
+                type="button"
+                onClick={alternarMesasAbiertas}
+                aria-expanded={mesasDesplegadas}
+                className={`flex w-full items-center gap-2 text-left ${mesasDesplegadas ? 'mb-2' : ''}`}
+              >
+                <CheckCircle className="w-5 h-5 text-amber-600 shrink-0" />
+                <h2 className="flex-1 text-base font-semibold text-gray-900">Mesas abiertas</h2>
                 <span className="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-1 rounded-full">
                   {comandasTerminadasSinPagar.length}
                 </span>
-              </div>
+                {mesasDesplegadas ? (
+                  <ChevronUp className="w-5 h-5 text-gray-500 shrink-0" aria-hidden="true" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-gray-500 shrink-0" aria-hidden="true" />
+                )}
+              </button>
+              {mesasDesplegadas && (
               <div className="space-y-2">
                 {comandasTerminadasSinPagar.map((comanda) => {
                   const itemsCount = comanda.detalles?.reduce((sum, d) => sum + d.cantidad, 0) || 0
@@ -2376,6 +2705,7 @@ const PuntoVenta = () => {
                   )
                 })}
               </div>
+              )}
             </div>
               )}
             </div>
@@ -2623,7 +2953,7 @@ const PuntoVenta = () => {
                 onClick={() => confirmarAgregarAlCarrito(productoOpcionesModal)}
                 className="btn-primary flex-1 min-h-[48px] text-base inline-flex items-center justify-center gap-2"
               >
-                Agregar · ${calcPrecioOpcionesProducto(productoOpcionesModal.precio, opcionesModal).toFixed(2)}
+                {lineaEditandoId ? 'Guardar' : 'Agregar'} · ${calcPrecioOpcionesProducto(productoOpcionesModal.precio, opcionesModal).toFixed(2)}
               </button>
             </div>
           </div>
@@ -2670,7 +3000,7 @@ const PuntoVenta = () => {
                     key={valor}
                     type="button"
                     onClick={() => setTipoServicio(valor)}
-                    className={`py-2.5 px-3 rounded-lg border-2 text-sm transition-all inline-flex items-center justify-center gap-2 ${
+                    className={`w-full min-w-0 py-3 px-3 rounded-lg border-2 text-sm transition-all inline-flex items-center justify-center gap-2 ${
                       tipoServicio === valor
                         ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
                         : 'border-gray-200 text-gray-600 hover:border-gray-300'
@@ -2681,18 +3011,18 @@ const PuntoVenta = () => {
                   </button>
                 ))}
               </div>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 gap-2 pt-3">
                 <button
                   type="button"
                   onClick={() => setMostrarModalNombreCliente(false)}
-                  className="flex-1 py-2.5 rounded-lg border-2 border-red-200 text-red-600 font-medium hover:bg-red-50 hover:border-red-300 transition-colors"
+                  className="w-full min-w-0 py-2.5 rounded-lg border-2 border-red-200 text-red-600 font-medium hover:bg-red-50 hover:border-red-300 transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={!nombreClienteTemp.trim() || procesando}
-                  className="btn-primary flex-1 py-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="btn-primary w-full min-w-0 py-2.5 border-2 border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Enviar
                 </button>
@@ -2845,16 +3175,66 @@ const PuntoVenta = () => {
                 })()}
               </div>
 
-              {/* Cambio: solo tiene sentido cuando el cliente paga con billetes */}
-              {metodoPago === 'efectivo' && (() => {
+              {metodoPago === 'mixto' && (() => {
                 const totalACobrar = resumenOrden().totalFinal
+                const partes = partesDelPago(totalACobrar)
+                return (
+                  <div className="border-t border-gray-200 pt-4 space-y-3">
+                    <p className="text-sm font-medium text-gray-700">Dividir el pago</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="min-w-0">
+                        <label className="block text-xs text-gray-500 mb-1">Efectivo</label>
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          min="0"
+                          step="0.01"
+                          value={montoEfectivoPago}
+                          onChange={(e) => asignarPartePago('efectivo', e.target.value, totalACobrar)}
+                          className="input w-full min-w-0"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <label className="block text-xs text-gray-500 mb-1">Tarjeta</label>
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          min="0"
+                          step="0.01"
+                          value={montoTarjetaPago}
+                          onChange={(e) => asignarPartePago('tarjeta', e.target.value, totalACobrar)}
+                          className="input w-full min-w-0"
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                    <p className={`text-sm font-medium ${partes.valido ? 'text-matcha-700' : 'text-red-600'}`}>
+                      {partes.valido
+                        ? 'Las dos partes suman el total'
+                        : Math.abs(partes.faltan || 0) < 0.02
+                          ? 'Cada parte tiene que ser mayor a cero'
+                          : partes.faltan < -0.02
+                            ? `Sobran $${Math.abs(partes.faltan).toFixed(2)}`
+                            : `Faltan $${Math.abs(partes.faltan || totalACobrar).toFixed(2)} para completar el total`}
+                    </p>
+                  </div>
+                )
+              })()}
+
+              {/* Cambio: solo tiene sentido cuando el cliente paga con billetes */}
+              {(metodoPago === 'efectivo' || metodoPago === 'mixto') && (() => {
+                const totalACobrar = metodoPago === 'mixto'
+                  ? (parseFloat(montoEfectivoPago) || 0)
+                  : resumenOrden().totalFinal
                 const recibido = parseFloat(montoRecibido)
                 const cambio = Number.isFinite(recibido) ? recibido - totalACobrar : null
                 return (
                   <div className="border-t border-gray-200 pt-4 space-y-2">
                     <label className="block text-sm font-medium text-gray-700">
-                      Paga con <span className="text-gray-400">(Opcional)</span>
-                </label>
+                      {metodoPago === 'mixto' ? 'Paga en efectivo' : 'Paga con'}{' '}
+                      <span className="text-gray-400">(Opcional)</span>
+                    </label>
                     <BilletesEfectivo
                       total={totalACobrar}
                       montoRecibido={montoRecibido}
@@ -2895,7 +3275,7 @@ const PuntoVenta = () => {
               </button>
               <button
                 onClick={procesarVenta}
-                disabled={procesando || ventaLoading || comandaLoading || !metodoPago}
+                disabled={procesando || ventaLoading || comandaLoading || !metodoPago || (metodoPago === 'mixto' && !partesDelPago(resumenOrden().totalFinal).valido)}
                 className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {(procesando || ventaLoading || comandaLoading) && (
@@ -2931,9 +3311,6 @@ const PuntoVenta = () => {
 
             {/* Contenido */}
             <div className="p-6 space-y-4">
-              <p className="text-sm text-gray-600 mb-4">
-                Selecciona el porcentaje de propina que deseas agregar
-              </p>
               
               {/* Opciones de propina predefinidas */}
               <div className="grid grid-cols-3 gap-3 mb-4">

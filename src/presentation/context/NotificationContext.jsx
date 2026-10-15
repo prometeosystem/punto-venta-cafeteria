@@ -1,6 +1,25 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { inventarioService } from '../../application/services/inventarioService'
+import { usuariosService } from '../../application/services/usuariosService'
 import { useAuth } from './AuthContext'
+
+const AVISOS_VISTOS = 'zona2_avisos_vistos'
+const AVISOS_TOAST = 'zona2_avisos_toast'
+
+const leerIds = (clave) => {
+  try {
+    const lista = JSON.parse(localStorage.getItem(clave) || '[]')
+    return new Set(Array.isArray(lista) ? lista : [])
+  } catch {
+    return new Set()
+  }
+}
+
+const guardarId = (clave, id) => {
+  const ids = leerIds(clave)
+  ids.add(String(id))
+  localStorage.setItem(clave, JSON.stringify([...ids]))
+}
 
 const NotificationContext = createContext()
 
@@ -245,7 +264,11 @@ export const NotificationProvider = ({ children }) => {
 
   // Eliminar notificación
   const removeNotification = useCallback((notificationId) => {
-    setNotifications(prev => prev.filter(notif => notif.id !== notificationId))
+    setNotifications(prev => {
+      const encontrada = prev.find(notif => notif.id === notificationId)
+      if (encontrada?.tipo === 'aviso') guardarId(AVISOS_VISTOS, notificationId)
+      return prev.filter(notif => notif.id !== notificationId)
+    })
   }, [])
 
   // Obtener notificaciones no leídas
@@ -438,6 +461,51 @@ export const NotificationProvider = ({ children }) => {
     }
   }, [verificarInsumosStock, addNotification])
 
+  const revisarAvisos = useCallback(async () => {
+    if (!usuario) return
+    try {
+      const data = await usuariosService.obtenerAvisos()
+      const entradas = []
+      if (data?.propio) entradas.push(data.propio)
+      if (Array.isArray(data?.avisos)) entradas.push(...data.avisos)
+      if (entradas.length === 0) return
+
+      const vistos = leerIds(AVISOS_VISTOS)
+      const yaMostrados = leerIds(AVISOS_TOAST)
+      const porMostrar = entradas
+        .filter((entrada) => !vistos.has(String(entrada.id)))
+        .map((entrada) => ({
+          id: entrada.id,
+          tipo: 'aviso',
+          titulo: entrada.titulo,
+          mensaje: entrada.mensaje,
+          icono: 'cake',
+          leida: false,
+          duracion: 12000,
+          fecha: new Date().toISOString(),
+        }))
+      if (porMostrar.length === 0) return
+
+      const nuevasToast = porMostrar.filter((aviso) => !yaMostrados.has(String(aviso.id)))
+      nuevasToast.forEach((aviso) => guardarId(AVISOS_TOAST, aviso.id))
+      if (nuevasToast.length > 0) {
+        setToastNotifications((prevToast) => [...prevToast, ...nuevasToast])
+        playNotificationSound()
+      }
+
+      setNotifications((prev) => {
+        const ids = new Set(prev.map((notif) => notif.id))
+        const faltantes = porMostrar.filter((aviso) => !ids.has(aviso.id))
+        if (faltantes.length === 0) return prev
+        return [...faltantes, ...prev]
+      })
+    } catch (error) {
+      if (error.response?.status !== 401 && import.meta.env.DEV) {
+        console.error('Error al revisar avisos:', error)
+      }
+    }
+  }, [usuario, playNotificationSound])
+
   // Verificar insumos periódicamente (cada 2 minutos)
   useEffect(() => {
     // Solo verificar si hay un usuario autenticado
@@ -447,16 +515,18 @@ export const NotificationProvider = ({ children }) => {
     
     // Verificar inmediatamente al montar
     verificarInsumosStock()
+    revisarAvisos()
     
     // Configurar intervalo para verificar cada 2 minutos
     const intervalo = setInterval(() => {
       verificarInsumosStock()
+      revisarAvisos()
     }, 2 * 60 * 1000) // 2 minutos
 
     return () => {
       clearInterval(intervalo)
     }
-  }, [verificarInsumosStock, usuario])
+  }, [verificarInsumosStock, revisarAvisos, usuario])
 
   const value = {
     notifications,

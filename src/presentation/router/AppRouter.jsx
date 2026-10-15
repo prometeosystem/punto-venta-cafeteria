@@ -60,7 +60,7 @@ function AppRouter() {
         <Route path="caja" element={<RoleProtectedRoute><LazyPage><Caja /></LazyPage></RoleProtectedRoute>} />
         <Route path="historial-caja" element={<RoleProtectedRoute><LazyPage><HistorialCaja /></LazyPage></RoleProtectedRoute>} />
         <Route path="movimientos-caja" element={<RoleProtectedRoute><LazyPage><MovimientosCaja /></LazyPage></RoleProtectedRoute>} />
-        <Route path="categorias-movimiento" element={<RoleProtectedRoute><LazyPage><CategoriasMovimiento /></LazyPage></RoleProtectedRoute>} />
+        <Route path="categorias-movimiento" element={<RoleProtectedRoute><LazyPage><CategoriasMovimiento desplegado /></LazyPage></RoleProtectedRoute>} />
         <Route path="contabilidad" element={<RoleProtectedRoute><LazyPage><Contabilidad /></LazyPage></RoleProtectedRoute>} />
         <Route path="configuracion" element={<RoleProtectedRoute><LazyPage><Configuracion /></LazyPage></RoleProtectedRoute>} />
         <Route path="test-sonidos" element={<RoleProtectedRoute><LazyPage><TestNotificationSounds /></LazyPage></RoleProtectedRoute>} />

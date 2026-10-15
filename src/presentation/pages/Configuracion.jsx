@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { Bell, CreditCard, Image, Loader2, Tags, ChevronRight } from 'lucide-react'
+import { Bell, CreditCard, Image, Loader2 } from 'lucide-react'
 import { useUsuarios } from '../hooks/useUsuarios'
 import { useVentas } from '../hooks/useVentas'
 import { useProductos } from '../hooks/useProductos'
@@ -13,6 +12,7 @@ import {
 } from '../utils/metodosPagoConfig'
 import { guardarPosConFotos, obtenerPosConFotos, vaciarCacheImagenes } from '../utils/posVistaConfig'
 import OpcionesProductoConfig from '../components/OpcionesProductoConfig'
+import CategoriasMovimiento from './CategoriasMovimiento'
 import Swal from 'sweetalert2'
 
 const Configuracion = () => {
@@ -125,25 +125,7 @@ const Configuracion = () => {
 
   return (
     <div className="space-y-6">
-      {/* Categorías de movimiento */}
-      <div className="card">
-        <div className="flex items-center gap-3 mb-3">
-          <Tags className="w-5 h-5 text-matcha-600" />
-          <h2 className="text-lg font-semibold text-gray-900">
-            Categorías de movimiento
-          </h2>
-        </div>
-        <p className="text-sm text-gray-600 mb-4">
-          Administra las categorías usadas en entradas y salidas de caja.
-        </p>
-        <Link
-          to="/categorias-movimiento"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-matcha-500 text-white text-sm font-medium hover:bg-matcha-600 transition-colors"
-        >
-          Gestionar categorías
-          <ChevronRight className="w-4 h-4" />
-        </Link>
-      </div>
+      <CategoriasMovimiento />
 
       <OpcionesProductoConfig />
 

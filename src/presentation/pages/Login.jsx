@@ -249,7 +249,7 @@ const Login = () => {
         />
         <div className="absolute inset-0 bg-gradient-to-b from-[#1c2818]/55 via-[#1c2818]/35 to-[#1c2818]/60" />
 
-        <div className="relative z-10 flex flex-1 -translate-y-6 flex-col items-center justify-center px-8 text-center sm:-translate-y-10">
+        <div className="relative z-10 flex flex-1 flex-col items-center justify-start px-8 pb-6 pt-24 text-center lg:justify-center lg:pb-0 lg:pt-0 lg:-translate-y-10">
           <div onClick={tocarTaza} className="cursor-default">
             <LogoZona2 className="w-56 text-white sm:w-72" />
           </div>
@@ -261,8 +261,8 @@ const Login = () => {
         </div>
       </section>
 
-      <section className="relative flex min-h-screen flex-col overflow-hidden bg-[#1a241c] text-white" style={{ fontFamily: 'Outfit, Inter, sans-serif' }}>
-        <div className="relative z-10 flex flex-1 items-center justify-center px-5 py-20 sm:px-10">
+      <section className="relative flex flex-col overflow-hidden bg-[#1a241c] text-white lg:min-h-screen" style={{ fontFamily: 'Outfit, Inter, sans-serif' }}>
+        <div className="relative z-10 flex flex-1 items-start justify-center px-5 pb-4 pt-8 sm:px-10 lg:items-center lg:py-20">
         <div className="w-full max-w-lg">
           {!seleccionado ? (
             <div className="space-y-6">
@@ -286,7 +286,7 @@ const Login = () => {
                 </p>
               ) : (
                 // Con muchos usuarios el scroll queda en la lista, no en la página
-                <div className="login-usuarios -m-1 flex max-h-[calc(100dvh-19rem)] min-h-[9rem] flex-col gap-3 overflow-y-auto overscroll-contain p-1 pr-2">
+                <div className="login-usuarios -m-1 flex max-h-[calc(100dvh-28rem)] min-h-[9rem] flex-col gap-3 overflow-y-auto overscroll-contain p-1 pr-2 lg:max-h-[calc(100dvh-19rem)]">
                   {visibles.map((u) => (
                     <button
                       key={u.id_usuario}
@@ -405,11 +405,20 @@ const Login = () => {
         </div>
         </div>
 
-        {/* Arriba de la cintilla inferior, que cruza toda la pantalla */}
-        {/*<div className="pointer-events-none absolute bottom-[4.5rem] right-5 z-30 flex items-center gap-2 text-white/55 sm:bottom-20 sm:right-8">
+        <div className="pointer-events-none z-30 mt-6 flex items-center gap-2 px-5 pb-16 text-white/55 lg:absolute lg:bottom-20 lg:left-5 lg:right-8 lg:mt-0 lg:px-0 lg:pb-0">
           <img src={logoProthec} alt="" className="h-6 w-auto" />
-          <span className="text-xs tracking-wide">Desarrollado por Prothec</span>
-        </div>*/}
+
+          <a
+            href="https://prothec.com.mx/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="pointer-events-auto"
+          >
+            <span className="text-xs tracking-wide">
+              Desarrollado por Prothec
+            </span>
+          </a>
+        </div>
       </section>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { X, Package, Bell, AlertTriangle, DollarSign, CheckCircle } from 'lucide-react'
+import { X, Package, Bell, AlertTriangle, DollarSign, CheckCircle, Cake } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 const ToastNotification = ({ notification, onClose, onNavigate, duration = 5000, isActive = false }) => {
@@ -65,9 +65,10 @@ const ToastNotification = ({ notification, onClose, onNavigate, duration = 5000,
         hasStartedRef.current = true
       }
       
+      const duracionMs = notification.duracion || duration
       const elapsed = Date.now() - startTimeRef.current
-      const remaining = Math.max(0, duration - elapsed)
-      const progressPercent = (remaining / duration) * 100
+      const remaining = Math.max(0, duracionMs - elapsed)
+      const progressPercent = (remaining / duracionMs) * 100
       
       setProgress(progressPercent)
       
@@ -88,7 +89,7 @@ const ToastNotification = ({ notification, onClose, onNavigate, duration = 5000,
         intervalRef.current = null
       }
     }
-  }, [duration, handleClose, isActive])
+  }, [duration, notification.duracion, handleClose, isActive])
   
   // Resetear refs cuando la notificación se cierra completamente
   useEffect(() => {
@@ -107,6 +108,8 @@ const ToastNotification = ({ notification, onClose, onNavigate, duration = 5000,
       return <DollarSign className="w-5 h-5 text-amber-600" />
     } else if (notification.icono === 'check') {
       return <CheckCircle className="w-5 h-5 text-emerald-600" />
+    } else if (notification.icono === 'cake') {
+      return <Cake className="w-5 h-5 text-matcha-600" />
     }
     return <Bell className={`w-5 h-5 ${notification.tipo === 'comanda' ? 'text-matcha-600' : 'text-gray-600'}`} />
   }
@@ -120,6 +123,8 @@ const ToastNotification = ({ notification, onClose, onNavigate, duration = 5000,
       return 'bg-white border-amber-200'
     } else if (notification.tipo === 'comanda-terminada') {
       return 'bg-white border-emerald-200'
+    } else if (notification.tipo === 'aviso') {
+      return 'bg-white border-matcha-200'
     }
     return 'bg-white border-gray-200'
   }

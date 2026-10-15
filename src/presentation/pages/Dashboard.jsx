@@ -84,6 +84,7 @@ const TarjetaResumen = ({ titulo, valor, detalle, Icono, colorValor = 'text-gray
 
 const labelMetodoPago = (metodo) => {
   if (!metodo) return '—'
+  if (metodo === 'mixto') return 'Efectivo y tarjeta'
   const found = METODOS_PAGO_DISPONIBLES.find((m) => m.id === metodo)
   return found?.label || String(metodo).replace(/-/g, ' ')
 }

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { Bell, Package, X, AlertTriangle, DollarSign, CheckCircle } from 'lucide-react'
+import { Bell, Cake, Package, X, AlertTriangle, DollarSign, CheckCircle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useNotifications } from '../context/NotificationContext'
 
@@ -115,6 +115,8 @@ const NotificationsBell = ({ variant = 'header' }) => {
                       <DollarSign className="w-6 h-6 text-amber-600" />
                     ) : notification.icono === 'check' ? (
                       <CheckCircle className="w-6 h-6 text-emerald-600" />
+                    ) : notification.icono === 'cake' ? (
+                      <Cake className="w-6 h-6 text-matcha-600" />
                     ) : (
                       <Bell className={`w-6 h-6 ${
                         notification.tipo === 'comanda' ? 'text-matcha-600' :

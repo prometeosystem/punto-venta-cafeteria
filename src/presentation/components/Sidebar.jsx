@@ -34,7 +34,7 @@ const menuItems = [
   { path: '/punto-venta', icon: ShoppingCart, label: 'Punto de Venta' },
   { path: '/barista', icon: Coffee, label: 'Comandas' },
   { path: '/productos', icon: Package, label: 'Productos' },
-  { path: '/inventario', icon: Warehouse, label: 'Inventario' },
+  { path: '/inventario', icon: Warehouse, label: 'Insumos' },
   { path: '/empleados', icon: UserIcon, label: 'Empleados' },
   { path: '/caja', icon: Wallet, label: 'Caja' },
   { path: '/movimientos-caja', icon: ArrowLeftRight, label: 'Movimientos' },
@@ -222,7 +222,7 @@ const Sidebar = () => {
           </div>
 
           <div className="text-[11px] text-gray-500 text-center mt-1.5">
-            v3.7.9 · Prothec
+            v5.1.1 · Desarrollado por Prothec
           </div>
         </div>
       </aside>

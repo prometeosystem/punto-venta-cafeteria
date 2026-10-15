@@ -144,7 +144,7 @@ El sistema está optimizado para:
 
 ## 📄 Licencia
 
-Este proyecto es privado y propiedad de Zona 2 Brunch and Run.
+Este proyecto es privado y propiedad de Prothec.
 
 
 

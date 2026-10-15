@@ -211,26 +211,27 @@ const Bitacora = () => {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-w-0 max-w-full lg:p-2">
+      <div className="max-w-7xl mx-auto min-w-0">
         {/* Secciones */}
-        <div className="flex flex-wrap gap-2 mb-6">
+        <div className="grid grid-cols-2 gap-2 mb-4 sm:flex sm:flex-wrap sm:mb-6">
           <button
             onClick={() => setSeccion('movimientos')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium leading-tight transition-colors sm:px-4 ${
               seccion === 'movimientos' ? 'bg-matcha-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            <FileText className="w-4 h-4" />
-            Movimientos del sistema
+            <FileText className="w-4 h-4 shrink-0" />
+            <span className="sm:hidden">Movimientos</span>
+            <span className="hidden sm:inline">Movimientos del sistema</span>
           </button>
           <button
             onClick={() => setSeccion('historial-caja')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium leading-tight transition-colors sm:px-4 ${
               seccion === 'historial-caja' ? 'bg-matcha-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            <History className="w-4 h-4" />
+            <History className="w-4 h-4 shrink-0" />
             Historial de Caja
           </button>
         </div>
@@ -240,10 +241,11 @@ const Bitacora = () => {
         {seccion === 'movimientos' && (
         <>
         {/* Filtros */}
-        <div className="card mb-6">
+        <div className="card mb-4 !p-3 sm:mb-6 sm:!p-4">
           <button
             onClick={() => setMostrarFiltros(!mostrarFiltros)}
-            className="w-full flex items-center justify-between p-4 hover:bg-gray-50 rounded-lg transition-colors"
+            aria-expanded={mostrarFiltros}
+            className="w-full flex items-center justify-between p-1 rounded-lg transition-colors sm:p-2"
           >
             <div className="flex items-center gap-2">
               <Filter className="w-5 h-5 text-matcha-600" />
@@ -257,19 +259,8 @@ const Bitacora = () => {
           </button>
 
           {mostrarFiltros && (
-            <div className="border-t border-gray-200 pt-4 mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  ID Usuario
-                </label>
-                <input
-                  type="number"
-                  value={filtros.id_usuario}
-                  onChange={(e) => setFiltros(prev => ({ ...prev, id_usuario: e.target.value }))}
-                  className="input w-full"
-                  placeholder="Filtrar por usuario"
-                />
-              </div>
+            <div className="border-t border-gray-200 pt-4 mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3">
+              
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -338,13 +329,14 @@ const Bitacora = () => {
                 />
               </div>
 
-              <div className="md:col-span-3 flex gap-3">
+              <div className="grid grid-cols-2 gap-2 sm:col-span-2 sm:flex sm:gap-3 md:col-span-3">
                 <button
                   onClick={aplicarFiltros}
-                  className="btn-primary flex items-center gap-2"
+                  className="btn-primary flex items-center justify-center gap-2"
                 >
                   <Search className="w-4 h-4" />
-                  Aplicar Filtros
+                  Aplicar
+                  <span className="hidden sm:inline">Filtros</span>
                 </button>
                 <button
                   onClick={limpiarFiltros}
@@ -358,10 +350,10 @@ const Bitacora = () => {
         </div>
 
         {/* Resultados */}
-        <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900">Registros de Movimientos</h2>
+        <div className="card min-w-0 !p-3 sm:!p-6">
+          <div className="flex items-center justify-between gap-3 mb-3 sm:mb-4">
+            <div className="min-w-0">
+              <h2 className="text-lg font-semibold text-gray-900 sm:text-xl">Registros de Movimientos</h2>
               <p className="text-sm text-gray-600">Total: {total} registros</p>
             </div>
             {loading && (
@@ -389,11 +381,11 @@ const Bitacora = () => {
                   return (
                   <div
                     key={registro.id_bitacora}
-                    className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                    className="min-w-0 border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow sm:p-4"
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
+                    <div className="flex items-start justify-between min-w-0">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-2 sm:gap-x-3">
                           {obtenerIconoTipo(registro.tipo_movimiento)}
                           <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${obtenerColorTipo(registro.tipo_movimiento)}`}>
                             {registro.tipo_movimiento?.toUpperCase()}
@@ -410,20 +402,20 @@ const Bitacora = () => {
                           )}
                         </div>
 
-                        <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
-                          <div className="flex items-center gap-1">
-                            <User className="w-4 h-4" />
-                            <span className="font-medium">{obtenerNombreCompleto(registro)}</span>
-                            <span className="text-gray-400">({registro.rol})</span>
+                        <div className="flex flex-col gap-1 text-sm text-gray-600 mb-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4">
+                          <div className="flex min-w-0 items-center gap-1">
+                            <User className="w-4 h-4 shrink-0" />
+                            <span className="truncate font-medium">{obtenerNombreCompleto(registro)}</span>
+                            <span className="shrink-0 text-gray-400">({registro.rol})</span>
                           </div>
                           <div className="flex items-center gap-1">
-                            <Calendar className="w-4 h-4" />
-                            <span>{formatearFecha(registro.fecha_hora)}</span>
+                            <Calendar className="w-4 h-4 shrink-0" />
+                            <span className="whitespace-nowrap">{formatearFecha(registro.fecha_hora)}</span>
                           </div>
                         </div>
 
                         {registro.descripcion && (
-                          <p className="text-sm text-gray-700 mb-2">{registro.descripcion}</p>
+                          <p className="text-sm text-gray-700 mb-2 break-words">{registro.descripcion}</p>
                         )}
 
                         {hayDetalles && (
@@ -459,9 +451,9 @@ const Bitacora = () => {
                                   )}
                                   <dl className="bg-gray-50 rounded px-3 py-2 text-xs divide-y divide-gray-200">
                                     {filas.map(({ clave, etiqueta, texto }) => (
-                                      <div key={clave} className="flex justify-between gap-4 py-1">
-                                        <dt className="text-gray-500">{etiqueta}</dt>
-                                        <dd className="text-gray-900 font-medium text-right">{texto}</dd>
+                                      <div key={clave} className="flex justify-between gap-3 py-1">
+                                        <dt className="shrink-0 text-gray-500">{etiqueta}</dt>
+                                        <dd className="min-w-0 break-words text-gray-900 font-medium text-right">{texto}</dd>
                                       </div>
                                     ))}
                                   </dl>
@@ -481,11 +473,11 @@ const Bitacora = () => {
 
               {/* Paginación */}
               {total > filtros.limite && (
-                <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
-                  <div className="text-sm text-gray-600">
+                <div className="flex flex-col gap-3 mt-6 pt-4 border-t border-gray-200 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="text-sm text-gray-600 text-center sm:text-left">
                     Mostrando {filtros.offset + 1} - {Math.min(filtros.offset + filtros.limite, total)} de {total}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="grid grid-cols-2 gap-2 sm:flex">
                     <button
                       onClick={() => setFiltros(prev => ({ ...prev, offset: Math.max(0, prev.offset - prev.limite) }))}
                       disabled={filtros.offset === 0}
