@@ -1,20 +1,21 @@
-/* Canales RGB sin rgb() para que Tailwind pueda aplicar opacidad (bg-marca-500/20). */
+/* Canales RGB sin rgb() para que Tailwind pueda aplicar opacidad (bg-marca-500/20).
+   Tomada de prothec.com.mx: azul #0766c8, acento #4da3ff y fondos #070b14 a #101828. */
 :root {
-  --marca-50: 238 241 251;
-  --marca-100: 224 230 248;
-  --marca-200: 195 205 240;
-  --marca-300: 152 168 226;
-  --marca-400: 106 127 208;
-  --marca-500: 65 87 184;
-  --marca-600: 52 72 158;
-  --marca-700: 43 59 130;
-  --marca-800: 35 48 106;
-  --marca-900: 27 37 83;
+  --marca-50: 238 245 255;
+  --marca-100: 224 238 255;
+  --marca-200: 207 230 255;
+  --marca-300: 142 199 255;
+  --marca-400: 77 163 255;
+  --marca-500: 7 102 200;
+  --marca-600: 5 83 164;
+  --marca-700: 2 62 124;
+  --marca-800: 1 42 94;
+  --marca-900: 0 24 68;
 
-  --oscuro-700: 39 44 64;
-  --oscuro-800: 24 28 43;
-  --oscuro-900: 16 19 30;
+  --oscuro-700: 16 24 40;
+  --oscuro-800: 12 18 32;
+  --oscuro-900: 7 11 20;
 
-  --acento: 242 181 68;
-  --acento-claro: 253 233 194;
+  --acento: 77 163 255;
+  --acento-claro: 207 230 255;
 }
