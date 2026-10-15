@@ -11,6 +11,7 @@
  * funciones síncronas. Los valores de abajo son el respaldo con el que arranca
  * la aplicación y el que se usa si la carga falla.
  */
+import marca from '@marca'
 
 // Los grupos de leche y proteína tienen su propio bloque en el modal, así que
 // no se pintan como una sección más de extras.
@@ -169,18 +170,10 @@ export function getExtrasDisponibles() {
 
 export const PROTEINA_SCOOP_PRECIO = 25
 
-export const MENU_CATEGORY_ORDER = [
-  'Bebidas Calientes',
-  'Bebidas Frías',
-  'Frappés',
-  'Recovery Bar',
-  'Clásicos',
-  'Mini WOD',
-  'Signature',
-]
+export const MENU_CATEGORY_ORDER = marca.categoriasOrden
 
 // Categorías de cocina: solo ellas abren el modal de nota por producto.
-export const CATEGORIAS_COMIDA = ['Clásicos', 'Mini WOD', 'Signature']
+export const CATEGORIAS_COMIDA = marca.categoriasComida
 
 export function esProductoComida(productoOrCategoria) {
   const categoria =

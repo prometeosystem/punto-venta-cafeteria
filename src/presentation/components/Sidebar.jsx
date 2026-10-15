@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { usePrinterContext } from '../context/PrinterContext'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { hasRouteAccess } from '../utils/rolePermissions'
-import LogoZona2 from './LogoZona2'
+import marca from '@marca'
 import PrinterConnectionButton from './PrinterConnectionButton'
 import NotificationsBell from './NotificationsBell'
 import {
@@ -109,7 +109,7 @@ const Sidebar = () => {
       >
         {/* Header del Sidebar */}
         <div className="relative flex items-center justify-center px-12 py-5 border-b border-pino-700">
-          <LogoZona2 className="w-40 text-white" />
+          <marca.Logo className="w-40 text-white" />
           <button
             onClick={toggleSidebar}
             className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg hover:bg-pino-700 transition-colors"

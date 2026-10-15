@@ -1,4 +1,7 @@
-const STORAGE_KEY = 'zona2_pos_fotos'
+import marca from '@marca'
+import { clave } from './almacenLocal'
+
+const STORAGE_KEY = clave('pos_fotos')
 
 export function obtenerPosConFotos() {
   try {
@@ -15,7 +18,7 @@ export function guardarPosConFotos(activo) {
   return activo
 }
 
-const DB_NAME = 'zona2-pos-img'
+const DB_NAME = marca.almacen.baseImagenes
 const STORE = 'imagenes'
 const memoria = new Map()
 const enCurso = new Map()

@@ -1,9 +1,10 @@
 import api from '../../infrastructure/api'
+import { CLAVE_TOKEN, CLAVE_USUARIO } from '../../presentation/utils/almacenLocal'
 
 const guardarSesion = (data) => {
   if (data.access_token) {
-    localStorage.setItem('token', data.access_token)
-    localStorage.setItem('usuario', JSON.stringify(data.usuario))
+    localStorage.setItem(CLAVE_TOKEN, data.access_token)
+    localStorage.setItem(CLAVE_USUARIO, JSON.stringify(data.usuario))
   }
   return data
 }
@@ -57,18 +58,18 @@ export const authService = {
 
   // Logout
   logout: () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('usuario')
+    localStorage.removeItem(CLAVE_TOKEN)
+    localStorage.removeItem(CLAVE_USUARIO)
   },
 
   // Verificar si hay token
   isAuthenticated: () => {
-    return !!localStorage.getItem('token')
+    return !!localStorage.getItem(CLAVE_TOKEN)
   },
 
   // Obtener usuario del localStorage
   getStoredUser: () => {
-    const usuario = localStorage.getItem('usuario')
+    const usuario = localStorage.getItem(CLAVE_USUARIO)
     return usuario ? JSON.parse(usuario) : null
   },
 }

@@ -36,6 +36,8 @@ import {
 } from '../utils/productOptionsConfig'
 import { useOpcionesProducto } from '../hooks/useOpcionesProducto'
 import { reportesService } from '../../application/services/reportesService'
+import { clave } from '../utils/almacenLocal'
+import marca from '@marca'
 import Swal from 'sweetalert2'
 
 /**
@@ -110,7 +112,8 @@ const claseMetodoPago = (id, seleccionado) =>
       : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:bg-gray-50'
   }`
 
-const CLAVE_MESAS_ABIERTAS = 'zona2_pos_mesas_abiertas'
+const CLAVE_MESAS_ABIERTAS = clave('pos_mesas_abiertas')
+const CLAVE_VISTA_CATALOGO = clave('pos_vista')
 
 const vistaMovilVertical = () =>
   typeof window !== 'undefined' &&
@@ -142,7 +145,7 @@ const PuntoVenta = () => {
   const [idCliente, setIdCliente] = useState(null)
   const [procesando, setProcesando] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-  const [verTodos, setVerTodos] = useState(() => localStorage.getItem('zona2_pos_vista') === 'todos')
+  const [verTodos, setVerTodos] = useState(() => localStorage.getItem(CLAVE_VISTA_CATALOGO) === 'todos')
   const [highlightedProduct, setHighlightedProduct] = useState(null)
   const [mostrarModalFinalizar, setMostrarModalFinalizar] = useState(false)
   const [mostrarModalNombreCliente, setMostrarModalNombreCliente] = useState(false)
@@ -268,8 +271,8 @@ const PuntoVenta = () => {
     }
     const syncFotos = () => setPosConFotos(obtenerPosConFotos())
     const onStorage = (e) => {
-      if (e.key === 'zona2_metodos_pago') sync()
-      if (e.key === 'zona2_pos_fotos') syncFotos()
+      if (e.key === clave('metodos_pago')) sync()
+      if (e.key === clave('pos_fotos')) syncFotos()
     }
     window.addEventListener('metodos-pago-config-changed', sync)
     const limpiarFotos = () => setCacheFotos((n) => n + 1)
@@ -743,7 +746,7 @@ const PuntoVenta = () => {
     return `Propina $${Number(montoPropina || 0).toFixed(2)}`
   }
 
-  // Agrupar productos activos por categoría (orden del menú Zona 2)
+  // Agrupar productos activos por categoría (orden del menú de la marca)
   const categories = sortMenuCategories(
     [...new Set(productos.filter((p) => p.activo).map((p) => p.categoria))]
   )
@@ -797,7 +800,7 @@ const PuntoVenta = () => {
       : (propinaPorcentaje === 'personalizado' ? (montoPropina || 0) : 0)
     const totalFinal = totalDespuesDescuento + montoPropinaTicket
 
-    let texto = '*Zona 2* - Ticket\n'
+    let texto = `${marca.encabezadoWhatsapp}\n`
     texto += '━━━━━━━━━━━━━━━━\n\n'
     if (nombreCliente) texto += `Cliente: ${nombreCliente}\n\n`
 
@@ -959,7 +962,7 @@ const PuntoVenta = () => {
 
     const referencia = comanda || comandaTerminadaSeleccionada
     const ticket = {
-      negocio: 'ZONA 2',
+      negocio: marca.nombreTicket,
       tipo: 'cuenta',
       numero: referencia?.id_venta ?? null,
       cajero: usuario ? `${usuario.nombre || ''} ${usuario.apellido_paterno || ''}`.trim() : null,
@@ -1947,7 +1950,7 @@ const PuntoVenta = () => {
   const alternarVistaCatalogo = () => {
     setVerTodos((prev) => {
       const siguiente = !prev
-      localStorage.setItem('zona2_pos_vista', siguiente ? 'todos' : 'categorias')
+      localStorage.setItem(CLAVE_VISTA_CATALOGO, siguiente ? 'todos' : 'categorias')
       return siguiente
     })
     setCategoriaActiva(null)

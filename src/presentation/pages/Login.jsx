@@ -2,8 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { authService } from '../../application/services/authService'
-import LogoZona2 from '../components/LogoZona2'
-import heroCafe from '../../assets/hero-coffee.jpg'
+import marca from '@marca'
 import logoProthec from '../../assets/logo-prothec.png'
 import { ArrowLeft, Delete, Loader2, Lock } from 'lucide-react'
 
@@ -40,45 +39,6 @@ const iniciales = (nombre = '') =>
 const LIMA = '#a8c258'
 const PINO = '#1c2b1c'
 const display = { fontFamily: '"Bebas Neue", sans-serif' }
-
-const FRASE_LIMA = ['ZONA 2', 'NO ES SOLO CAFÉ', 'RECUPERA', 'RINDE', 'VUELVE AL RITMO']
-const FRASE_CONTORNO = [
-  'CONSTANCIA',
-  'EQUILIBRIO',
-  'CAFÉ DE ESPECIALIDAD',
-  'COMUNIDAD',
-  'BRUNCH AND RUN',
-  'VUELVE AL RITMO',
-  'SIN PRISA',
-  'A LA BARRA',
-  'SOSTÉN',
-  'RECUPERA',
-]
-
-const MENSAJES = [
-  { saludo: 'Buen turno', linea: 'ENTRA A LA BARRA', acento: 'Y ARRANCA EL DÍA.' },
-  { saludo: 'Hoy se corre', linea: 'EL RITMO', acento: 'EMPIEZA AQUÍ.' },
-  { saludo: 'Respira', linea: 'RECUPERA', acento: 'Y VUELVE MÁS FUERTE.' },
-  { saludo: 'Café listo', linea: 'EL TURNO', acento: 'ES TUYO.' },
-  { saludo: 'Sin prisa', linea: 'BAJA EL RITMO', acento: 'PARA SUBIRLO DESPUÉS.' },
-  { saludo: 'A la barra', linea: 'EL DÍA', acento: 'YA ARRANCÓ.' },
-  { saludo: 'Constancia', linea: 'UN CAFÉ', acento: 'Y A MOVERTE.' },
-  { saludo: 'Equilibrio', linea: 'CAFÉ, COMIDA', acento: 'Y RITMO.' },
-  { saludo: 'Buen día', linea: 'NO ES SOLO CAFÉ', acento: 'ES TU ZONA.' },
-  { saludo: 'Listos', linea: 'RECUPERA ENERGÍA', acento: 'Y SIGUE.' },
-  { saludo: 'En marcha', linea: 'VUELVE AL RITMO', acento: 'QUE TE MUEVE.' },
-  { saludo: 'Aquí estamos', linea: 'EL ESFUERZO', acento: 'MERECE CAFÉ.' },
-  { saludo: 'Suave', linea: 'SOSTÉN EL RITMO', acento: 'NO LO FUERCES.' },
-  { saludo: 'A correr', linea: 'PRIMERO EL CAFÉ', acento: 'LUEGO EL KILÓMETRO.' },
-  { saludo: 'Bienvenido', linea: 'TU ZONA', acento: 'TE ESPERA.' },
-  { saludo: 'Otro día', linea: 'MISMO RITMO', acento: 'MEJOR CAFÉ.' },
-  { saludo: 'En zona', linea: 'DONDE EL CUERPO', acento: 'APRENDE A SOSTENER.' },
-  { saludo: 'Adelante', linea: 'HOY SE RECUPERA', acento: 'MAÑANA SE RINDE.' },
-  { saludo: 'Tranquilo', linea: 'BAJA UN CAMBIO', acento: 'Y VUELVE FUERTE.' },
-  { saludo: 'Brunch and run', linea: 'COME, BEBE', acento: 'Y SAL A MOVERTE.' },
-  { saludo: 'Ya es hora', linea: 'ENTRA', acento: 'Y ARRANCA.' },
-  { saludo: 'Paso a paso', linea: 'LA CONSTANCIA', acento: 'SE SIRVE CALIENTE.' },
-]
 
 const Cintilla = ({ frases, contorno = false, lenta = false }) => {
   const pistaRef = useRef(null)
@@ -137,7 +97,7 @@ const Login = () => {
   const [segundosBloqueo, setSegundosBloqueo] = useState(0)
   const [mostrarOcultos, setMostrarOcultos] = useState(false)
   const [mensaje] = useState(
-    () => MENSAJES[Math.floor(Math.random() * MENSAJES.length)]
+    () => marca.mensajesLogin[Math.floor(Math.random() * marca.mensajesLogin.length)]
   )
   const toquesRef = useRef(0)
 
@@ -234,24 +194,30 @@ const Login = () => {
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#1a241c]">
       <div className="pointer-events-none absolute inset-x-0 top-6 z-20 opacity-90 sm:top-8">
-        <Cintilla frases={FRASE_LIMA} />
+        <Cintilla frases={marca.cintillaPrincipal} />
       </div>
       <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 opacity-80 sm:bottom-8">
-        <Cintilla frases={FRASE_CONTORNO} contorno lenta />
+        <Cintilla frases={marca.cintillaContorno} contorno lenta />
       </div>
 
       <div className="min-h-screen lg:grid lg:grid-cols-2">
       <section className="relative flex min-h-[420px] flex-col overflow-hidden lg:min-h-screen">
-        <img
-          src={heroCafe}
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover object-[center_60%]"
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#1c2818]/55 via-[#1c2818]/35 to-[#1c2818]/60" />
+        {marca.heroImagen ? (
+          <>
+            <img
+              src={marca.heroImagen}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover object-[center_60%]"
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-[#1c2818]/55 via-[#1c2818]/35 to-[#1c2818]/60" />
+          </>
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-[#2c5342] via-[#1c2b1c] to-[#121a14]" />
+        )}
 
         <div className="relative z-10 flex flex-1 flex-col items-center justify-start px-8 pb-6 pt-24 text-center lg:justify-center lg:pb-0 lg:pt-0 lg:-translate-y-10">
           <div onClick={tocarTaza} className="cursor-default">
-            <LogoZona2 className="w-56 text-white sm:w-72" />
+            <marca.Logo className="w-56 text-white sm:w-72" />
           </div>
           <p className="mt-8 font-script text-3xl text-[#e7f0c8] sm:text-4xl">{mensaje.saludo}</p>
           <h1 className="mt-2 max-w-md text-4xl font-semibold leading-[1.05] tracking-tight text-white sm:text-5xl">
@@ -273,6 +239,11 @@ const Login = () => {
                 <p className="mt-2 text-sm text-white/80">
                   Elige tu usuario e ingresa tu código.
                 </p>
+                {marca.avisoLogin && (
+                  <p className="mt-3 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm text-white/90">
+                    {marca.avisoLogin}
+                  </p>
+                )}
               </div>
 
               {cargandoUsuarios ? (

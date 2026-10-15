@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { authService } from '../../application/services/authService'
+import { CLAVE_TOKEN, CLAVE_USUARIO } from '../utils/almacenLocal'
 
 const AuthContext = createContext(null)
 
@@ -42,7 +43,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem(CLAVE_TOKEN)
     
     // Verificar si el token ha expirado
     if (token && isTokenExpired(token)) {
@@ -73,7 +74,7 @@ export const AuthProvider = ({ children }) => {
           setUsuario(userData)
           // Actualizar localStorage con los datos más recientes
           if (userData) {
-            localStorage.setItem('usuario', JSON.stringify(userData))
+            localStorage.setItem(CLAVE_USUARIO, JSON.stringify(userData))
           }
         })
         .catch((error) => {
@@ -93,7 +94,7 @@ export const AuthProvider = ({ children }) => {
 
     // Verificar expiración del token periódicamente (cada minuto)
     const checkTokenExpiration = setInterval(() => {
-      const currentToken = localStorage.getItem('token')
+      const currentToken = localStorage.getItem(CLAVE_TOKEN)
       if (currentToken && isTokenExpired(currentToken)) {
         console.log('Token expirado detectado, cerrando sesión...')
         authService.logout()
@@ -137,7 +138,7 @@ export const AuthProvider = ({ children }) => {
     const response = await authService.cambiarCodigo(codigoActual, codigoNuevo)
     setUsuario((actual) => {
       const siguiente = { ...actual, debe_cambiar_codigo: false }
-      localStorage.setItem('usuario', JSON.stringify(siguiente))
+      localStorage.setItem(CLAVE_USUARIO, JSON.stringify(siguiente))
       return siguiente
     })
     return response

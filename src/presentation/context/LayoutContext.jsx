@@ -1,8 +1,9 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { claveBase } from '../utils/almacenLocal'
 
 const LayoutContext = createContext()
 
-const HEADER_STORAGE_KEY = 'layout:headerVisible'
+const HEADER_STORAGE_KEY = claveBase('layout:headerVisible')
 
 const estaEnPantallaCompleta = () =>
   typeof document !== 'undefined' &&

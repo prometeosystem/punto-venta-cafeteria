@@ -1,13 +1,13 @@
 /**
  * Abre una ventana de impresión con el ticket de venta (formato 80mm).
  */
-import logoTicketUrl from '../../assets/logo-ticket.png'
+import marca from '@marca'
 import { getNombreExtra, desglosarExtrasCarrito } from './productOptionsConfig'
 import { seccionesTicket, fechaHoraTicket } from './cuentaTicket'
 
 // La ventana emergente arranca en about:blank, así que la ruta del logo tiene
 // que ser absoluta o no la resuelve.
-const logoAbsoluto = new URL(logoTicketUrl, window.location.origin).href
+const logoAbsoluto = marca.logoTicket ? new URL(marca.logoTicket, window.location.origin).href : null
 
 const PROPINA_SUGERIDA_PCT = 10
 
@@ -127,6 +127,7 @@ export function imprimirTicket(ticket) {
     .total-row { font-size: 13px; font-weight: 700; }
     .footer { margin-top: 4px; text-align: center; font-size: 10px; font-weight: 700; }
     .logo { width: 38mm; max-width: 100%; display: inline-block; }
+    .marca { font-size: 18px; font-weight: 800; letter-spacing: 1px; }
     @media print {
       @page { size: 80mm auto; margin: 0; }
       body { width: 80mm; padding: 2mm 3mm; }
@@ -135,7 +136,11 @@ export function imprimirTicket(ticket) {
 </head>
 <body>
   <div class="center">
-    <img class="logo" src="${logoAbsoluto}" alt="Zona 2" />
+    ${
+      logoAbsoluto
+        ? `<img class="logo" src="${logoAbsoluto}" alt="${escapeHtml(marca.nombre)}" />`
+        : `<div class="marca">${escapeHtml(marca.nombreTicket)}</div>`
+    }
   </div>
   <div class="sep"></div>
   <div class="info">

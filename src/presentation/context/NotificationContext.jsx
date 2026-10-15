@@ -2,9 +2,10 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { inventarioService } from '../../application/services/inventarioService'
 import { usuariosService } from '../../application/services/usuariosService'
 import { useAuth } from './AuthContext'
+import { clave as claveLocal } from '../utils/almacenLocal'
 
-const AVISOS_VISTOS = 'zona2_avisos_vistos'
-const AVISOS_TOAST = 'zona2_avisos_toast'
+const AVISOS_VISTOS = claveLocal('avisos_vistos')
+const AVISOS_TOAST = claveLocal('avisos_toast')
 
 const leerIds = (clave) => {
   try {

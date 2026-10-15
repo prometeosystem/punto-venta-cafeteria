@@ -1,4 +1,6 @@
-const STORAGE_KEY = 'zona2_metodos_pago'
+import { clave } from './almacenLocal'
+
+const STORAGE_KEY = clave('metodos_pago')
 
 export const METODOS_PAGO_DISPONIBLES = [
   { id: 'efectivo', label: 'Efectivo', boton: '$ Efectivo', icono: 'efectivo' },

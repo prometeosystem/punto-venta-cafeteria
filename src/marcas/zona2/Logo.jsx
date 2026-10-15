@@ -1,4 +1,4 @@
-import logoMarkup from '../../assets/logo-zona2.svg?raw'
+import logoMarkup from './logo.svg?raw'
 
 /**
  * Logo vectorizado de Zona 2, con fondo transparente.
@@ -8,7 +8,7 @@ import logoMarkup from '../../assets/logo-zona2.svg?raw'
  * del contenedor. Así una clase como `text-gray-900` o `text-white` lo adapta
  * al fondo sin necesidad de un segundo archivo.
  */
-const LogoZona2 = ({ className = '' }) => (
+const Logo = ({ className = '' }) => (
   <div
     className={className}
     role="img"
@@ -17,4 +17,4 @@ const LogoZona2 = ({ className = '' }) => (
   />
 )
 
-export default LogoZona2
+export default Logo

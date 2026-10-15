@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { CLAVE_TOKEN, CLAVE_USUARIO } from '../presentation/utils/almacenLocal'
 
 // Sin VITE_API_URL el backend se asume en el mismo host que sirve la app, en el
 // puerto 8000. Asi la tablet apunta sola a la IP de la Mac aunque cambie de red.
@@ -19,7 +20,7 @@ const api = axios.create({
 
 // Interceptor para agregar el token automáticamente
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
+  const token = localStorage.getItem(CLAVE_TOKEN)
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -37,8 +38,8 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Token expirado o inválido
-      localStorage.removeItem('token')
-      localStorage.removeItem('usuario')
+      localStorage.removeItem(CLAVE_TOKEN)
+      localStorage.removeItem(CLAVE_USUARIO)
       // Redirigir al login si no estamos ya ahí
       // Evitar bucles de redirección
       const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '')

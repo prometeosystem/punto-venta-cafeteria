@@ -9,6 +9,7 @@ import HistorialComandas from '../components/HistorialComandas'
 import { servicioDe } from '../utils/tipoServicio'
 import { useAuth } from '../context/AuthContext'
 import { useNotifications } from '../context/NotificationContext'
+import { claveBase } from '../utils/almacenLocal'
 import Swal from 'sweetalert2'
 
 const INTERVALO_REFRESCO_MS = 15000
@@ -20,7 +21,7 @@ const AREAS = [
 ]
 const NOMBRE_AREA = { cocina: 'Cocina', barra: 'Barra' }
 // Cada tablet se queda en su área aunque cambie el usuario
-const CLAVE_AREA = 'comandas-area'
+const CLAVE_AREA = claveBase('comandas-area')
 
 const areaDe = (detalle) => detalle.area_preparacion || 'barra'
 

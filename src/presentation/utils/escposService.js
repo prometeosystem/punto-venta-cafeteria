@@ -1,8 +1,9 @@
 /**
  * Generador ESC/POS para impresoras térmicas (58mm y 80mm).
  */
-import logoTicketUrl from '../../assets/logo-ticket.png'
+import marca from '@marca'
 import { seccionesTicket, fechaHoraTicket } from './cuentaTicket'
+import { clave } from './almacenLocal'
 
 const ESC = 0x1b
 const GS = 0x1d
@@ -34,15 +35,9 @@ export const PAPER_PROFILES = {
  */
 export const FEED_FINAL = 5
 
-/**
- * Qué tanto del ancho del papel ocupa el logo del encabezado.
- * Es solo la palabra ZONA 2, así que con la mitad del ancho ya se lee bien.
- */
-const LOGO_ANCHO_RELATIVO = 0.5
-
 export const DEFAULT_PAPER = '80'
 
-const PAPER_STORAGE_KEY = 'zona2_paper_width'
+const PAPER_STORAGE_KEY = clave('paper_width')
 
 export const getPaperWidth = () => {
   try {
@@ -177,12 +172,15 @@ export const getLogoRasterBytes = async (paperWidth = getPaperWidth()) => {
   const clave = String(paperWidth)
   if (logoCache.has(clave)) return logoCache.get(clave)
 
+  // Sin logo de ticket la marca sale con su nombre en texto
   let bytes = null
-  try {
-    const img = await cargarImagen(logoTicketUrl)
-    bytes = imageToRasterBytes(img, dotsFor(clave) * LOGO_ANCHO_RELATIVO)
-  } catch {
-    bytes = null
+  if (marca.logoTicket) {
+    try {
+      const img = await cargarImagen(marca.logoTicket)
+      bytes = imageToRasterBytes(img, dotsFor(clave) * marca.logoTicketAncho)
+    } catch {
+      bytes = null
+    }
   }
   logoCache.set(clave, bytes)
   return bytes
@@ -213,7 +211,7 @@ export function generateCafeTicketBytes(ticket = {}, options = {}) {
     // Sin logo el ticket sigue saliendo, con el nombre en texto
     commands.push(EscPosCommands.BOLD_ON)
     commands.push(EscPosCommands.DOUBLE_SIZE)
-    commands.push(textToBytes(`${ticket.negocio || 'ZONA 2'}\n`))
+    commands.push(textToBytes(`${ticket.negocio || marca.nombreTicket}\n`))
     commands.push(EscPosCommands.NORMAL_SIZE)
     commands.push(EscPosCommands.BOLD_OFF)
   }
@@ -310,7 +308,7 @@ export function generateTestPrintBytes(options = {}) {
     EscPosCommands.BOLD_ON,
     textToBytes('=== PRUEBA DE IMPRESION ===\n\n'),
     EscPosCommands.BOLD_OFF,
-    textToBytes('ZONA 2 - Cafeteria\n'),
+    textToBytes(`${marca.nombreTicket}\n`),
     textToBytes('Impresora conectada\n'),
     textToBytes(`Papel: ${perfil.label} (${width} col)\n`),
     textToBytes(`${new Date().toLocaleString('es-MX')}\n`),

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { clave } from '../utils/almacenLocal'
 
-const STORAGE_KEY = 'zona2_pt210_device'
+const STORAGE_KEY = clave('pt210_device')
 const PRINTER_SERVICE_UUID = '000018f0-0000-1000-8000-00805f9b34fb'
 const PRINTER_CHARACTERISTIC_UUID = '00002af1-0000-1000-8000-00805f9b34fb'
 const ALT_SERVICE_UUID = 'e7810a71-73ae-499d-8c15-faa9aef0c3f2'
@@ -118,10 +119,10 @@ export const useBluetooth = () => {
         characteristicRef.current = null
         if (wantConnectedRef.current) scheduleReconnect()
       }
-      if (bluetoothDevice._zona2OnDisc) {
-        bluetoothDevice.removeEventListener('gattserverdisconnected', bluetoothDevice._zona2OnDisc)
+      if (bluetoothDevice._posOnDisc) {
+        bluetoothDevice.removeEventListener('gattserverdisconnected', bluetoothDevice._posOnDisc)
       }
-      bluetoothDevice._zona2OnDisc = onDisconnect
+      bluetoothDevice._posOnDisc = onDisconnect
       bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnect)
     },
     [scheduleReconnect]
