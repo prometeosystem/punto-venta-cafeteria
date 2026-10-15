@@ -10,6 +10,7 @@ export default {
   logoTicket: null,
   logoTicketAncho: 0.5,
   avisoLogin: 'Demo abierta: todos los usuarios entran con el código 123456',
+  posConFotosPorDefecto: true,
 
   // Con otro prefijo la demo no pisa la sesión de otro sistema en el mismo dominio.
   almacen: { prefijo: 'demo_', prefijoBase: 'demo_', baseImagenes: 'demo-pos-img' },

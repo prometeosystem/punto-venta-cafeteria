@@ -5,9 +5,10 @@ const STORAGE_KEY = clave('pos_fotos')
 
 export function obtenerPosConFotos() {
   try {
-    return localStorage.getItem(STORAGE_KEY) === '1'
+    const guardado = localStorage.getItem(STORAGE_KEY)
+    return guardado === null ? Boolean(marca.posConFotosPorDefecto) : guardado === '1'
   } catch {
-    return false
+    return Boolean(marca.posConFotosPorDefecto)
   }
 }
 

@@ -149,10 +149,16 @@ const Contabilidad = () => {
         formato === 'pdf'
           ? await contabilidadService.exportarPdf(tab === 'estado' ? 'estado_resultados' : tab, params)
           : await contabilidadService.exportarExcel(tab === 'estado' ? 'estado_resultados' : tab, params)
+      const periodo =
+        tab === 'diario'
+          ? fecha
+          : tab === 'mensual'
+            ? `${anio}-${String(mes).padStart(2, '0')}`
+            : `${fechaInicio}_a_${fechaFin}`
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `reporte_${tab}.${formato === 'pdf' ? 'pdf' : 'xlsx'}`
+      a.download = `reporte_${tab === 'estado' ? 'estado_resultados' : tab}_${periodo}.${formato === 'pdf' ? 'pdf' : 'xlsx'}`
       a.click()
       URL.revokeObjectURL(url)
     } catch (e) {

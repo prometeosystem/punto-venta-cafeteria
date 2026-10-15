@@ -13,6 +13,7 @@ export default {
   // Es solo la palabra ZONA 2, así que con la mitad del papel ya se lee bien.
   logoTicketAncho: 0.5,
   avisoLogin: null,
+  posConFotosPorDefecto: false,
 
   // Zona 2 ya tenía sus claves así; cambiarlas cerraría sesiones y borraría ajustes.
   almacen: { prefijo: 'zona2_', prefijoBase: '', baseImagenes: 'zona2-pos-img' },
