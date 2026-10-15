@@ -12,4 +12,14 @@ export const configuracionService = {
     const response = await api.post('/api/configuracion/autorizacion/verificar', { autorizacion })
     return response.data
   },
+
+  obtenerPreferenciasUi: async () => {
+    const response = await api.get('/api/configuracion/preferencias_ui')
+    return response.data
+  },
+
+  guardarPreferenciasUi: async (datos) => {
+    const response = await api.put('/api/configuracion/preferencias_ui', datos)
+    return response.data
+  },
 }

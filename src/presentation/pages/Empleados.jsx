@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Plus, Search, Mail, Phone, Users, Loader2, X, Edit, Trash2, KeyRound } from 'lucide-react'
 import { useUsuarios } from '../hooks/useUsuarios'
 import { useAuth } from '../context/AuthContext'
+import { usePreferencias } from '../context/PreferenciasContext'
 import Swal from 'sweetalert2'
 import { CODIGO_DEFAULT, problemaCodigo } from '../utils/codigoAcceso'
 
@@ -32,6 +33,7 @@ const Empleados = () => {
 
   const { usuarios, estadisticas, loading, crearUsuario, editarUsuario, eliminarUsuario, obtenerUsuarios, restablecerCodigo } = useUsuarios()
   const { usuario: usuarioActual } = useAuth()
+  const { modoRestaurante } = usePreferencias()
 
   const esSuperadmin = (u) => u?.rol === 'superadministrador'
   const soyYo = (u) => u?.id_usuario === usuarioActual?.id_usuario
@@ -801,8 +803,8 @@ const Empleados = () => {
                     className="input w-full"
                   >
                     <option value="vendedor">Vendedor</option>
-                    <option value="cocina">Cocina</option>
-                    <option value="mesero">Mesero</option>
+                    {modoRestaurante && <option value="cocina">Cocina</option>}
+                    {modoRestaurante && <option value="mesero">Mesero</option>}
                     <option value="administrador">Administrador</option>
                     {/* El backend lo rechaza igual; aquí solo se evita ofrecerlo */}
                     {esSuperadmin(usuarioActual) && (

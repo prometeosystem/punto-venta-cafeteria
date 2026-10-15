@@ -24,6 +24,8 @@ export const LayoutProvider = ({ children }) => {
     return window.localStorage.getItem(HEADER_STORAGE_KEY) !== 'false'
   })
   const [isFullscreen, setIsFullscreen] = useState(estaEnPantallaCompleta)
+  // Acción opcional junto al título (ej. «Editar métricas» en el Dashboard)
+  const [headerAction, setHeaderAction] = useState(null)
 
   const toggleSidebar = () => {
     setSidebarOpen(prev => !prev)
@@ -75,6 +77,8 @@ export const LayoutProvider = ({ children }) => {
         isFullscreen,
         toggleFullscreen,
         fullscreenSupported,
+        headerAction,
+        setHeaderAction,
       }}
     >
       {children}

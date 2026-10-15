@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Menu, LogOut, ChevronUp, Maximize, Minimize, UserRound } from 'lucide-react'
+import { Menu, LogOut, ChevronUp, Maximize, Minimize, UserRound, Settings2 } from 'lucide-react'
 import { useLayout } from '../context/LayoutContext'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -29,7 +29,15 @@ const ROUTE_TITLES = {
 }
 
 const Header = () => {
-  const { sidebarOpen, toggleSidebar, toggleHeader, isFullscreen, toggleFullscreen, fullscreenSupported } = useLayout()
+  const {
+    sidebarOpen,
+    toggleSidebar,
+    toggleHeader,
+    isFullscreen,
+    toggleFullscreen,
+    fullscreenSupported,
+    headerAction,
+  } = useLayout()
   const { usuario, logout } = useAuth()
   const printer = usePrinterContext()
   const navigate = useNavigate()
@@ -87,7 +95,19 @@ const Header = () => {
           </h1>
         </div>
 
-        <div className="flex items-center gap-3 ml-auto shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 ml-auto shrink-0">
+          {headerAction && (
+            <button
+              type="button"
+              onClick={headerAction.onClick}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-marca-300 bg-white px-2.5 py-1.5 text-sm font-medium text-marca-700 hover:bg-marca-50"
+              title={headerAction.label}
+            >
+              <Settings2 className="w-4 h-4 shrink-0" />
+              <span className="hidden sm:inline">{headerAction.label}</span>
+            </button>
+          )}
+
           <PrinterConnectionButton printer={printer} />
 
           {fullscreenSupported && (

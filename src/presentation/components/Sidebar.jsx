@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useLayout } from '../context/LayoutContext'
 import { useAuth } from '../context/AuthContext'
+import { usePreferencias } from '../context/PreferenciasContext'
 import { usePrinterContext } from '../context/PrinterContext'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { hasRouteAccess } from '../utils/rolePermissions'
@@ -60,6 +61,7 @@ const Sidebar = () => {
     fullscreenSupported,
   } = useLayout()
   const { usuario, logout } = useAuth()
+  const { preferencias } = usePreferencias()
   const printer = usePrinterContext()
   const navigate = useNavigate()
   const isMobile = useMediaQuery('(max-width: 1023px)')
@@ -81,10 +83,10 @@ const Sidebar = () => {
     return `${usuario.nombre || ''} ${usuario.apellido_paterno || ''}`.trim() || 'Usuario'
   }
 
-  // Filtrar items del menú según el rol del usuario
+  // Filtrar items del menú según el rol y el modo del negocio (tienda oculta mesas/comandas)
   const filteredMenuItems = menuItems.filter(item => {
     if (!usuario || !usuario.rol) return false
-    return hasRouteAccess(usuario.rol, item.path)
+    return hasRouteAccess(usuario.rol, item.path, preferencias)
   })
 
   return (
@@ -224,7 +226,7 @@ const Sidebar = () => {
           </div>
 
           <div className="text-[11px] text-gray-500 text-center mt-1.5">
-            v5.1.1 · Desarrollado por Prothec
+            v6.2.5 · Desarrollado por Prothec
           </div>
         </div>
       </aside>

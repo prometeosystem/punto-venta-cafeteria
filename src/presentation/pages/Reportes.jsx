@@ -11,14 +11,22 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  Settings2,
 } from 'lucide-react'
 import { useVentas } from '../hooks/useVentas'
 import { servicioDe } from '../utils/tipoServicio'
 import { useReportes } from '../hooks/useReportes'
 import { useProductos } from '../hooks/useProductos'
 import { useAuth } from '../context/AuthContext'
+import { usePreferencias } from '../context/PreferenciasContext'
 import { formatPrecio, formatMedida } from '../utils/numberFormatter'
 import { METODOS_PAGO_DISPONIBLES } from '../utils/metodosPagoConfig'
+import { metricaVisible } from '../utils/preferenciasUi'
+import ModalEditarMetricas from '../components/ModalEditarMetricas'
+import { inventarioService } from '../../application/services/inventarioService'
+import { contabilidadService } from '../../application/services/contabilidadService'
+import { comandasService } from '../../application/services/comandasService'
+import Swal from 'sweetalert2'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
@@ -64,10 +72,18 @@ const Reportes = () => {
   const [filtroTipoServicio, setFiltroTipoServicio] = useState('')
   const [paginaVentas, setPaginaVentas] = useState(1)
   const [tamanoPagina, setTamanoPagina] = useState(10)
+  const [ventasPrevias, setVentasPrevias] = useState([])
+  const [stockCritico, setStockCritico] = useState(0)
+  const [margenPeriodo, setMargenPeriodo] = useState(null)
+  const [cancelaciones, setCancelaciones] = useState(0)
+  const [mostrarEditarMetricas, setMostrarEditarMetricas] = useState(false)
+  const [guardandoMetricas, setGuardandoMetricas] = useState(false)
   const { obtenerVentas, obtenerVenta } = useVentas()
   const { obtenerVentasPorDia, obtenerProductosMasVendidos, obtenerComprasRecomendadas, obtenerPropinasPorFecha, obtenerDescuentosPorFecha } = useReportes()
   const { productos } = useProductos()
   const { usuario } = useAuth()
+  const { preferencias, guardar, modoTienda } = usePreferencias()
+  const ver = (id) => metricaVisible(preferencias, 'reportes', id)
 
   useEffect(() => {
     const hoy = new Date()
@@ -95,16 +111,38 @@ const Reportes = () => {
       const dataVentas = await obtenerVentas(fechaInicio, fechaFin)
       setVentas(dataVentas || [])
 
-      const [ventasDia, productosData, propinasData, descuentosData] = await Promise.all([
+      const inicio = new Date(`${fechaInicio}T12:00:00`)
+      const fin = new Date(`${fechaFin}T12:00:00`)
+      const dias = Math.max(1, Math.round((fin - inicio) / 86400000) + 1)
+      const prevFin = new Date(inicio)
+      prevFin.setDate(prevFin.getDate() - 1)
+      const prevInicio = new Date(prevFin)
+      prevInicio.setDate(prevInicio.getDate() - (dias - 1))
+      const prevIniStr = prevInicio.toISOString().split('T')[0]
+      const prevFinStr = prevFin.toISOString().split('T')[0]
+
+      const [ventasDia, productosData, propinasData, descuentosData, prevVentas, bajoStock, estadoRes, canceladas] = await Promise.all([
         obtenerVentasPorDia(fechaInicio, fechaFin),
         obtenerProductosMasVendidos(fechaInicio, fechaFin, 10),
         obtenerPropinasPorFecha(fechaInicio, fechaFin),
-        obtenerDescuentosPorFecha(fechaInicio, fechaFin)
+        obtenerDescuentosPorFecha(fechaInicio, fechaFin),
+        obtenerVentas(prevIniStr, prevFinStr).catch(() => []),
+        inventarioService.obtenerInsumosBajoStock().catch(() => []),
+        contabilidadService.estadoResultados(fechaInicio, fechaFin).catch(() => null),
+        comandasService.obtenerComandas('cancelada').catch(() => []),
       ])
       setVentasPorDia(ventasDia || [])
       setProductosMasVendidos(productosData || [])
       setTotalPropinas(propinasData?.total_propinas ?? 0)
       setTotalDescuentos(descuentosData?.total_descuentos ?? 0)
+      setVentasPrevias(prevVentas || [])
+      setStockCritico(Array.isArray(bajoStock) ? bajoStock.length : 0)
+      setMargenPeriodo(estadoRes)
+      const cancelEnPeriodo = (canceladas || []).filter((c) => {
+        const f = String(c.fecha_creacion || c.fecha_actualizacion || '').slice(0, 10)
+        return f >= fechaInicio && f <= fechaFin
+      })
+      setCancelaciones(cancelEnPeriodo.length)
     } catch (error) {
       console.error('Error al cargar datos:', error)
     } finally {
@@ -126,11 +164,16 @@ const Reportes = () => {
   }
 
   const ventasTotales = ventas.reduce((sum, v) => sum + parseFloat(v.total || 0), 0)
+  const ventasPreviasTotales = ventasPrevias.reduce((sum, v) => sum + parseFloat(v.total || 0), 0)
   const pedidosTotales = ventas.length
   const ticketPromedio = pedidosTotales > 0 ? ventasTotales / pedidosTotales : 0
   const productosVendidos = ventas.reduce((sum, v) => {
     return sum + (v.detalles?.reduce((dSum, d) => dSum + (d.cantidad || 0), 0) || 0)
   }, 0)
+  const deltaPrev = ventasTotales - ventasPreviasTotales
+  const pctPrev = ventasPreviasTotales > 0
+    ? (deltaPrev / ventasPreviasTotales) * 100
+    : (ventasTotales > 0 ? 100 : 0)
 
   const conteoPorMetodo = useMemo(() => {
     const counts = {}
@@ -141,8 +184,37 @@ const Reportes = () => {
     return METODOS_PAGO_DISPONIBLES.map((m) => ({
       ...m,
       cantidad: counts[m.id] || 0,
-    })).filter((m) => m.cantidad > 0 || ['efectivo', 'tarjeta', 'delivery'].includes(m.id))
+      pct: pedidosTotales > 0 ? ((counts[m.id] || 0) / pedidosTotales) * 100 : 0,
+    }))
+  }, [ventas, pedidosTotales])
+
+  const ventasPorHora = useMemo(() => {
+    const buckets = Array.from({ length: 24 }, (_, h) => ({ hora: h, total: 0 }))
+    ventas.forEach((v) => {
+      const raw = v.fecha || v.fecha_creacion || v.created_at
+      if (!raw) return
+      const d = new Date(raw)
+      if (Number.isNaN(d.getTime())) return
+      buckets[d.getHours()].total += parseFloat(v.total || 0)
+    })
+    return buckets
   }, [ventas])
+
+  const toggleMetricaReportes = async (id) => {
+    setGuardandoMetricas(true)
+    try {
+      await guardar({
+        metricas_reportes: {
+          ...preferencias.metricas_reportes,
+          [id]: !preferencias.metricas_reportes?.[id],
+        },
+      })
+    } catch (error) {
+      Swal.fire('Error', error?.response?.data?.detail || 'No se pudo guardar', 'error')
+    } finally {
+      setGuardandoMetricas(false)
+    }
+  }
 
   const nombreProductoDetalle = (detalle) => {
     if (detalle.producto_nombre) return detalle.producto_nombre
@@ -414,33 +486,50 @@ const Reportes = () => {
     doc.save(nombreArchivo)
   }
 
+  const CardMini = ({ titulo, valor, color = 'text-gray-900' }) => (
+    <div className="rounded-xl border border-gray-200 bg-white px-2.5 py-2 sm:p-4 min-w-0">
+      <p className="truncate text-[11px] leading-tight text-gray-500 sm:text-sm">{titulo}</p>
+      <p className={`text-lg font-bold leading-tight sm:text-2xl ${color}`}>{valor}</p>
+    </div>
+  )
+
   return (
     <div className="min-w-0 max-w-full space-y-4 sm:space-y-6">
       {/* Filtros de fecha */}
       <div className="card min-w-0 overflow-hidden !p-4 sm:p-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
-          <div className="min-w-0">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Fecha Inicio
-            </label>
-            <input
-              type="date"
-              className="input"
-              value={fechaInicio}
-              onChange={(e) => setFechaInicio(e.target.value)}
-            />
+        <div className="flex flex-col sm:flex-row sm:items-end gap-3 min-w-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0 flex-1">
+            <div className="min-w-0">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Fecha Inicio
+              </label>
+              <input
+                type="date"
+                className="input"
+                value={fechaInicio}
+                onChange={(e) => setFechaInicio(e.target.value)}
+              />
+            </div>
+            <div className="min-w-0">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Fecha Fin
+              </label>
+              <input
+                type="date"
+                className="input"
+                value={fechaFin}
+                onChange={(e) => setFechaFin(e.target.value)}
+              />
+            </div>
           </div>
-          <div className="min-w-0">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Fecha Fin
-            </label>
-            <input
-              type="date"
-              className="input"
-              value={fechaFin}
-              onChange={(e) => setFechaFin(e.target.value)}
-            />
-          </div>
+          <button
+            type="button"
+            onClick={() => setMostrarEditarMetricas(true)}
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-marca-300 bg-white px-3 py-2 text-sm font-medium text-marca-700 hover:bg-marca-50 shrink-0"
+          >
+            <Settings2 className="w-4 h-4" />
+            Editar métricas
+          </button>
         </div>
       </div>
 
@@ -450,47 +539,57 @@ const Reportes = () => {
           <Loader2 className="w-8 h-8 animate-spin text-marca-600" />
         </div>
       ) : (
-        <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-            <div className="rounded-xl border border-gray-200 bg-white px-2.5 py-2 sm:p-4 min-w-0">
-              <p className="truncate text-[11px] leading-tight text-gray-500 sm:text-sm">Ventas totales</p>
-              <p className="text-lg font-bold leading-tight text-gray-900 sm:text-2xl">${formatPrecio(ventasTotales)}</p>
-            </div>
-            <div className="rounded-xl border border-gray-200 bg-white px-2.5 py-2 sm:p-4 min-w-0">
-              <p className="truncate text-[11px] leading-tight text-gray-500 sm:text-sm">Descuentos</p>
-              <p className="text-lg font-bold leading-tight text-amber-600 sm:text-2xl">${formatPrecio(totalDescuentos)}</p>
-            </div>
-            <div className="rounded-xl border border-gray-200 bg-white px-2.5 py-2 sm:p-4 min-w-0">
-              <p className="truncate text-[11px] leading-tight text-gray-500 sm:text-sm">Propinas</p>
-              <p className="text-lg font-bold leading-tight text-marca-600 sm:text-2xl">${formatPrecio(totalPropinas)}</p>
-            </div>
-            <div className="rounded-xl border border-gray-200 bg-white px-2.5 py-2 sm:p-4 min-w-0">
-              <p className="truncate text-[11px] leading-tight text-gray-500 sm:text-sm">Ticket promedio</p>
-              <p className="text-lg font-bold leading-tight text-gray-900 sm:text-2xl">${formatPrecio(ticketPromedio)}</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-            <div className="rounded-xl border border-gray-200 bg-white px-2.5 py-2 sm:p-4 min-w-0">
-              <p className="truncate text-[11px] leading-tight text-gray-500 sm:text-sm">Productos vendidos</p>
-              <p className="text-lg font-bold leading-tight text-gray-900 sm:text-2xl">{productosVendidos}</p>
-            </div>
-            <div className="rounded-xl border border-gray-200 bg-white px-2.5 py-2 sm:p-4 min-w-0">
-              <p className="truncate text-[11px] leading-tight text-gray-500 sm:text-sm">Ventas</p>
-              <p className="text-lg font-bold leading-tight text-gray-900 sm:text-2xl">{pedidosTotales}</p>
-            </div>
-            {conteoPorMetodo.map((metodo) => (
-              <div key={metodo.id} className="rounded-xl border border-gray-200 bg-white px-2.5 py-2 sm:p-4 min-w-0">
-                <p className="truncate text-[11px] leading-tight text-gray-500 sm:text-sm">{metodo.label}</p>
-                <p className="text-lg font-bold leading-tight text-gray-900 sm:text-2xl">{metodo.cantidad}</p>
-              </div>
-            ))}
-          </div>
-        </>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+          {ver('ventas_totales') && <CardMini titulo="Ventas totales" valor={`$${formatPrecio(ventasTotales)}`} />}
+          {ver('descuentos') && <CardMini titulo="Descuentos" valor={`$${formatPrecio(totalDescuentos)}`} color="text-amber-600" />}
+          {ver('propinas') && <CardMini titulo="Propinas" valor={`$${formatPrecio(totalPropinas)}`} color="text-marca-600" />}
+          {ver('ticket_promedio') && <CardMini titulo="Ticket promedio" valor={`$${formatPrecio(ticketPromedio)}`} />}
+          {ver('productos_vendidos') && <CardMini titulo="Productos vendidos" valor={productosVendidos} />}
+          {ver('cantidad_ventas') && <CardMini titulo="Ventas" valor={pedidosTotales} />}
+          {ver('vs_ayer') && (
+            <CardMini
+              titulo="Vs periodo anterior"
+              valor={`${deltaPrev >= 0 ? '+' : ''}$${formatPrecio(Math.abs(deltaPrev))}`}
+              color={deltaPrev >= 0 ? 'text-marca-700' : 'text-red-600'}
+            />
+          )}
+          {ver('vs_ayer') && (
+            <CardMini titulo="% vs anterior" valor={`${pctPrev >= 0 ? '+' : ''}${pctPrev.toFixed(0)}%`} />
+          )}
+          {ver('top_productos') && (
+            <CardMini
+              titulo="Top producto"
+              valor={productosMasVendidos[0]?.nombre ? String(productosMasVendidos[0].nombre).slice(0, 16) : '—'}
+            />
+          )}
+          {ver('stock_critico') && (
+            <CardMini titulo="Stock crítico" valor={stockCritico} color={stockCritico > 0 ? 'text-amber-700' : 'text-gray-900'} />
+          )}
+          {ver('margen_estimado') && (
+            <CardMini
+              titulo="Margen estimado"
+              valor={margenPeriodo ? `${Number(margenPeriodo.margen_bruto_porcentaje || 0).toFixed(0)}%` : '—'}
+            />
+          )}
+          {ver('cancelaciones') && (
+            <CardMini titulo="Cancelaciones" valor={cancelaciones} color={cancelaciones > 0 ? 'text-red-600' : 'text-gray-900'} />
+          )}
+          {conteoPorMetodo.map((metodo) => (
+            ver(`conteo_${metodo.id}`)
+              ? <CardMini key={metodo.id} titulo={metodo.label} valor={metodo.cantidad} />
+              : null
+          ))}
+          {conteoPorMetodo.map((metodo) => (
+            ver(`pct_${metodo.id}`)
+              ? <CardMini key={`pct-${metodo.id}`} titulo={`${metodo.label} %`} valor={`${metodo.pct.toFixed(0)}%`} />
+              : null
+          ))}
+        </div>
       )}
 
       {/* Gráficos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-w-0">
+        {ver('grafico_dias') && (
         <div className="card min-w-0 overflow-hidden !p-4 sm:p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
             Ventas por Día
@@ -547,7 +646,9 @@ const Reportes = () => {
             </div>
           )}
         </div>
+        )}
 
+        {ver('grafico_productos') && (
         <div className="card min-w-0 overflow-hidden !p-4 sm:p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
             Productos Más Vendidos
@@ -598,7 +699,38 @@ const Reportes = () => {
             </div>
           )}
         </div>
+        )}
+
+        {ver('ventas_por_hora') && (
+        <div className="card min-w-0 overflow-hidden !p-4 sm:p-6 lg:col-span-2">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Ventas por hora</h2>
+          {RechartsAvailable ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={ventasPorHora.filter((b) => b.hora >= 6 && b.hora <= 22)}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="hora" tickFormatter={(h) => `${h}h`} stroke="#6b7280" />
+                <YAxis stroke="#6b7280" />
+                <Tooltip formatter={(value) => `$${formatPrecio(value)}`} />
+                <Area type="monotone" dataKey="total" stroke="rgb(var(--marca-500))" fill="rgb(var(--marca-100))" name="Ventas ($)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="text-gray-400 text-sm">Sin gráfico</p>
+          )}
+        </div>
+        )}
       </div>
+
+      {mostrarEditarMetricas && (
+        <ModalEditarMetricas
+          seccion="reportes"
+          valores={preferencias.metricas_reportes}
+          modoTienda={modoTienda}
+          guardando={guardandoMetricas}
+          onToggle={toggleMetricaReportes}
+          onClose={() => setMostrarEditarMetricas(false)}
+        />
+      )}
 
       {/* Tabla de ventas detalladas (arriba de recomendaciones) */}
       <div className="card min-w-0 overflow-hidden !p-4 sm:p-6">

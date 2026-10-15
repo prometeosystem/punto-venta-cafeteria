@@ -31,43 +31,47 @@ const routePermissions = {
   '/mi-perfil': ['vendedor', 'cocina', 'mesero', 'administrador', 'superadministrador'],
 }
 
+import { RUTAS_SOLO_RESTAURANTE, esModoTienda } from './preferenciasUi'
+
 /**
  * Verifica si un rol tiene acceso a una ruta específica
  * @param {string} rol - El rol del usuario
  * @param {string} route - La ruta a verificar
+ * @param {object} [preferencias] - Preferencias UI (oculta mesas/comandas en modo tienda)
  * @returns {boolean} - true si tiene acceso, false si no
  */
-export const hasRouteAccess = (rol, route) => {
+export const hasRouteAccess = (rol, route, preferencias) => {
   if (!rol) return false
-  
-  // Normalizar el rol a minúsculas
+
   const normalizedRol = rol.toLowerCase()
-  
-  // Obtener los roles permitidos para esta ruta
   const allowedRoles = routePermissions[route] || []
-  
-  // Verificar si el rol está en la lista de permitidos
-  return allowedRoles.some(allowedRol => allowedRol.toLowerCase() === normalizedRol)
+  if (!allowedRoles.some((allowedRol) => allowedRol.toLowerCase() === normalizedRol)) {
+    return false
+  }
+  if (esModoTienda(preferencias) && RUTAS_SOLO_RESTAURANTE.includes(route)) {
+    return false
+  }
+  return true
 }
 
 /**
  * Obtiene todas las rutas permitidas para un rol específico
  * @param {string} rol - El rol del usuario
+ * @param {object} [preferencias]
  * @returns {string[]} - Array de rutas permitidas
  */
-export const getAllowedRoutes = (rol) => {
+export const getAllowedRoutes = (rol, preferencias) => {
   if (!rol) return []
-  
+
   const normalizedRol = rol.toLowerCase()
   const allowedRoutes = []
-  
-  // Iterar sobre todas las rutas y verificar permisos
-  Object.keys(routePermissions).forEach(route => {
-    if (hasRouteAccess(normalizedRol, route)) {
+
+  Object.keys(routePermissions).forEach((route) => {
+    if (hasRouteAccess(normalizedRol, route, preferencias)) {
       allowedRoutes.push(route)
     }
   })
-  
+
   return allowedRoutes
 }
 
@@ -96,16 +100,17 @@ export const puedeCobrar = (rol) => {
 
 /**
  * Pantalla con la que abre cada rol al entrar o al caer en una ruta sin permiso.
- * El mesero trabaja desde el plano de mesas.
+ * El mesero trabaja desde el plano de mesas (si el negocio es restaurante).
  * @param {string} rol - El rol del usuario
+ * @param {object} [preferencias]
  * @returns {string}
  */
-export const rutaInicial = (rol) => {
-  const allowedRoutes = getAllowedRoutes(rol)
+export const rutaInicial = (rol, preferencias) => {
+  const allowedRoutes = getAllowedRoutes(rol, preferencias)
   const preferida = {
-    mesero: '/mesas',
+    mesero: esModoTienda(preferencias) ? '/punto-venta' : '/mesas',
     vendedor: '/punto-venta',
-    cocina: '/barista',
+    cocina: esModoTienda(preferencias) ? '/punto-venta' : '/barista',
   }[rol?.toLowerCase()] || '/dashboard'
   return allowedRoutes.includes(preferida) ? preferida : allowedRoutes[0] || '/login'
 }

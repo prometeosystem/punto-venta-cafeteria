@@ -387,7 +387,7 @@ const Login = () => {
             className="pointer-events-auto"
           >
             <span className="text-xs tracking-wide">
-              Desarrollado por Prothec
+              Desarrollado por Prothec v6.2.5
             </span>
           </a>
         </div>

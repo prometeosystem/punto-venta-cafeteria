@@ -17,14 +17,25 @@ import {
   Bike,
   ArrowLeftRight,
   AlertCircle,
+  Clock,
+  AlertTriangle,
+  Ban,
+  PieChart as PieChartIcon,
 } from 'lucide-react'
 import { useVentas } from '../hooks/useVentas'
 import { servicioDe } from '../utils/tipoServicio'
 import { useComandas } from '../hooks/useComandas'
 import { useReportes } from '../hooks/useReportes'
 import { useProductos } from '../hooks/useProductos'
+import { usePreferencias } from '../context/PreferenciasContext'
+import { useLayout } from '../context/LayoutContext'
 import { formatPrecio } from '../utils/numberFormatter'
 import { METODOS_PAGO_DISPONIBLES } from '../utils/metodosPagoConfig'
+import { metricaVisible } from '../utils/preferenciasUi'
+import ModalEditarMetricas from '../components/ModalEditarMetricas'
+import { inventarioService } from '../../application/services/inventarioService'
+import { contabilidadService } from '../../application/services/contabilidadService'
+import Swal from 'sweetalert2'
 import {
   AreaChart,
   Area,
@@ -89,21 +100,33 @@ const labelMetodoPago = (metodo) => {
   return found?.label || String(metodo).replace(/-/g, ' ')
 }
 
+const fechaCDMX = (date = new Date()) =>
+  date.toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' })
+
 const Dashboard = () => {
   const [refResumen, columnas] = useColumnasResumen()
   const { obtenerVentas, obtenerVenta } = useVentas()
   const { obtenerComandas } = useComandas()
   const { obtenerVentasPorDia, obtenerProductosMasVendidos, obtenerPropinasPorFecha, obtenerDescuentosPorFecha } = useReportes()
   const { productos } = useProductos()
+  const { preferencias, guardar, modoTienda } = usePreferencias()
+  const { setHeaderAction } = useLayout()
   const [ventas, setVentas] = useState([])
+  const [ventasAyer, setVentasAyer] = useState([])
   const [comandas, setComandas] = useState([])
+  const [cancelaciones, setCancelaciones] = useState(0)
+  const [stockCritico, setStockCritico] = useState(0)
+  const [margenHoy, setMargenHoy] = useState(null)
   const [ventasSemana, setVentasSemana] = useState([])
   const [productosMasVendidos, setProductosMasVendidos] = useState([])
+  const [topHoy, setTopHoy] = useState([])
   const [totalPropinas, setTotalPropinas] = useState(0)
   const [totalDescuentos, setTotalDescuentos] = useState(0)
   const [loading, setLoading] = useState(true)
   const [loadingGrafico, setLoadingGrafico] = useState(false)
   const [mostrarModalDetalles, setMostrarModalDetalles] = useState(false)
+  const [mostrarEditarMetricas, setMostrarEditarMetricas] = useState(false)
+  const [guardandoMetricas, setGuardandoMetricas] = useState(false)
   const [ventaDetalle, setVentaDetalle] = useState(null)
   const [cargandoDetalle, setCargandoDetalle] = useState(false)
   const [busquedaVentas, setBusquedaVentas] = useState('')
@@ -112,26 +135,50 @@ const Dashboard = () => {
   const [paginaVentas, setPaginaVentas] = useState(1)
   const [tamanoPagina, setTamanoPagina] = useState(10)
 
+  const ver = (id) => metricaVisible(preferencias, 'dashboard', id)
+
+  useEffect(() => {
+    setHeaderAction({
+      label: 'Editar métricas',
+      onClick: () => setMostrarEditarMetricas(true),
+    })
+    return () => setHeaderAction(null)
+  }, [setHeaderAction])
+
   useEffect(() => {
     const cargarDatos = async () => {
       try {
         setLoading(true)
         setLoadingGrafico(true)
 
-        const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' })
+        const hoy = fechaCDMX()
+        const ayerDate = new Date()
+        ayerDate.setDate(ayerDate.getDate() - 1)
+        const ayer = fechaCDMX(ayerDate)
+
         const ventasHoy = await obtenerVentas(hoy, hoy).catch(() => [])
         setVentas(ventasHoy || [])
 
-        const [propinasData, descuentosData] = await Promise.all([
+        const [propinasData, descuentosData, ventasAyerData] = await Promise.all([
           obtenerPropinasPorFecha(hoy, hoy).catch(() => ({ total_propinas: 0 })),
           obtenerDescuentosPorFecha(hoy, hoy).catch(() => ({ total_descuentos: 0 })),
+          obtenerVentas(ayer, ayer).catch(() => []),
         ])
         setTotalPropinas(propinasData?.total_propinas ?? 0)
         setTotalDescuentos(descuentosData?.total_descuentos ?? 0)
+        setVentasAyer(ventasAyerData || [])
 
-        const comandasActivas = await obtenerComandas('pendiente').catch(() => [])
-        const comandasEnPreparacion = await obtenerComandas('en_preparacion').catch(() => [])
+        const [comandasActivas, comandasEnPreparacion, comandasCanceladas] = await Promise.all([
+          obtenerComandas('pendiente').catch(() => []),
+          obtenerComandas('en_preparacion').catch(() => []),
+          obtenerComandas('cancelada').catch(() => []),
+        ])
         setComandas([...(comandasActivas || []), ...(comandasEnPreparacion || [])])
+        const cancelHoy = (comandasCanceladas || []).filter((c) => {
+          const f = String(c.fecha_creacion || c.fecha_actualizacion || '').slice(0, 10)
+          return f === hoy
+        })
+        setCancelaciones(cancelHoy.length)
 
         const fechaFin = new Date()
         const fechaInicio = new Date()
@@ -142,15 +189,20 @@ const Dashboard = () => {
         )
         setVentasSemana(ventasSemanaData || [])
 
-        const fechaFinProductos = new Date()
-        const fechaInicioProductos = new Date()
-        fechaInicioProductos.setDate(fechaInicioProductos.getDate() - 30)
-        const productosMasVendidosData = await obtenerProductosMasVendidos(
-          fechaInicioProductos.toISOString().split('T')[0],
-          fechaFinProductos.toISOString().split('T')[0],
-          5
-        )
-        setProductosMasVendidos(productosMasVendidosData || [])
+        const [productos30, productosHoy, bajoStock, estadoRes] = await Promise.all([
+          obtenerProductosMasVendidos(
+            fechaCDMX(new Date(Date.now() - 30 * 86400000)),
+            hoy,
+            5
+          ).catch(() => []),
+          obtenerProductosMasVendidos(hoy, hoy, 5).catch(() => []),
+          inventarioService.obtenerInsumosBajoStock().catch(() => []),
+          contabilidadService.estadoResultados(hoy, hoy).catch(() => null),
+        ])
+        setProductosMasVendidos(productos30 || [])
+        setTopHoy(productosHoy || [])
+        setStockCritico(Array.isArray(bajoStock) ? bajoStock.length : (bajoStock?.length || 0))
+        setMargenHoy(estadoRes)
       } catch {
         setVentas([])
         setComandas([])
@@ -164,12 +216,17 @@ const Dashboard = () => {
   }, [])
 
   const ventasTotales = ventas.reduce((sum, v) => sum + parseFloat(v.total || 0), 0)
+  const ventasTotalesAyer = ventasAyer.reduce((sum, v) => sum + parseFloat(v.total || 0), 0)
   const pedidosTotales = ventas.length
   const ticketPromedio = pedidosTotales > 0 ? ventasTotales / pedidosTotales : 0
   const productosVendidos = ventas.reduce((sum, v) => {
     return sum + (v.detalles?.reduce((dSum, d) => dSum + (d.cantidad || 0), 0) || 0)
   }, 0)
   const ordenesActivas = comandas.length
+  const deltaVsAyer = ventasTotales - ventasTotalesAyer
+  const pctVsAyer = ventasTotalesAyer > 0
+    ? (deltaVsAyer / ventasTotalesAyer) * 100
+    : (ventasTotales > 0 ? 100 : 0)
 
   const conteoPorMetodo = useMemo(() => {
     const counts = {}
@@ -180,8 +237,47 @@ const Dashboard = () => {
     return METODOS_PAGO_DISPONIBLES.map((m) => ({
       ...m,
       cantidad: counts[m.id] || 0,
-    })).filter((m) => m.cantidad > 0 || ['efectivo', 'tarjeta', 'delivery'].includes(m.id))
+      pct: pedidosTotales > 0 ? ((counts[m.id] || 0) / pedidosTotales) * 100 : 0,
+    }))
+  }, [ventas, pedidosTotales])
+
+  const ventasPorHora = useMemo(() => {
+    const buckets = Array.from({ length: 24 }, (_, h) => ({ hora: h, total: 0, ventas: 0 }))
+    ventas.forEach((v) => {
+      const raw = v.fecha || v.fecha_creacion || v.created_at
+      if (!raw) return
+      const d = new Date(raw)
+      if (Number.isNaN(d.getTime())) return
+      const h = d.getHours()
+      buckets[h].total += parseFloat(v.total || 0)
+      buckets[h].ventas += 1
+    })
+    return buckets
   }, [ventas])
+
+  const horaPico = useMemo(() => {
+    let best = ventasPorHora[0]
+    ventasPorHora.forEach((b) => {
+      if (b.total > best.total) best = b
+    })
+    return best
+  }, [ventasPorHora])
+
+  const toggleMetricaDashboard = async (id) => {
+    setGuardandoMetricas(true)
+    try {
+      await guardar({
+        metricas_dashboard: {
+          ...preferencias.metricas_dashboard,
+          [id]: !preferencias.metricas_dashboard?.[id],
+        },
+      })
+    } catch (error) {
+      Swal.fire('Error', error?.response?.data?.detail || 'No se pudo guardar', 'error')
+    } finally {
+      setGuardandoMetricas(false)
+    }
+  }
 
   const nombreProductoDetalle = (detalle) => {
     if (detalle.producto_nombre) return detalle.producto_nombre
@@ -304,21 +400,99 @@ const Dashboard = () => {
         className="grid gap-3"
         style={{ gridTemplateColumns: `repeat(${columnas}, minmax(0, 1fr))` }}
       >
-        <TarjetaResumen titulo="Ventas Totales" valor={`$${formatPrecio(ventasTotales)}`} detalle="Hoy"
-          Icono={DollarSign} colorFondo="bg-marca-100" colorIcono="text-marca-600" />
-        <TarjetaResumen titulo="Total Descuentos" valor={`$${formatPrecio(totalDescuentos)}`} detalle="Hoy"
-          Icono={Percent} colorValor="text-amber-600" colorFondo="bg-amber-100" colorIcono="text-amber-600" />
-        <TarjetaResumen titulo="Total Propinas" valor={`$${formatPrecio(totalPropinas)}`} detalle="Hoy"
-          Icono={Coins} colorValor="text-marca-600" colorFondo="bg-marca-100" colorIcono="text-marca-600" />
-        <TarjetaResumen titulo="Ticket Promedio" valor={`$${formatPrecio(ticketPromedio)}`} detalle="Por venta"
-          Icono={TrendingUp} colorFondo="bg-marca-100" colorIcono="text-marca-600" />
-        <TarjetaResumen titulo="Órdenes Activas" valor={ordenesActivas} detalle="En cocina"
-          Icono={ShoppingCart} colorFondo="bg-gray-100" colorIcono="text-gray-600" />
-        <TarjetaResumen titulo="Productos Vendidos" valor={productosVendidos} detalle="Unidades de hoy"
-          Icono={Package} colorFondo="bg-gray-100" colorIcono="text-gray-600" />
-        <TarjetaResumen titulo="Cantidad de ventas" valor={pedidosTotales} detalle="Tickets de hoy"
-          Icono={Package} colorFondo="bg-marca-100" colorIcono="text-marca-600" />
+        {ver('ventas_totales') && (
+          <TarjetaResumen titulo="Ventas Totales" valor={`$${formatPrecio(ventasTotales)}`} detalle="Hoy"
+            Icono={DollarSign} colorFondo="bg-marca-100" colorIcono="text-marca-600" />
+        )}
+        {ver('descuentos') && (
+          <TarjetaResumen titulo="Total Descuentos" valor={`$${formatPrecio(totalDescuentos)}`} detalle="Hoy"
+            Icono={Percent} colorValor="text-amber-600" colorFondo="bg-amber-100" colorIcono="text-amber-600" />
+        )}
+        {ver('propinas') && (
+          <TarjetaResumen titulo="Total Propinas" valor={`$${formatPrecio(totalPropinas)}`} detalle="Hoy"
+            Icono={Coins} colorValor="text-marca-600" colorFondo="bg-marca-100" colorIcono="text-marca-600" />
+        )}
+        {ver('ticket_promedio') && (
+          <TarjetaResumen titulo="Ticket Promedio" valor={`$${formatPrecio(ticketPromedio)}`} detalle="Por venta"
+            Icono={TrendingUp} colorFondo="bg-marca-100" colorIcono="text-marca-600" />
+        )}
+        {ver('ordenes_activas') && (
+          <TarjetaResumen titulo="Órdenes Activas" valor={ordenesActivas} detalle="En cocina"
+            Icono={ShoppingCart} colorFondo="bg-gray-100" colorIcono="text-gray-600" />
+        )}
+        {ver('productos_vendidos') && (
+          <TarjetaResumen titulo="Productos Vendidos" valor={productosVendidos} detalle="Unidades de hoy"
+            Icono={Package} colorFondo="bg-gray-100" colorIcono="text-gray-600" />
+        )}
+        {ver('cantidad_ventas') && (
+          <TarjetaResumen titulo="Cantidad de ventas" valor={pedidosTotales} detalle="Tickets de hoy"
+            Icono={Package} colorFondo="bg-marca-100" colorIcono="text-marca-600" />
+        )}
+        {ver('vs_ayer') && (
+          <TarjetaResumen
+            titulo="Vs ayer"
+            valor={`${deltaVsAyer >= 0 ? '+' : ''}$${formatPrecio(Math.abs(deltaVsAyer))}`}
+            detalle={`${pctVsAyer >= 0 ? '+' : ''}${pctVsAyer.toFixed(0)}% · ayer $${formatPrecio(ventasTotalesAyer)}`}
+            Icono={TrendingUp}
+            colorValor={deltaVsAyer >= 0 ? 'text-marca-700' : 'text-red-600'}
+            colorFondo="bg-marca-100"
+            colorIcono="text-marca-600"
+          />
+        )}
+        {ver('ventas_por_hora') && (
+          <TarjetaResumen
+            titulo="Hora pico"
+            valor={horaPico.total > 0 ? `${String(horaPico.hora).padStart(2, '0')}:00` : '—'}
+            detalle={horaPico.total > 0 ? `$${formatPrecio(horaPico.total)} · ${horaPico.ventas} ventas` : 'Sin ventas hoy'}
+            Icono={Clock}
+            colorFondo="bg-gray-100"
+            colorIcono="text-gray-600"
+          />
+        )}
+        {ver('top_productos') && (
+          <TarjetaResumen
+            titulo="Top del día"
+            valor={topHoy[0]?.nombre ? String(topHoy[0].nombre).slice(0, 18) : '—'}
+            detalle={topHoy[0] ? `${topHoy[0].cantidad_vendida || 0} uds` : 'Sin ventas'}
+            Icono={Package}
+            colorFondo="bg-marca-100"
+            colorIcono="text-marca-600"
+          />
+        )}
+        {ver('stock_critico') && (
+          <TarjetaResumen
+            titulo="Stock crítico"
+            valor={stockCritico}
+            detalle={stockCritico === 1 ? 'insumo bajo' : 'insumos bajos'}
+            Icono={AlertTriangle}
+            colorValor={stockCritico > 0 ? 'text-amber-700' : 'text-gray-900'}
+            colorFondo="bg-amber-100"
+            colorIcono="text-amber-600"
+          />
+        )}
+        {ver('margen_estimado') && (
+          <TarjetaResumen
+            titulo="Margen estimado"
+            valor={margenHoy ? `${Number(margenHoy.margen_bruto_porcentaje || 0).toFixed(0)}%` : '—'}
+            detalle={margenHoy ? `Utilidad $${formatPrecio(margenHoy.utilidad_bruta || 0)}` : 'Sin datos de costo'}
+            Icono={PieChartIcon}
+            colorFondo="bg-marca-100"
+            colorIcono="text-marca-600"
+          />
+        )}
+        {ver('cancelaciones') && (
+          <TarjetaResumen
+            titulo="Cancelaciones"
+            valor={cancelaciones}
+            detalle="Comandas canceladas hoy"
+            Icono={Ban}
+            colorValor={cancelaciones > 0 ? 'text-red-600' : 'text-gray-900'}
+            colorFondo="bg-red-50"
+            colorIcono="text-red-500"
+          />
+        )}
         {conteoPorMetodo.map((metodo) => {
+          if (!ver(`conteo_${metodo.id}`)) return null
           const colores = COLORES_METODO[metodo.id] || COLORES_METODO.tarjeta
           return (
             <TarjetaResumen
@@ -333,10 +507,27 @@ const Dashboard = () => {
             />
           )
         })}
+        {conteoPorMetodo.map((metodo) => {
+          if (!ver(`pct_${metodo.id}`)) return null
+          const colores = COLORES_METODO[metodo.id] || COLORES_METODO.tarjeta
+          return (
+            <TarjetaResumen
+              key={`pct-${metodo.id}`}
+              titulo={`${metodo.label} %`}
+              valor={`${metodo.pct.toFixed(0)}%`}
+              detalle={`${metodo.cantidad} de ${pedidosTotales}`}
+              Icono={ICONOS_METODO[metodo.id] || CreditCard}
+              colorValor={colores.text}
+              colorFondo={colores.bg}
+              colorIcono={colores.icon}
+            />
+          )
+        })}
       </div>
 
       {/* Gráficos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {ver('grafico_semana') && (
         <div className="card">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
             Ventas de la Semana
@@ -391,7 +582,9 @@ const Dashboard = () => {
             </ResponsiveContainer>
           )}
         </div>
+        )}
 
+        {ver('grafico_metodos') && (
         <div className="card">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
             Productos Más Vendidos
@@ -420,7 +613,34 @@ const Dashboard = () => {
             )}
           </div>
         </div>
+        )}
+
+        {ver('ventas_por_hora') && (
+        <div className="card lg:col-span-2">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Ventas por hora (hoy)</h2>
+          <ResponsiveContainer width="100%" height={220}>
+            <AreaChart data={ventasPorHora.filter((b) => b.hora >= 6 && b.hora <= 22)}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="hora" tickFormatter={(h) => `${h}h`} stroke="#6b7280" />
+              <YAxis stroke="#6b7280" />
+              <Tooltip formatter={(value) => `$${Number(value).toFixed(2)}`} />
+              <Area type="monotone" dataKey="total" stroke="rgb(var(--marca-500))" fill="rgb(var(--marca-100))" name="Ventas ($)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+        )}
       </div>
+
+      {mostrarEditarMetricas && (
+        <ModalEditarMetricas
+          seccion="dashboard"
+          valores={preferencias.metricas_dashboard}
+          modoTienda={modoTienda}
+          guardando={guardandoMetricas}
+          onToggle={toggleMetricaDashboard}
+          onClose={() => setMostrarEditarMetricas(false)}
+        />
+      )}
 
       {/* Ventas del día — misma tabla que reportes */}
       <div className="card">

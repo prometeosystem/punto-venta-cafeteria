@@ -2,6 +2,7 @@ import { BrowserRouter } from 'react-router-dom'
 import AppRouter from './router/AppRouter'
 import { LayoutProvider } from './context/LayoutContext'
 import { AuthProvider } from './context/AuthContext'
+import { PreferenciasProvider } from './context/PreferenciasContext'
 import { NotificationProvider } from './context/NotificationContext'
 import { PrinterProvider } from './context/PrinterContext'
 
@@ -17,13 +18,15 @@ function App() {
       }}
     >
       <AuthProvider>
-        <LayoutProvider>
-          <NotificationProvider>
-            <PrinterProvider>
-              <AppRouter />
-            </PrinterProvider>
-          </NotificationProvider>
-        </LayoutProvider>
+        <PreferenciasProvider>
+          <LayoutProvider>
+            <NotificationProvider>
+              <PrinterProvider>
+                <AppRouter />
+              </PrinterProvider>
+            </NotificationProvider>
+          </LayoutProvider>
+        </PreferenciasProvider>
       </AuthProvider>
     </BrowserRouter>
   )

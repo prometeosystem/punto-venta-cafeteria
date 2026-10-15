@@ -1,37 +1,172 @@
 import { useState } from 'react'
-import { Bell, CreditCard, Image } from 'lucide-react'
+import { Bell, CreditCard, Image, LayoutDashboard, Store, UtensilsCrossed } from 'lucide-react'
 import {
   METODOS_PAGO_DISPONIBLES,
-  obtenerMetodosPagoConfig,
-  guardarMetodosPagoConfig,
 } from '../utils/metodosPagoConfig'
 import { guardarPosConFotos, obtenerPosConFotos, vaciarCacheImagenes } from '../utils/posVistaConfig'
+import {
+  METRICAS_DASHBOARD,
+  METRICAS_REPORTES,
+  MODO_RESTAURANTE,
+  MODO_TIENDA,
+} from '../utils/preferenciasUi'
+import { usePreferencias } from '../context/PreferenciasContext'
 import OpcionesProductoConfig from '../components/OpcionesProductoConfig'
 import CategoriasMovimiento from './CategoriasMovimiento'
 import Swal from 'sweetalert2'
 
+const grupoTitulo = {
+  basicas: 'Básicas',
+  restaurante: 'Solo restaurante / cafetería',
+  metodos: 'Métodos de pago',
+  nuevas: 'Sugeridas',
+  graficos: 'Gráficos',
+}
+
+const ChecksMetricas = ({ titulo, catalogo, valores, onToggle, modoTienda }) => {
+  const grupos = [...new Set(catalogo.map((m) => m.grupo))]
+  return (
+    <div className="space-y-4">
+      <h3 className="text-sm font-semibold text-gray-800">{titulo}</h3>
+      {grupos.map((grupo) => (
+        <div key={grupo} className="space-y-2">
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+            {grupoTitulo[grupo] || grupo}
+          </p>
+          {catalogo.filter((m) => m.grupo === grupo).map((m) => {
+            const deshabilitada = modoTienda && (m.id === 'propinas' || m.id === 'ordenes_activas')
+            return (
+              <label
+                key={m.id}
+                className={`flex items-center justify-between p-3 border border-gray-200 rounded-lg ${
+                  deshabilitada ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50 cursor-pointer'
+                }`}
+              >
+                <div>
+                  <p className="text-gray-900 font-medium">{m.label}</p>
+                  {deshabilitada && (
+                    <p className="text-xs text-gray-500">Oculta en modo tienda</p>
+                  )}
+                </div>
+                <input
+                  type="checkbox"
+                  checked={!!valores[m.id] && !deshabilitada}
+                  disabled={deshabilitada}
+                  onChange={() => onToggle(m.id)}
+                  className="w-4 h-4 shrink-0 ml-3"
+                />
+              </label>
+            )
+          })}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 const Configuracion = () => {
-  const [metodosPagoConfig, setMetodosPagoConfig] = useState(() => obtenerMetodosPagoConfig())
+  const { preferencias, guardar, modoTienda } = usePreferencias()
   const [posConFotos, setPosConFotos] = useState(() => obtenerPosConFotos())
+  const [guardando, setGuardando] = useState(false)
+
+  const persistir = async (parcial, mensajeOk) => {
+    setGuardando(true)
+    try {
+      await guardar(parcial)
+      if (mensajeOk) {
+        Swal.fire({
+          icon: 'success',
+          title: mensajeOk,
+          timer: 1400,
+          showConfirmButton: false,
+        })
+      }
+    } catch (error) {
+      Swal.fire(
+        'Error',
+        error?.response?.data?.detail || error?.message || 'No se pudo guardar',
+        'error',
+      )
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  const cambiarModo = (modo) => {
+    if (modo === preferencias.modo) return
+    persistir({ modo }, modo === MODO_TIENDA ? 'Modo tienda activado' : 'Modo restaurante activado')
+  }
 
   const toggleMetodoPago = (id) => {
-    const activos = Object.values(metodosPagoConfig).filter(Boolean).length
-    if (metodosPagoConfig[id] && activos <= 1) {
+    const actuales = { ...preferencias.metodos_pago }
+    const activos = Object.values(actuales).filter(Boolean).length
+    if (actuales[id] && activos <= 1) {
       Swal.fire('Atención', 'Debe quedar al menos un método de pago activo', 'warning')
       return
     }
-    const next = guardarMetodosPagoConfig({
-      ...metodosPagoConfig,
-      [id]: !metodosPagoConfig[id],
-    })
-    setMetodosPagoConfig(next)
+    persistir({ metodos_pago: { ...actuales, [id]: !actuales[id] } })
+  }
+
+  const toggleMetrica = (seccion, id) => {
+    const clave = seccion === 'dashboard' ? 'metricas_dashboard' : 'metricas_reportes'
+    const actuales = { ...preferencias[clave] }
+    persistir({ [clave]: { ...actuales, [id]: !actuales[id] } })
   }
 
   return (
     <div className="space-y-6">
+      <div className="card">
+        <div className="flex items-center gap-3 mb-2">
+          <Store className="w-5 h-5 text-marca-600" />
+          <h2 className="text-lg font-semibold text-gray-900">Tipo de negocio</h2>
+        </div>
+        <p className="text-sm text-gray-600 mb-4">
+          Se guarda en el servidor y aplica a todas las tablets. En modo tienda se ocultan mesas,
+          comandas, meseros, propinas, tipo de servicio y enviar a cocina.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button
+            type="button"
+            disabled={guardando}
+            onClick={() => cambiarModo(MODO_RESTAURANTE)}
+            className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-colors ${
+              preferencias.modo === MODO_RESTAURANTE
+                ? 'border-marca-500 bg-marca-50'
+                : 'border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            <UtensilsCrossed className="w-5 h-5 text-marca-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-gray-900">Restaurante / cafetería</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Mesas, comandas, meseros, propinas y tipo de servicio.
+              </p>
+            </div>
+          </button>
+          <button
+            type="button"
+            disabled={guardando}
+            onClick={() => cambiarModo(MODO_TIENDA)}
+            className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-colors ${
+              preferencias.modo === MODO_TIENDA
+                ? 'border-marca-500 bg-marca-50'
+                : 'border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            <Store className="w-5 h-5 text-marca-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-gray-900">Tienda / abarrotes</p>
+              <p className="text-sm text-gray-500 mt-1">
+                POS directo: cobra sin cocina, mesas ni propinas.
+              </p>
+            </div>
+          </button>
+        </div>
+      </div>
+
       <CategoriasMovimiento />
 
-      <OpcionesProductoConfig />
+      {!modoTienda && <OpcionesProductoConfig />}
 
       <div className="card">
         <div className="flex items-center gap-3 mb-2">
@@ -40,6 +175,10 @@ const Configuracion = () => {
             Punto de Venta
           </h2>
         </div>
+        <p className="text-sm text-gray-500 mb-3">
+          Las fotos se guardan en cada dispositivo para que el POS las muestre al instante,
+          sin pedirlas al servidor cada vez.
+        </p>
         <label className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
           <div>
             <p className="text-gray-900 font-medium">Productos con foto</p>
@@ -75,7 +214,6 @@ const Configuracion = () => {
         </button>
       </div>
 
-      {/* Métodos de pago en Punto de Venta */}
       <div className="card">
         <div className="flex items-center gap-3 mb-2">
           <CreditCard className="w-5 h-5 text-marca-600" />
@@ -84,7 +222,7 @@ const Configuracion = () => {
           </h2>
         </div>
         <p className="text-sm text-gray-600 mb-4">
-          Activa o desactiva qué botones de pago aparecen al cobrar.
+          Se guarda en el servidor: al cambiarlo aquí, todas las tablets ven lo mismo.
         </p>
         <div className="space-y-3">
           {METODOS_PAGO_DISPONIBLES.map((metodo) => (
@@ -94,16 +232,43 @@ const Configuracion = () => {
             >
               <div>
                 <p className="text-gray-900 font-medium">{metodo.label}</p>
-                
               </div>
               <input
                 type="checkbox"
-                checked={!!metodosPagoConfig[metodo.id]}
+                checked={!!preferencias.metodos_pago?.[metodo.id]}
+                disabled={guardando}
                 onChange={() => toggleMetodoPago(metodo.id)}
                 className="w-4 h-4"
               />
             </label>
           ))}
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="flex items-center gap-3 mb-2">
+          <LayoutDashboard className="w-5 h-5 text-marca-600" />
+          <h2 className="text-lg font-semibold text-gray-900">Métricas visibles</h2>
+        </div>
+        <p className="text-sm text-gray-600 mb-4">
+          Elige qué cards aparecen en el Dashboard y en Reportes. También puedes editarlas
+          desde cada pantalla con el botón «Editar métricas».
+        </p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ChecksMetricas
+            titulo="Dashboard"
+            catalogo={METRICAS_DASHBOARD}
+            valores={preferencias.metricas_dashboard}
+            modoTienda={modoTienda}
+            onToggle={(id) => toggleMetrica('dashboard', id)}
+          />
+          <ChecksMetricas
+            titulo="Reportes"
+            catalogo={METRICAS_REPORTES}
+            valores={preferencias.metricas_reportes}
+            modoTienda={modoTienda}
+            onToggle={(id) => toggleMetrica('reportes', id)}
+          />
         </div>
       </div>
 

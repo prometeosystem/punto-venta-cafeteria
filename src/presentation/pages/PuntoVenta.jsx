@@ -5,6 +5,7 @@ import { useProductos } from '../hooks/useProductos'
 import { useVentas } from '../hooks/useVentas'
 import { useComandas } from '../hooks/useComandas'
 import { useAuth } from '../context/AuthContext'
+import { usePreferencias } from '../context/PreferenciasContext'
 import { useCaja } from '../hooks/useCaja'
 import { imprimirTicket, itemsDesdeCarrito } from '../utils/imprimirTicket'
 import { obtenerMetodosPagoActivos } from '../utils/metodosPagoConfig'
@@ -164,6 +165,7 @@ const PuntoVenta = () => {
   const { crearVenta, obtenerInfoTicketActual, procesarPagoVenta, loading: ventaLoading } = useVentas()
   const { crearComanda, editarComanda, obtenerComanda, obtenerComandasTerminadasSinPagar, cancelarComanda, loading: comandaLoading } = useComandas()
   const { usuario } = useAuth()
+  const { modoRestaurante } = usePreferencias()
   const { estado: estadoCaja, loading: cajaLoading } = useCaja(15000)
   const [metodosPagoActivos, setMetodosPagoActivos] = useState(() => obtenerMetodosPagoActivos())
   const [posConFotos, setPosConFotos] = useState(() => obtenerPosConFotos())
@@ -2139,7 +2141,9 @@ const PuntoVenta = () => {
       : []
   const piezasOrden = cart.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)
   const totalBarraOrden = resumenOrden().totalFinal
-  const mesasAbiertas = puedeCobrar(usuario?.rol) ? comandasTerminadasSinPagar.length : 0
+  const mesasAbiertas = (modoRestaurante && puedeCobrar(usuario?.rol))
+    ? comandasTerminadasSinPagar.length
+    : 0
 
   return (
     <div className="relative h-full min-h-0 pt-3 px-2 pb-2 flex flex-col landscape:flex-row gap-2 overflow-hidden">
@@ -2373,6 +2377,8 @@ const PuntoVenta = () => {
                       </button>
                     )}
                     <div className="flex items-center gap-1">
+                    {modoRestaurante && (
+                      <>
                     <button
                         onClick={() => setMostrarModalPropina(true)}
                         disabled={ordenVacia}
@@ -2393,6 +2399,8 @@ const PuntoVenta = () => {
                           <X className="w-4 h-4" />
                         </button>
                       )}
+                      </>
+                    )}
                       <button
                         onClick={() => setMostrarModalDescuento(true)}
                         disabled={ordenVacia}
@@ -2617,7 +2625,7 @@ const PuntoVenta = () => {
 
                   {/* Mesa abierta con productos nuevos: primero van a cocina, no a caja.
                       Cobrar antes de guardarlos usaría el total viejo de la venta. */}
-                  {comandaEnEdicion || (comandaTerminadaSeleccionada && hayItemsNuevos) ? (
+                  {modoRestaurante && (comandaEnEdicion || (comandaTerminadaSeleccionada && hayItemsNuevos)) ? (
                     <>
                       {comandaTerminadaSeleccionada && hayItemsNuevos && (
                         <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg p-2 text-center">
@@ -2649,7 +2657,7 @@ const PuntoVenta = () => {
                     </>
                   ) : (
                   <>
-                  {!comandaTerminadaSeleccionada && (
+                  {modoRestaurante && !comandaTerminadaSeleccionada && (
                     <>
                   {/* Enviar sin pagar: preparar primero, cobrar cuando esté lista */}
                   <button
@@ -2721,7 +2729,7 @@ const PuntoVenta = () => {
 
           {/* Mesas abiertas: ya se entregó lo pedido pero la cuenta sigue viva.
               El mesero no cobra; él sigue sus mesas desde el plano. */}
-          {comandasTerminadasSinPagar.length > 0 && puedeCobrar(usuario?.rol) && (
+          {modoRestaurante && comandasTerminadasSinPagar.length > 0 && puedeCobrar(usuario?.rol) && (
             <div className="card mb-2 !p-3">
               <button
                 type="button"
@@ -2848,7 +2856,7 @@ const PuntoVenta = () => {
                       key={id}
                       type="button"
                       onClick={() => setAreaProductoPersonalizado(id)}
-                      className={`py-2 rounded-lg border-2 text-sm font-medium transition-colors ${
+                      className={`w-full min-w-0 py-2.5 px-3 rounded-lg border-2 text-sm font-medium transition-colors inline-flex items-center justify-center ${
                         areaProductoPersonalizado === id
                           ? 'border-marca-500 bg-marca-50 text-marca-700'
                           : 'border-gray-200 text-gray-600 hover:border-gray-300'
@@ -2859,20 +2867,19 @@ const PuntoVenta = () => {
                   ))}
                 </div>
               </div>
-              <div className="flex gap-2 pt-1">
+              <div className="grid grid-cols-2 gap-2 pt-1">
                 <button
                   type="button"
                   onClick={cerrarModalPersonalizado}
-                  className="flex-1 py-2.5 rounded-lg border-2 border-red-200 text-red-600 font-medium hover:bg-red-50 hover:border-red-300 transition-colors"
+                  className="w-full min-w-0 py-2.5 rounded-lg border-2 border-red-200 text-red-600 font-medium hover:bg-red-50 hover:border-red-300 transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={!nombreProductoPersonalizado.trim() || !precioProductoPersonalizado}
-                  className="btn-primary flex-1 py-2.5 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-1.5"
+                  className="btn-primary w-full min-w-0 py-2.5 border-2 border-transparent disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center"
                 >
-                  
                   Agregar
                 </button>
               </div>
@@ -3070,6 +3077,7 @@ const PuntoVenta = () => {
                   className="input"
                 />
               </div>
+              {modoRestaurante && (
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { valor: 'comer-aqui', texto: 'Comer aquí', Icono: Utensils },
@@ -3090,6 +3098,7 @@ const PuntoVenta = () => {
                   </button>
                 ))}
               </div>
+              )}
               <div className="grid grid-cols-2 gap-2 pt-3">
                 <button
                   type="button"
@@ -3178,7 +3187,7 @@ const PuntoVenta = () => {
               )}
 
               {/* En efectivo/tarjeta hay que preguntar; con método Delivery ya se sabe. */}
-              {metodoPago !== 'delivery' && (
+              {modoRestaurante && metodoPago !== 'delivery' && (
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { valor: 'comer-aqui', texto: 'Comer aquí', Icono: Utensils },
@@ -3368,7 +3377,7 @@ const PuntoVenta = () => {
       )}
 
       {/* Modal Propina */}
-      {mostrarModalPropina && (
+      {modoRestaurante && mostrarModalPropina && (
         <div
           className={OVERLAY_MODAL}
           onClick={() => setMostrarModalPropina(false)}

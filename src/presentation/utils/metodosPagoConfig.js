@@ -16,6 +16,7 @@ const DEFAULTS = {
   transferencia: false,
 }
 
+/** Copia local rápida; la fuente de verdad es el servidor (preferencias_ui). */
 export function obtenerMetodosPagoConfig() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -27,15 +28,16 @@ export function obtenerMetodosPagoConfig() {
   }
 }
 
-export function guardarMetodosPagoConfig(config) {
-  const next = { ...DEFAULTS, ...config }
-  // Al menos un método debe quedar activo
-  if (!Object.values(next).some(Boolean)) {
-    next.efectivo = true
-  }
+export function sincronizarMetodosPagoDesdeServidor(config) {
+  const next = { ...DEFAULTS, ...(config || {}) }
+  if (!Object.values(next).some(Boolean)) next.efectivo = true
   localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
   window.dispatchEvent(new CustomEvent('metodos-pago-config-changed', { detail: next }))
   return next
+}
+
+export function guardarMetodosPagoConfig(config) {
+  return sincronizarMetodosPagoDesdeServidor(config)
 }
 
 export function obtenerMetodosPagoActivos() {
