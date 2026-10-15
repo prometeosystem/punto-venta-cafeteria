@@ -40,7 +40,7 @@ const Caja = () => {
         icon: 'info',
         title: 'Caja cerrada',
         text: 'Debes abrir caja antes de usar el punto de venta.',
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
     }
   }, [location.state])
@@ -134,7 +134,7 @@ const Caja = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-matcha-500" />
+        <Loader2 className="w-8 h-8 animate-spin text-marca-500" />
       </div>
     )
   }
@@ -144,11 +144,11 @@ const Caja = () => {
       <div className="max-w-lg mx-auto p-6">
         <div className="bg-white rounded-xl shadow-lg p-8 text-center">
           <AlertCircle className="w-10 h-10 text-red-500 mx-auto mb-3" />
-          <h1 className="text-xl font-bold text-coffee-800 mb-2">No se pudo consultar la caja</h1>
+          <h1 className="text-xl font-bold text-gray-900 mb-2">No se pudo consultar la caja</h1>
           <p className="text-gray-600 mb-4">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="bg-matcha-500 text-white px-4 py-2 rounded-lg"
+            className="bg-marca-500 text-white px-4 py-2 rounded-lg"
           >
             Reintentar
           </button>
@@ -192,7 +192,7 @@ const Caja = () => {
             <button
               onClick={handleAbrir}
               disabled={procesando}
-              className="w-full bg-matcha-500 text-white py-3 rounded-lg font-medium hover:bg-matcha-600 disabled:opacity-50"
+              className="w-full bg-marca-500 text-white py-3 rounded-lg font-medium hover:bg-marca-600 disabled:opacity-50"
             >
               {procesando ? 'Abriendo...' : 'Abrir Caja'}
             </button>
@@ -221,40 +221,40 @@ const Caja = () => {
           <div className="grid grid-cols-2 gap-2">
             <div className="bg-white rounded-lg px-3 py-2.5 border border-gray-200 flex items-baseline justify-between gap-2">
               <span className="text-xs text-gray-500">Monto inicial</span>
-              <span className="text-base font-bold text-coffee-800">{formatMoney(sesion?.monto_inicial)}</span>
+              <span className="text-base font-bold text-gray-900">{formatMoney(sesion?.monto_inicial)}</span>
             </div>
-            <div className="bg-matcha-50 rounded-lg px-3 py-2.5 border-2 border-matcha-500 flex items-baseline justify-between gap-2">
-              <span className="text-xs text-matcha-700 font-medium">Efectivo esperado</span>
-              <span className="text-base font-bold text-matcha-800">{formatMoney(estado.efectivo_esperado)}</span>
+            <div className="bg-marca-50 rounded-lg px-3 py-2.5 border-2 border-marca-500 flex items-baseline justify-between gap-2">
+              <span className="text-xs text-marca-700 font-medium">Efectivo esperado</span>
+              <span className="text-base font-bold text-marca-800">{formatMoney(estado.efectivo_esperado)}</span>
             </div>
           </div>
 
           {/* Ventas */}
           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
             <div className="px-3 py-1.5 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-coffee-800">Ventas del turno</h2>
+              <h2 className="text-sm font-semibold text-gray-900">Ventas del turno</h2>
               <span className="text-xs font-semibold text-gray-700">{formatMoney(totalVentas)}</span>
             </div>
             <div className="grid grid-cols-2 text-sm">
               <div className="px-3 py-2 flex items-baseline justify-between gap-2 border-r border-gray-100">
                 <span className="text-[11px] text-gray-500">Efectivo</span>
-                <span className="font-bold text-coffee-800">{formatMoney(estado.ventas_efectivo)}</span>
+                <span className="font-bold text-gray-900">{formatMoney(estado.ventas_efectivo)}</span>
               </div>
               <div className="px-3 py-2 flex items-baseline justify-between gap-2">
                 <span className="text-[11px] text-gray-500">Tarjeta / Transferencia</span>
-                <span className="font-bold text-coffee-800">{formatMoney(ventasTarjetaTransferencia)}</span>
+                <span className="font-bold text-gray-900">{formatMoney(ventasTarjetaTransferencia)}</span>
               </div>
             </div>
           </div>
 
           {/* Entradas / Salidas */}
           <div className="grid grid-cols-2 gap-2">
-            <div className="bg-green-50 rounded-lg border border-green-200 px-3 py-2 flex items-center justify-between gap-2">
+            <div className="bg-marca-50 rounded-lg border border-marca-200 px-3 py-2 flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 min-w-0">
-                <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
-                <span className="text-xs font-semibold text-green-800 truncate">Entradas</span>
+                <span className="w-2 h-2 rounded-full bg-marca-500 shrink-0" />
+                <span className="text-xs font-semibold text-marca-800 truncate">Entradas</span>
               </div>
-              <span className="text-sm font-bold text-green-700 shrink-0">{formatMoney(estado.entradas_efectivo)}</span>
+              <span className="text-sm font-bold text-marca-700 shrink-0">{formatMoney(estado.entradas_efectivo)}</span>
             </div>
             <div className="bg-red-50 rounded-lg border border-red-200 px-3 py-2 flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 min-w-0">
@@ -269,23 +269,23 @@ const Caja = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
               <div className="px-3 py-1.5 bg-gray-50 border-b border-gray-200">
-                <h2 className="text-sm font-semibold text-coffee-800">Propinas</h2>
+                <h2 className="text-sm font-semibold text-gray-900">Propinas</h2>
               </div>
               <div className="grid grid-cols-2 text-sm">
                 <div className="px-3 py-2 flex items-baseline justify-between gap-2 border-r border-gray-100">
                   <span className="text-[11px] text-gray-500">Efectivo</span>
-                  <span className="font-bold text-coffee-800">{formatMoney(estado.propinas_efectivo)}</span>
+                  <span className="font-bold text-gray-900">{formatMoney(estado.propinas_efectivo)}</span>
                 </div>
                 <div className="px-3 py-2 flex items-baseline justify-between gap-2">
                   <span className="text-[11px] text-gray-500">Tarjeta</span>
-                  <span className="font-bold text-coffee-800">{formatMoney(estado.propinas_tarjeta)}</span>
+                  <span className="font-bold text-gray-900">{formatMoney(estado.propinas_tarjeta)}</span>
                 </div>
               </div>
             </div>
 
             {estado.ventas_por_usuario?.length > 0 && (
               <div className="bg-white rounded-lg border border-gray-200 px-3 py-2">
-                <h2 className="text-sm font-semibold text-coffee-800 mb-1.5">Ventas por usuario</h2>
+                <h2 className="text-sm font-semibold text-gray-900 mb-1.5">Ventas por usuario</h2>
                 <div className="space-y-1">
                   {estado.ventas_por_usuario.map((v, i) => (
                     <div key={i} className="flex justify-between text-xs">
@@ -301,7 +301,7 @@ const Caja = () => {
 
         {/* Columna lateral: cierre */}
         <div className="bg-white rounded-lg border border-gray-200 p-3 xl:sticky xl:top-4">
-          <h2 className="text-sm font-semibold text-coffee-800 mb-2 flex items-center gap-1.5">
+          <h2 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-1.5">
             <AlertCircle className="w-4 h-4" /> Cierre con arqueo
           </h2>
           <div className="space-y-2.5">
@@ -343,7 +343,7 @@ const Caja = () => {
             </div>
             {diferenciaPreview !== null && Math.abs(diferenciaPreview) > 0.01 && (
               <div>
-                <p className={`text-xs font-medium text-right tabular-nums ${diferenciaPreview > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <p className={`text-xs font-medium text-right tabular-nums ${diferenciaPreview > 0 ? 'text-marca-600' : 'text-red-600'}`}>
                   Diferencia: {formatMoney(diferenciaPreview)} ({diferenciaPreview > 0 ? 'sobrante' : 'faltante'})
                 </p>
                 <input
@@ -358,7 +358,7 @@ const Caja = () => {
             <button
               onClick={handleCerrar}
               disabled={procesando}
-              className="w-full bg-coffee-800 text-white py-2 rounded-lg text-sm font-medium hover:bg-coffee-900 disabled:opacity-50"
+              className="w-full bg-gray-900 text-white py-2 rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-50"
             >
               {procesando ? 'Cerrando...' : 'Cerrar Caja'}
             </button>

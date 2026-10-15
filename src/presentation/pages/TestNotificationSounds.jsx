@@ -275,7 +275,7 @@ const TestNotificationSounds = () => {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-matcha-50 to-coffee-50 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-marca-50 to-gray-50 p-8">
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-2xl shadow-xl p-8 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -284,7 +284,7 @@ const TestNotificationSounds = () => {
                 key={sound.id}
                 className={`card border-2 ${
                   sound.id === 'error' 
-                    ? 'border-yellow-400 bg-yellow-50' 
+                    ? 'border-amber-400 bg-amber-50' 
                     : 'border-gray-200'
                 }`}
               >
@@ -298,7 +298,7 @@ const TestNotificationSounds = () => {
                     </p>
                   </div>
                   {sound.id === 'error' && (
-                    <span className="ml-2 px-2 py-1 bg-yellow-200 text-yellow-800 text-xs font-medium rounded">
+                    <span className="ml-2 px-2 py-1 bg-amber-200 text-amber-800 text-xs font-medium rounded">
                       Actual
                     </span>
                   )}

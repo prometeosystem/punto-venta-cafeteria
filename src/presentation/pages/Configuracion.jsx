@@ -118,7 +118,7 @@ const Configuracion = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-matcha-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-marca-600" />
       </div>
     )
   }
@@ -131,7 +131,7 @@ const Configuracion = () => {
 
       <div className="card">
         <div className="flex items-center gap-3 mb-2">
-          <Image className="w-5 h-5 text-matcha-600" />
+          <Image className="w-5 h-5 text-marca-600" />
           <h2 className="text-lg font-semibold text-gray-900">
             Punto de Venta
           </h2>
@@ -159,13 +159,13 @@ const Configuracion = () => {
                 icon: 'success',
                 title: 'Fotos actualizadas',
                 text: 'Se borraron las fotos guardadas. Al abrir el punto de venta se vuelven a buscar.',
-                confirmButtonColor: '#3d6b4f',
+                confirmButtonColor: 'rgb(var(--marca-500))',
               })
             } catch {
               Swal.fire('Error', 'No se pudieron borrar las fotos guardadas', 'error')
             }
           }}
-          className="mt-3 text-sm font-medium text-matcha-700 hover:text-matcha-800"
+          className="mt-3 text-sm font-medium text-marca-700 hover:text-marca-800"
         >
           Eliminar imágenes anteriores y descargar nuevas
         </button>
@@ -174,7 +174,7 @@ const Configuracion = () => {
       {/* Métodos de pago en Punto de Venta */}
       <div className="card">
         <div className="flex items-center gap-3 mb-2">
-          <CreditCard className="w-5 h-5 text-matcha-600" />
+          <CreditCard className="w-5 h-5 text-marca-600" />
           <h2 className="text-lg font-semibold text-gray-900">
             Métodos de pago en Punto de Venta
           </h2>
@@ -206,7 +206,7 @@ const Configuracion = () => {
       {/* Notificaciones */}
       <div className="card">
         <div className="flex items-center gap-3 mb-4">
-          <Bell className="w-5 h-5 text-matcha-600" />
+          <Bell className="w-5 h-5 text-marca-600" />
           <h2 className="text-lg font-semibold text-gray-900">Notificaciones</h2>
         </div>
         <div className="space-y-3">

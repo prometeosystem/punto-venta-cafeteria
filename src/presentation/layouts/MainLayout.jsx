@@ -107,7 +107,7 @@ const MainLayout = () => {
         {!headerVisible && !sidebarOpen && (
           <button
             onClick={toggleSidebar}
-            className={`absolute left-4 z-40 p-3 rounded-full bg-pino-800/90 text-white shadow-lg hover:bg-pino-700 transition-colors ${
+            className={`absolute left-4 z-40 p-3 rounded-full bg-oscuro-800/90 text-white shadow-lg hover:bg-oscuro-700 transition-colors ${
               isPuntoVenta ? 'bottom-24 landscape:bottom-4' : 'bottom-4'
             }`}
             aria-label="Abrir menú"

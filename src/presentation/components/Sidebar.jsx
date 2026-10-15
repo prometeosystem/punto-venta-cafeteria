@@ -45,7 +45,7 @@ const menuItems = [
 ]
 
 const ICONO_SIDEBAR =
-  'p-2.5 rounded-lg text-gray-300 hover:bg-pino-700 hover:text-white transition-colors'
+  'p-2.5 rounded-lg text-gray-300 hover:bg-oscuro-700 hover:text-white transition-colors'
 
 const Sidebar = () => {
   const {
@@ -99,7 +99,7 @@ const Sidebar = () => {
       <aside
         className={`
           fixed inset-y-0 left-0 z-50
-          w-64 bg-pino-800 border-r border-pino-900
+          w-64 bg-oscuro-800 border-r border-oscuro-900
           transform transition-transform duration-300 ease-in-out
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
           ${isMobile ? '' : sidebarOpen ? 'lg:translate-x-0' : 'lg:-translate-x-full'}
@@ -108,11 +108,11 @@ const Sidebar = () => {
         `}
       >
         {/* Header del Sidebar */}
-        <div className="relative flex items-center justify-center px-12 py-5 border-b border-pino-700">
+        <div className="relative flex items-center justify-center px-12 py-5 border-b border-oscuro-700">
           <marca.Logo className="w-40 text-white" />
           <button
             onClick={toggleSidebar}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg hover:bg-pino-700 transition-colors"
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg hover:bg-oscuro-700 transition-colors"
             aria-label="Cerrar menú"
           >
             <X className="w-5 h-5 text-gray-300" />
@@ -135,8 +135,8 @@ const Sidebar = () => {
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors duration-200 ${
                       isActive
-                        ? 'bg-matcha-500 text-white font-medium'
-                        : 'text-gray-300 hover:bg-pino-700 hover:text-white'
+                        ? 'bg-marca-500 text-white font-medium'
+                        : 'text-gray-300 hover:bg-oscuro-700 hover:text-white'
                     }`
                   }
                   onClick={() => {
@@ -153,10 +153,10 @@ const Sidebar = () => {
         </nav>
 
         {/* Footer del Sidebar */}
-        <div className="px-4 pt-3 pb-2 border-t border-pino-700">
+        <div className="px-4 pt-3 pb-2 border-t border-oscuro-700">
           {/* Controles que antes vivían en la barra superior */}
           <div className="flex items-center gap-1 mb-2">
-            <PrinterConnectionButton printer={printer} iconOnly className="hover:bg-pino-700" />
+            <PrinterConnectionButton printer={printer} iconOnly className="hover:bg-oscuro-700" />
 
             <NotificationsBell variant="sidebar" />
 
@@ -199,11 +199,11 @@ const Sidebar = () => {
               title="Mi perfil"
               className={({ isActive }) =>
                 `flex-1 min-w-0 flex items-center gap-2 p-1.5 -ml-1.5 rounded-lg transition-colors ${
-                  isActive ? 'bg-pino-700' : 'hover:bg-pino-700'
+                  isActive ? 'bg-oscuro-700' : 'hover:bg-oscuro-700'
                 }`
               }
             >
-              <div className="w-9 h-9 shrink-0 bg-matcha-500 rounded-full flex items-center justify-center">
+              <div className="w-9 h-9 shrink-0 bg-marca-500 rounded-full flex items-center justify-center">
                 <span className="text-white font-semibold text-sm">{getInitials()}</span>
               </div>
               <div className="flex-1 min-w-0">

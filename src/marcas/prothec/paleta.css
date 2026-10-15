@@ -1,0 +1,20 @@
+/* Canales RGB sin rgb() para que Tailwind pueda aplicar opacidad (bg-marca-500/20). */
+:root {
+  --marca-50: 238 241 251;
+  --marca-100: 224 230 248;
+  --marca-200: 195 205 240;
+  --marca-300: 152 168 226;
+  --marca-400: 106 127 208;
+  --marca-500: 65 87 184;
+  --marca-600: 52 72 158;
+  --marca-700: 43 59 130;
+  --marca-800: 35 48 106;
+  --marca-900: 27 37 83;
+
+  --oscuro-700: 39 44 64;
+  --oscuro-800: 24 28 43;
+  --oscuro-900: 16 19 30;
+
+  --acento: 242 181 68;
+  --acento-claro: 253 233 194;
+}

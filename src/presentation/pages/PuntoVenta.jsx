@@ -99,16 +99,16 @@ const ICONOS_METODO_PAGO = {
 }
 
 const COLORES_METODO_PAGO = {
-  efectivo: 'border-emerald-500 bg-emerald-50 text-emerald-700',
-  tarjeta: 'border-sky-500 bg-sky-50 text-sky-700',
-  delivery: 'border-violet-500 bg-violet-50 text-violet-700',
+  efectivo: 'border-marca-500 bg-marca-50 text-marca-700',
+  tarjeta: 'border-blue-500 bg-blue-50 text-blue-700',
+  delivery: 'border-purple-500 bg-purple-50 text-purple-700',
   transferencia: 'border-amber-500 bg-amber-50 text-amber-700',
 }
 
 const claseMetodoPago = (id, seleccionado) =>
   `flex-1 min-w-0 py-2.5 rounded-lg border-2 transition-colors inline-flex items-center justify-center ${
     seleccionado
-      ? COLORES_METODO_PAGO[id] || 'border-matcha-500 bg-matcha-50 text-matcha-700'
+      ? COLORES_METODO_PAGO[id] || 'border-marca-500 bg-marca-50 text-marca-700'
       : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:bg-gray-50'
   }`
 
@@ -383,7 +383,7 @@ const PuntoVenta = () => {
         icon: 'error',
         title: 'No se pudo abrir la comanda',
         text: error.response?.data?.detail || error.message || 'Intenta de nuevo',
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
     }
   }
@@ -840,7 +840,7 @@ const PuntoVenta = () => {
         icon: 'warning',
         title: 'Número requerido',
         text: 'Por favor ingresa un número de WhatsApp válido (10 dígitos mínimo)',
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
       return
     }
@@ -859,7 +859,7 @@ const PuntoVenta = () => {
       icon: 'success',
       title: '¡Enviar ticket!',
       text: 'Se abrirá WhatsApp con el ticket. Completa el envío desde allí.',
-      confirmButtonColor: '#3d6b4f',
+      confirmButtonColor: 'rgb(var(--marca-500))',
       timer: 2000,
     })
   }
@@ -871,7 +871,7 @@ const PuntoVenta = () => {
         icon: 'warning',
         title: 'Carrito vacío',
         text: 'El carrito está vacío',
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
       return
     }
@@ -881,7 +881,7 @@ const PuntoVenta = () => {
         icon: 'warning',
         title: 'Método de pago requerido',
         text: 'Por favor selecciona un método de pago',
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
       return
     }
@@ -955,7 +955,7 @@ const PuntoVenta = () => {
         icon: 'info',
         title: 'Sin productos',
         text: 'Agrega productos a la orden antes de imprimir la cuenta.',
-      confirmButtonColor: '#3d6b4f',
+      confirmButtonColor: 'rgb(var(--marca-500))',
       })
       return
     }
@@ -1041,7 +1041,7 @@ const PuntoVenta = () => {
           showCancelButton: true,
           confirmButtonText: 'Imprimir en navegador',
           cancelButtonText: 'Cerrar',
-          confirmButtonColor: '#3d6b4f',
+          confirmButtonColor: 'rgb(var(--marca-500))',
         })
         if (!retry.isConfirmed) return
       }
@@ -1053,7 +1053,7 @@ const PuntoVenta = () => {
           icon: 'warning',
           title: 'No se pudo imprimir',
           text: printResult.error,
-          confirmButtonColor: '#3d6b4f',
+          confirmButtonColor: 'rgb(var(--marca-500))',
         })
     }
   }
@@ -1067,7 +1067,7 @@ const PuntoVenta = () => {
         showCancelButton: true,
         confirmButtonText: 'Ir a Caja',
         cancelButtonText: 'Cancelar',
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
       if (result.isConfirmed) navigate('/caja')
       return false
@@ -1080,7 +1080,7 @@ const PuntoVenta = () => {
         showCancelButton: true,
         confirmButtonText: 'Continuar',
         cancelButtonText: 'Cancelar',
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
       if (!continuar.isConfirmed) return false
     }
@@ -1103,7 +1103,7 @@ const PuntoVenta = () => {
         icon: 'warning',
         title: 'Revisa el pago',
         text: 'Efectivo y tarjeta tienen que ser mayores a cero y sumar el total.',
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
       return
     }
@@ -1299,7 +1299,7 @@ const PuntoVenta = () => {
         icon: 'error',
         title: 'Error',
         text: errorMsg,
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
     } finally {
       setProcesando(false)
@@ -1313,7 +1313,7 @@ const PuntoVenta = () => {
         icon: 'warning',
         title: 'Carrito vacío',
         text: 'No hay productos para enviar',
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
       return
     }
@@ -1421,7 +1421,7 @@ const PuntoVenta = () => {
         icon: 'error',
         title: 'Error',
         text: errorMsg,
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
     } finally {
       setProcesando(false)
@@ -1438,7 +1438,7 @@ const PuntoVenta = () => {
         icon: 'warning',
         title: 'Revisa el pago',
         text: 'Efectivo y tarjeta tienen que ser mayores a cero y sumar el total.',
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
       return
     }
@@ -1483,7 +1483,7 @@ const PuntoVenta = () => {
         icon: 'error',
         title: 'Error',
         text: errorMsg,
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
     } finally {
       setProcesando(false)
@@ -1564,7 +1564,7 @@ const PuntoVenta = () => {
         icon: 'error',
         title: 'Valor inválido',
         text: 'Por favor ingresa un valor válido',
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
       return
     }
@@ -1576,7 +1576,7 @@ const PuntoVenta = () => {
           icon: 'error',
           title: 'Porcentaje inválido',
           text: 'El porcentaje no puede ser mayor a 100%',
-          confirmButtonColor: '#3d6b4f',
+          confirmButtonColor: 'rgb(var(--marca-500))',
         })
         return
       }
@@ -1613,7 +1613,7 @@ const PuntoVenta = () => {
         icon: 'error',
         title: 'Nombre requerido',
         text: 'Por favor ingresa un nombre para el producto',
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
       return
     }
@@ -1623,7 +1623,7 @@ const PuntoVenta = () => {
         icon: 'error',
         title: 'Precio inválido',
         text: 'Por favor ingresa un precio válido mayor a 0',
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
       return
     }
@@ -1838,7 +1838,7 @@ const PuntoVenta = () => {
         icon: 'success',
         title: 'Comanda cancelada',
         text: 'Quedó registrada como cancelada; el inventario no se modificó.',
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
         timer: 2200,
       })
       } catch (error) {
@@ -1847,7 +1847,7 @@ const PuntoVenta = () => {
         icon: 'error',
         title: 'No se pudo cancelar',
         text: typeof detalle === 'string' ? detalle : 'Intenta de nuevo.',
-          confirmButtonColor: '#3d6b4f',
+          confirmButtonColor: 'rgb(var(--marca-500))',
         })
     } finally {
       setCancelandoComanda(false)
@@ -1878,7 +1878,7 @@ const PuntoVenta = () => {
         icon: 'info',
         title: 'Sin productos nuevos',
         text: 'Agrega al menos un producto para guardar los cambios.',
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
       return
     }
@@ -1919,7 +1919,7 @@ const PuntoVenta = () => {
         icon: 'error',
         title: 'Error al guardar',
         text: errorMsg,
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
     } finally {
       setProcesando(false)
@@ -1994,7 +1994,7 @@ const PuntoVenta = () => {
   if (productosLoading || cajaLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-matcha-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-marca-600" />
       </div>
     )
   }
@@ -2002,7 +2002,7 @@ const PuntoVenta = () => {
   if (estadoCaja && estadoCaja.abierta === false) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-matcha-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-marca-600" />
         <span className="ml-3 text-gray-600">Redirigiendo a abrir caja...</span>
       </div>
     )
@@ -2024,8 +2024,8 @@ const PuntoVenta = () => {
           posConFotos ? 'min-h-[132px] p-0' : 'min-h-[88px] p-3'
         } ${
           isHighlighted || isSelected
-            ? 'border-matcha-500 bg-matcha-50'
-            : 'border-gray-200 bg-white hover:border-matcha-400'
+            ? 'border-marca-500 bg-marca-50'
+            : 'border-gray-200 bg-white hover:border-marca-400'
         }`}
       >
         {posConFotos ? (
@@ -2049,7 +2049,7 @@ const PuntoVenta = () => {
         ) : (
           <>
             <p className="font-medium text-gray-900 text-sm leading-snug">{product.nombre}</p>
-            <p className="text-sm text-matcha-600 font-semibold mt-1">{precio}</p>
+            <p className="text-sm text-marca-600 font-semibold mt-1">{precio}</p>
           </>
         )}
       </button>
@@ -2119,7 +2119,7 @@ const PuntoVenta = () => {
             onClick={alternarVistaCatalogo}
             title={verTodos ? 'Ver por categorías' : 'Ver todos'}
             aria-label={verTodos ? 'Ver por categorías' : 'Ver todos'}
-            className="shrink-0 flex h-[42px] w-[42px] items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 hover:border-matcha-400 hover:text-matcha-700"
+            className="shrink-0 flex h-[42px] w-[42px] items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 hover:border-marca-400 hover:text-marca-700"
           >
             {verTodos ? <Folder className="w-5 h-5" /> : <LayoutGrid className="w-5 h-5" />}
           </button>
@@ -2140,7 +2140,7 @@ const PuntoVenta = () => {
               <button
                 type="button"
                 onClick={abrirModalPersonalizado}
-                className="min-h-[88px] rounded-xl border-2 border-gray-200 bg-gray-50 hover:border-matcha-500 hover:bg-matcha-50 active:scale-[0.98] transition-all p-3 flex flex-col items-center justify-center text-center"
+                className="min-h-[88px] rounded-xl border-2 border-gray-200 bg-gray-50 hover:border-marca-500 hover:bg-marca-50 active:scale-[0.98] transition-all p-3 flex flex-col items-center justify-center text-center"
               >
                 <span className="font-semibold text-gray-900 text-sm leading-tight">
                   Personalizado
@@ -2174,7 +2174,7 @@ const PuntoVenta = () => {
                       aria-pressed={activa}
                       className={`shrink-0 whitespace-nowrap rounded-xl border-2 active:scale-[0.98] transition-transform px-3 py-2 flex flex-col items-center justify-center text-center sm:min-h-[64px] sm:whitespace-normal sm:p-2 ${
                         activa
-                          ? 'border-matcha-500 bg-matcha-50'
+                          ? 'border-marca-500 bg-marca-50'
                           : 'border-gray-200 bg-gray-50'
                       }`}
                     >
@@ -2215,7 +2215,7 @@ const PuntoVenta = () => {
           <button
             type="button"
             onClick={() => setOrdenDesplegada(true)}
-            className="landscape:hidden shrink-0 flex w-full items-center gap-3 rounded-2xl bg-[#1c2b1c] px-4 py-3 text-left text-white shadow-lg"
+            className="landscape:hidden shrink-0 flex w-full items-center gap-3 rounded-2xl bg-oscuro-800 px-4 py-3 text-left text-white shadow-lg"
           >
             <span className="flex h-9 min-w-9 items-center justify-center rounded-full bg-white/15 px-2 text-sm font-semibold">
               {piezasOrden}
@@ -2251,7 +2251,7 @@ const PuntoVenta = () => {
             <button
               type="button"
               onClick={() => setOrdenDesplegada(false)}
-              className="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-matcha-700"
+              className="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-marca-700"
             >
               Ocultar
               <ChevronDown className="w-4 h-4" aria-hidden="true" />
@@ -2265,7 +2265,7 @@ const PuntoVenta = () => {
                 <div className="mb-3">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                    <ShoppingCart className="w-5 h-5 text-matcha-600" />
+                    <ShoppingCart className="w-5 h-5 text-marca-600" />
                     <h2 className="text-base font-semibold text-gray-900">
                       {comandaEnEdicion
                         ? `Editando comanda ${comandaEnEdicion.numero_dia ?? comandaEnEdicion.id_comanda}`
@@ -2282,7 +2282,7 @@ const PuntoVenta = () => {
                       <span className="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-1 rounded-full">Sin pagar</span>
                     )}
                     {comandaTerminadaSeleccionada && (
-                      <span className="bg-matcha-100 text-matcha-700 text-xs font-medium px-2 py-1 rounded-full">
+                      <span className="bg-marca-100 text-marca-700 text-xs font-medium px-2 py-1 rounded-full">
                         {comandaTerminadaSeleccionada.numero_dia ?? comandaTerminadaSeleccionada.numero_pedido_dia ?? comandaTerminadaSeleccionada.id_comanda}
                       </span>
                     )}
@@ -2301,7 +2301,7 @@ const PuntoVenta = () => {
                     <button
                         onClick={() => setMostrarModalPropina(true)}
                         disabled={ordenVacia}
-                        className={claseIconoOrden(propinaPorcentaje, 'text-matcha-600 bg-matcha-50')}
+                        className={claseIconoOrden(propinaPorcentaje, 'text-marca-600 bg-marca-50')}
                         title={ordenVacia ? 'Agrega productos para asignar propina' : etiquetaPropina()}
                       >
                         <Coins className="w-6 h-6" />
@@ -2362,11 +2362,11 @@ const PuntoVenta = () => {
                     }
                     const tipoLecheNombre = getNombreTipoLeche(item.tipoLeche)
                     const detalles = [
-                      item.size && { texto: item.size, color: 'text-matcha-700' },
+                      item.size && { texto: item.size, color: 'text-marca-700' },
                       item.tipoPreparacion && (item.tipoPreparacion === 'heladas'
-                        ? { texto: 'Frío', color: 'text-cyan-700' }
-                        : { texto: 'Frapeada', color: 'text-orange-700' }),
-                      item.tipoProteina && { texto: getNombreProteina(item.tipoProteina), color: 'text-yellow-700' },
+                        ? { texto: 'Frío', color: 'text-blue-700' }
+                        : { texto: 'Frapeada', color: 'text-amber-700' }),
+                      item.tipoProteina && { texto: getNombreProteina(item.tipoProteina), color: 'text-amber-700' },
                       tipoLecheNombre && { texto: `Leche: ${tipoLecheNombre}`, color: 'text-blue-700' },
                       ...extrasNombres.map((nombre) => ({ texto: nombre, color: 'text-purple-700' })),
                     ].filter(Boolean)
@@ -2509,7 +2509,7 @@ const PuntoVenta = () => {
                     <span className="text-lg font-semibold text-gray-900">
                       Total:
                     </span>
-                    <span className="text-2xl font-bold text-matcha-600">
+                    <span className="text-2xl font-bold text-marca-600">
                               ${Number(totalFinal).toFixed(2)}
                     </span>
                   </div>
@@ -2524,7 +2524,7 @@ const PuntoVenta = () => {
                   <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => imprimirCuenta()}
-                    className="py-3 text-base border-2 border-slate-600 text-slate-700 bg-white hover:bg-slate-100 active:scale-[0.98] transition-all rounded-lg font-semibold"
+                    className="py-3 text-base border-2 border-gray-600 text-gray-700 bg-white hover:bg-gray-100 active:scale-[0.98] transition-all rounded-lg font-semibold"
                     title="Imprime la cuenta para entregarla al cliente (no cobra la orden)"
                   >
                     Imprimir Cuenta
@@ -2532,7 +2532,7 @@ const PuntoVenta = () => {
                   <button
                     onClick={() => setMostrarDividirCuenta(true)}
                     disabled={!cart.length}
-                    className="py-3 text-base border-2 border-slate-600 text-slate-700 bg-white hover:bg-slate-100 active:scale-[0.98] transition-all rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="py-3 text-base border-2 border-gray-600 text-gray-700 bg-white hover:bg-gray-100 active:scale-[0.98] transition-all rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Imprime la cuenta dividida entre varias personas"
                   >
                     Dividir Cuenta
@@ -2774,7 +2774,7 @@ const PuntoVenta = () => {
                       onClick={() => setAreaProductoPersonalizado(id)}
                       className={`py-2 rounded-lg border-2 text-sm font-medium transition-colors ${
                         areaProductoPersonalizado === id
-                          ? 'border-matcha-500 bg-matcha-50 text-matcha-700'
+                          ? 'border-marca-500 bg-marca-50 text-marca-700'
                           : 'border-gray-200 text-gray-600 hover:border-gray-300'
                       }`}
                     >
@@ -2840,7 +2840,7 @@ const PuntoVenta = () => {
                         onClick={() => actualizarTipoLeche(productoOpcionesModal.id_producto, opt.value)}
                         className={`min-h-[52px] px-4 py-3 rounded-xl border-2 text-left text-base font-medium transition-all ${
                           opcionesModal.tipoLeche === opt.value
-                            ? 'border-matcha-500 bg-matcha-50 text-matcha-800'
+                            ? 'border-marca-500 bg-marca-50 text-marca-800'
                             : 'border-gray-200 text-gray-800'
                         }`}
                       >
@@ -2869,20 +2869,20 @@ const PuntoVenta = () => {
                             }
                             className={`min-h-[52px] px-4 py-3 rounded-xl border-2 flex items-center gap-3 text-left text-base font-medium transition-all ${
                               activo
-                                ? 'border-matcha-500 bg-matcha-50 text-matcha-800'
+                                ? 'border-marca-500 bg-marca-50 text-marca-800'
                                 : 'border-gray-200 text-gray-800'
                             }`}
                           >
                             <span
                               className={`w-5 h-5 shrink-0 border-2 flex items-center justify-center ${
                                 eligeUna ? 'rounded-full' : 'rounded'
-                              } ${activo ? 'border-matcha-600' : 'border-gray-300'}`}
+                              } ${activo ? 'border-marca-600' : 'border-gray-300'}`}
                             >
                               {activo &&
                                 (eligeUna ? (
-                                  <span className="w-2.5 h-2.5 rounded-full bg-matcha-600" />
+                                  <span className="w-2.5 h-2.5 rounded-full bg-marca-600" />
                                 ) : (
-                                  <Check className="w-3.5 h-3.5 text-matcha-600" strokeWidth={3} />
+                                  <Check className="w-3.5 h-3.5 text-marca-600" strokeWidth={3} />
                                 ))}
                             </span>
                             <span>
@@ -2910,7 +2910,7 @@ const PuntoVenta = () => {
                     }
                     className={`w-full min-h-[52px] px-4 py-3 rounded-xl border-2 text-left text-base font-medium transition-all ${
                       tieneScoopProteina(opcionesModal.tipoProteina)
-                        ? 'border-matcha-500 bg-matcha-50 text-matcha-800'
+                        ? 'border-marca-500 bg-marca-50 text-marca-800'
                         : 'border-gray-200 text-gray-800'
                     }`}
                   >
@@ -3005,7 +3005,7 @@ const PuntoVenta = () => {
                     onClick={() => setTipoServicio(valor)}
                     className={`w-full min-w-0 py-3 px-3 rounded-lg border-2 text-sm transition-all inline-flex items-center justify-center gap-2 ${
                       tipoServicio === valor
-                        ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
+                        ? 'border-marca-500 bg-marca-50 text-marca-700 font-medium'
                         : 'border-gray-200 text-gray-600 hover:border-gray-300'
                     }`}
                   >
@@ -3072,7 +3072,7 @@ const PuntoVenta = () => {
                   <button
                     type="button"
                     onClick={enviarTicketWhatsApp}
-                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors whitespace-nowrap flex items-center gap-2"
+                    className="px-4 py-2 bg-marca-600 hover:bg-marca-700 text-white rounded-lg font-medium transition-colors whitespace-nowrap flex items-center gap-2"
                   >
                     <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
@@ -3114,7 +3114,7 @@ const PuntoVenta = () => {
                       onClick={() => setTipoServicio(valor)}
                       className={`py-2.5 px-3 rounded-lg border-2 text-sm transition-all inline-flex items-center justify-center gap-2 ${
                         tipoServicio === valor
-                          ? 'border-matcha-500 bg-matcha-50 text-matcha-700 font-medium'
+                          ? 'border-marca-500 bg-marca-50 text-marca-700 font-medium'
                           : 'border-gray-200 text-gray-600 hover:border-gray-300'
                       }`}
                     >
@@ -3169,7 +3169,7 @@ const PuntoVenta = () => {
                       )}
                       <div className="flex items-center justify-between text-lg font-bold text-gray-900 pt-2 border-t border-gray-200">
                         <span>Total:</span>
-                        <span className="text-matcha-600">
+                        <span className="text-marca-600">
                           ${resumen.totalFinal.toFixed(2)}
                         </span>
                       </div>
@@ -3212,7 +3212,7 @@ const PuntoVenta = () => {
                         />
                       </div>
                     </div>
-                    <p className={`text-sm font-medium ${partes.valido ? 'text-matcha-700' : 'text-red-600'}`}>
+                    <p className={`text-sm font-medium ${partes.valido ? 'text-marca-700' : 'text-red-600'}`}>
                       {partes.valido
                         ? 'Las dos partes suman el total'
                         : Math.abs(partes.faltan || 0) < 0.02
@@ -3321,8 +3321,8 @@ const PuntoVenta = () => {
                   onClick={() => seleccionarPropina(10)}
                   className={`py-4 px-4 rounded-lg border-2 transition-all text-center ${
                     propinaPorcentaje === 10
-                      ? 'border-matcha-500 bg-matcha-50'
-                      : 'border-gray-200 hover:border-matcha-500 hover:bg-matcha-50'
+                      ? 'border-marca-500 bg-marca-50'
+                      : 'border-gray-200 hover:border-marca-500 hover:bg-marca-50'
                   }`}
                 >
                   <div className="text-2xl font-bold text-gray-900">10%</div>
@@ -3334,8 +3334,8 @@ const PuntoVenta = () => {
                   onClick={() => seleccionarPropina(15)}
                   className={`py-4 px-4 rounded-lg border-2 transition-all text-center ${
                     propinaPorcentaje === 15
-                      ? 'border-matcha-500 bg-matcha-50'
-                      : 'border-gray-200 hover:border-matcha-500 hover:bg-matcha-50'
+                      ? 'border-marca-500 bg-marca-50'
+                      : 'border-gray-200 hover:border-marca-500 hover:bg-marca-50'
                   }`}
                 >
                   <div className="text-2xl font-bold text-gray-900">15%</div>
@@ -3347,8 +3347,8 @@ const PuntoVenta = () => {
                   onClick={() => seleccionarPropina(20)}
                   className={`py-4 px-4 rounded-lg border-2 transition-all text-center ${
                     propinaPorcentaje === 20
-                      ? 'border-matcha-500 bg-matcha-50'
-                      : 'border-gray-200 hover:border-matcha-500 hover:bg-matcha-50'
+                      ? 'border-marca-500 bg-marca-50'
+                      : 'border-gray-200 hover:border-marca-500 hover:bg-marca-50'
                   }`}
                 >
                   <div className="text-2xl font-bold text-gray-900">20%</div>
@@ -3372,8 +3372,8 @@ const PuntoVenta = () => {
                       onClick={() => setTipoPropinaPersonalizada('porcentaje')}
                       className={`flex-1 py-2 px-3 rounded-lg border-2 transition-all text-sm ${
                         tipoPropinaPersonalizada === 'porcentaje'
-                          ? 'border-matcha-500 bg-matcha-50 text-matcha-700'
-                          : 'border-gray-200 hover:border-matcha-500'
+                          ? 'border-marca-500 bg-marca-50 text-marca-700'
+                          : 'border-gray-200 hover:border-marca-500'
                       }`}
                     >
                       Porcentaje (%)
@@ -3382,8 +3382,8 @@ const PuntoVenta = () => {
                       onClick={() => setTipoPropinaPersonalizada('monto')}
                       className={`flex-1 py-2 px-3 rounded-lg border-2 transition-all text-sm ${
                         tipoPropinaPersonalizada === 'monto'
-                          ? 'border-matcha-500 bg-matcha-50 text-matcha-700'
-                          : 'border-gray-200 hover:border-matcha-500'
+                          ? 'border-marca-500 bg-marca-50 text-marca-700'
+                          : 'border-gray-200 hover:border-marca-500'
                       }`}
                     >
                       Monto fijo ($)

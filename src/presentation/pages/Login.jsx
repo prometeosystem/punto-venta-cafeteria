@@ -14,9 +14,9 @@ const TOQUES_PARA_REVELAR = 7
 const COLOR_ROL = {
   superadministrador: 'bg-purple-100 text-purple-700',
   administrador: 'bg-blue-100 text-blue-700',
-  vendedor: 'bg-matcha-200 text-matcha-800',
-  cocina: 'bg-orange-100 text-orange-700',
-  mesero: 'bg-amber-100 text-amber-700',
+  vendedor: 'bg-marca-200 text-marca-800',
+  cocina: 'bg-amber-100 text-amber-700',
+  mesero: 'bg-gray-200 text-gray-700',
 }
 
 const ETIQUETA_ROL = {
@@ -36,8 +36,8 @@ const iniciales = (nombre = '') =>
     .join('')
     .toUpperCase() || 'U'
 
-const LIMA = '#a8c258'
-const PINO = '#1c2b1c'
+const ACENTO = 'rgb(var(--acento))'
+const OSCURO = 'rgb(var(--oscuro-800))'
 const display = { fontFamily: '"Bebas Neue", sans-serif' }
 
 const Cintilla = ({ frases, contorno = false, lenta = false }) => {
@@ -59,12 +59,12 @@ const Cintilla = ({ frases, contorno = false, lenta = false }) => {
   const texto = contorno
     ? {
         color: 'transparent',
-        WebkitTextStroke: `0.6px ${LIMA}`,
+        WebkitTextStroke: `0.6px ${ACENTO}`,
       }
-    : { color: PINO }
+    : { color: OSCURO }
 
   return (
-    <div className={`overflow-hidden py-1.5 ${contorno ? 'bg-[#1c2b1c]/55' : 'bg-[#a8c258]/80'}`}>
+    <div className={`overflow-hidden py-1.5 ${contorno ? 'bg-oscuro-800/55' : 'bg-acento/80'}`}>
       <div ref={pistaRef} className={`login-marquee ${lenta ? 'login-marquee-lenta' : ''}`}>
         {[0, 1].map((copia) => (
           <div key={copia} className="flex shrink-0 items-center">
@@ -75,7 +75,7 @@ const Cintilla = ({ frases, contorno = false, lenta = false }) => {
                 style={{ ...display, ...texto }}
               >
                 {frase}
-                <span className="text-[0.55em] opacity-60" style={contorno ? { color: LIMA, WebkitTextStroke: 0 } : undefined}>
+                <span className="text-[0.55em] opacity-60" style={contorno ? { color: ACENTO, WebkitTextStroke: 0 } : undefined}>
                   ●
                 </span>
               </span>
@@ -192,7 +192,7 @@ const Login = () => {
   const restoSegundos = String(segundosBloqueo % 60).padStart(2, '0')
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#1a241c]">
+    <div className="relative min-h-screen overflow-hidden bg-oscuro-800">
       <div className="pointer-events-none absolute inset-x-0 top-6 z-20 opacity-90 sm:top-8">
         <Cintilla frases={marca.cintillaPrincipal} />
       </div>
@@ -209,25 +209,25 @@ const Login = () => {
               alt=""
               className="absolute inset-0 h-full w-full object-cover object-[center_60%]"
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-[#1c2818]/55 via-[#1c2818]/35 to-[#1c2818]/60" />
+            <div className="absolute inset-0 bg-gradient-to-b from-oscuro-800/55 via-oscuro-800/35 to-oscuro-800/60" />
           </>
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-[#2c5342] via-[#1c2b1c] to-[#121a14]" />
+          <div className="absolute inset-0 bg-gradient-to-br from-marca-600 via-oscuro-800 to-oscuro-900" />
         )}
 
         <div className="relative z-10 flex flex-1 flex-col items-center justify-start px-8 pb-6 pt-24 text-center lg:justify-center lg:pb-0 lg:pt-0 lg:-translate-y-10">
           <div onClick={tocarTaza} className="cursor-default">
             <marca.Logo className="w-56 text-white sm:w-72" />
           </div>
-          <p className="mt-8 font-script text-3xl text-[#e7f0c8] sm:text-4xl">{mensaje.saludo}</p>
+          <p className="mt-8 font-script text-3xl text-acento-claro sm:text-4xl">{mensaje.saludo}</p>
           <h1 className="mt-2 max-w-md text-4xl font-semibold leading-[1.05] tracking-tight text-white sm:text-5xl">
             {mensaje.linea}
-            <span className="mt-1 block text-[#a8c258]">{mensaje.acento}</span>
+            <span className="mt-1 block text-acento">{mensaje.acento}</span>
           </h1>
         </div>
       </section>
 
-      <section className="relative flex flex-col overflow-hidden bg-[#1a241c] text-white lg:min-h-screen" style={{ fontFamily: 'Outfit, Inter, sans-serif' }}>
+      <section className="relative flex flex-col overflow-hidden bg-oscuro-800 text-white lg:min-h-screen" style={{ fontFamily: 'Outfit, Inter, sans-serif' }}>
         <div className="relative z-10 flex flex-1 items-start justify-center px-5 pb-4 pt-8 sm:px-10 lg:items-center lg:py-20">
         <div className="w-full max-w-lg">
           {!seleccionado ? (
@@ -248,10 +248,10 @@ const Login = () => {
 
               {cargandoUsuarios ? (
                 <div className="flex justify-center py-16">
-                  <Loader2 className="w-8 h-8 animate-spin text-[#3d6b4f]" />
+                  <Loader2 className="w-8 h-8 animate-spin text-marca-500" />
                 </div>
               ) : visibles.length === 0 ? (
-                <p className="rounded-2xl border border-dashed border-white/30 bg-[#e4efe6] px-5 py-10 text-center text-sm text-[#3d5346]">
+                <p className="rounded-2xl border border-dashed border-white/30 bg-marca-100 px-5 py-10 text-center text-sm text-marca-700">
                   Todavía no hay usuarios con código asignado. Un administrador debe
                   configurarlos desde Empleados.
                 </p>
@@ -267,13 +267,13 @@ const Login = () => {
                         setCodigo('')
                         setError('')
                       }}
-                      className="flex w-full items-center gap-3 rounded-2xl border border-[#c9dccb] bg-[#e4efe6] px-4 py-3 text-left shadow-sm transition-all hover:border-[#a8c258]"
+                      className="flex w-full items-center gap-3 rounded-2xl border border-marca-200 bg-marca-100 px-4 py-3 text-left shadow-sm transition-all hover:border-acento"
                     >
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#2c5342] text-sm font-semibold text-white">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-marca-600 text-sm font-semibold text-white">
                         {iniciales(u.nombre_completo)}
                       </div>
                       <div className="min-w-0">
-                        <span className="block truncate text-sm font-medium leading-tight text-[#1c2b1c]">
+                        <span className="block truncate text-sm font-medium leading-tight text-oscuro-800">
                           {u.nombre_completo}
                         </span>
                         <span
@@ -340,7 +340,7 @@ const Login = () => {
                     type="button"
                     onClick={() => teclear(String(n))}
                     disabled={entrando || bloqueado}
-                    className="h-16 rounded-2xl border border-[#c9dccb] bg-[#e4efe6] text-2xl font-medium text-[#1c2b1c] shadow-sm transition-colors hover:border-[#a8c258] hover:bg-[#d7e6da] disabled:opacity-40"
+                    className="h-16 rounded-2xl border border-marca-200 bg-marca-100 text-2xl font-medium text-oscuro-800 shadow-sm transition-colors hover:border-acento hover:bg-marca-200 disabled:opacity-40"
                   >
                     {n}
                   </button>
@@ -350,7 +350,7 @@ const Login = () => {
                   type="button"
                   onClick={() => teclear('0')}
                   disabled={entrando || bloqueado}
-                  className="h-16 rounded-2xl border border-[#c9dccb] bg-[#e4efe6] text-2xl font-medium text-[#1c2b1c] shadow-sm transition-colors hover:border-[#a8c258] hover:bg-[#d7e6da] disabled:opacity-40"
+                  className="h-16 rounded-2xl border border-marca-200 bg-marca-100 text-2xl font-medium text-oscuro-800 shadow-sm transition-colors hover:border-acento hover:bg-marca-200 disabled:opacity-40"
                 >
                   0
                 </button>
@@ -358,7 +358,7 @@ const Login = () => {
                   type="button"
                   onClick={borrar}
                   disabled={entrando || bloqueado || codigo.length === 0}
-                  className="flex h-16 items-center justify-center rounded-2xl border border-[#c9dccb] bg-[#e4efe6] text-[#2c5342] shadow-sm transition-colors hover:border-[#a8c258] hover:bg-[#d7e6da] disabled:opacity-40"
+                  className="flex h-16 items-center justify-center rounded-2xl border border-marca-200 bg-marca-100 text-marca-600 shadow-sm transition-colors hover:border-acento hover:bg-marca-200 disabled:opacity-40"
                   aria-label="Borrar"
                 >
                   <Delete className="w-6 h-6" />

@@ -42,7 +42,7 @@ const Clientes = () => {
       title: 'Clientes Oro', 
       value: clientes.filter(c => getTier(parseFloat(c.puntos || 0)) === 'Oro').length.toString(), 
       icon: Gift,
-      color: 'bg-yellow-100 text-yellow-600'
+      color: 'bg-amber-100 text-amber-600'
     },
     { 
       title: 'Clientes Plata', 
@@ -54,18 +54,18 @@ const Clientes = () => {
       title: 'Total Puntos', 
       value: clientes.reduce((sum, c) => sum + parseFloat(c.puntos || 0), 0).toFixed(0), 
       icon: Star,
-      color: 'bg-matcha-100 text-matcha-600'
+      color: 'bg-marca-100 text-marca-600'
     },
   ]
 
   const getTierColor = (tier) => {
     switch (tier) {
       case 'Oro':
-        return 'bg-yellow-100 text-yellow-700'
+        return 'bg-amber-100 text-amber-700'
       case 'Plata':
         return 'bg-gray-100 text-gray-700'
       case 'Bronce':
-        return 'bg-coffee-100 text-coffee-700'
+        return 'bg-gray-100 text-gray-700'
       default:
         return 'bg-gray-100 text-gray-700'
     }
@@ -117,7 +117,7 @@ const Clientes = () => {
       {/* Lista de clientes */}
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-matcha-600" />
+          <Loader2 className="w-8 h-8 animate-spin text-marca-600" />
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -136,7 +136,7 @@ const Clientes = () => {
                         {getFullName(client)}
                       </h3>
                       <div className="flex items-center gap-2 mt-2">
-                        <span className="text-sm font-semibold text-matcha-600">
+                        <span className="text-sm font-semibold text-marca-600">
                           {parseFloat(client.puntos || 0).toFixed(0)} puntos
                         </span>
                         <span

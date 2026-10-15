@@ -61,7 +61,7 @@ const CategoriasMovimiento = ({ desplegado = false }) => {
       title: '¿Desactivar?',
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#3d6b4f',
+      confirmButtonColor: 'rgb(var(--marca-500))',
       cancelButtonText: 'Cancelar',
     })
     if (!confirm.isConfirmed) return
@@ -77,7 +77,7 @@ const CategoriasMovimiento = ({ desplegado = false }) => {
         aria-expanded={abierto}
         className="flex w-full items-center gap-3 text-left"
       >
-        <Tags className="w-5 h-5 text-matcha-600 shrink-0" />
+        <Tags className="w-5 h-5 text-marca-600 shrink-0" />
         <h2 className="flex-1 text-lg font-semibold text-gray-900">Categorías de movimiento</h2>
         {abierto ? (
           <ChevronUp className="w-5 h-5 text-gray-500 shrink-0" aria-hidden="true" />
@@ -151,7 +151,7 @@ const CategoriasMovimiento = ({ desplegado = false }) => {
 
               <div className="hidden min-w-0 overflow-x-auto sm:block">
                 <table className="w-full text-sm">
-                  <thead className="bg-coffee-800 text-white">
+                  <thead className="bg-gray-900 text-white">
                     <tr>
                       <th className="p-3 text-left">Nombre</th>
                       <th className="p-3 text-left">Aplica a</th>

@@ -24,7 +24,7 @@ const NOMBRES_METODO = {
 const nombreMetodo = (m) => NOMBRES_METODO[m] || (m ? m.charAt(0).toUpperCase() + m.slice(1) : 'Otro')
 
 const TONOS = {
-  ingreso: 'bg-green-100 text-green-700',
+  ingreso: 'bg-marca-100 text-marca-700',
   egreso: 'bg-red-100 text-red-700',
   neutro: 'bg-gray-100 text-gray-700',
   aviso: 'bg-amber-100 text-amber-700',
@@ -55,7 +55,7 @@ const Seccion = ({ titulo, extra, children, className = '' }) => (
 
 const SinDatos = ({ texto }) => <p className="py-4 text-center text-sm text-gray-400">{texto}</p>
 
-const ListaBarras = ({ items, color = 'bg-matcha-500', vacio = 'Sin datos' }) => {
+const ListaBarras = ({ items, color = 'bg-marca-500', vacio = 'Sin datos' }) => {
   const total = items.reduce((acc, i) => acc + Number(i.total || 0), 0)
   if (items.length === 0 || total <= 0) return <SinDatos texto={vacio} />
   return (
@@ -197,7 +197,7 @@ const Contabilidad = () => {
             icono={Scale}
             etiqueta="Resultado neto"
             valor={formatMoney(data.resultado_neto)}
-            colorValor={data.resultado_neto < 0 ? 'text-red-600' : 'text-green-700'}
+            colorValor={data.resultado_neto < 0 ? 'text-red-600' : 'text-marca-700'}
           />
           <Kpi
             icono={Receipt}
@@ -223,7 +223,7 @@ const Contabilidad = () => {
               <ul className="space-y-3">
                 {usuarios.map((u, i) => (
                   <li key={i} className="flex items-center gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-matcha-50 text-xs font-semibold text-matcha-700">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-marca-50 text-xs font-semibold text-marca-700">
                       {iniciales(u.nombre, u.apellido_paterno)}
                     </span>
                     <div className="min-w-0 flex-1">
@@ -236,7 +236,7 @@ const Contabilidad = () => {
                       <div className="mt-1 flex items-center gap-2">
                         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100">
                           <div
-                            className="h-full rounded-full bg-matcha-500"
+                            className="h-full rounded-full bg-marca-500"
                             style={{ width: `${(Number(u.total || 0) / maxUsuario) * 100}%` }}
                           />
                         </div>
@@ -298,7 +298,7 @@ const Contabilidad = () => {
             valor={formatMoney(data.total_ingresos)}
             tono="ingreso"
             detalle={hayComparacion ? (
-              <span className={`inline-flex items-center gap-0.5 font-medium ${variacion < 0 ? 'text-red-600' : 'text-green-700'}`}>
+              <span className={`inline-flex items-center gap-0.5 font-medium ${variacion < 0 ? 'text-red-600' : 'text-marca-700'}`}>
                 {variacion < 0 ? <ArrowDownRight className="h-3 w-3" /> : <ArrowUpRight className="h-3 w-3" />}
                 {Math.abs(variacion).toFixed(1)}% vs mes anterior
               </span>
@@ -309,7 +309,7 @@ const Contabilidad = () => {
             icono={Scale}
             etiqueta="Resultado neto"
             valor={formatMoney(data.resultado_neto)}
-            colorValor={data.resultado_neto < 0 ? 'text-red-600' : 'text-green-700'}
+            colorValor={data.resultado_neto < 0 ? 'text-red-600' : 'text-marca-700'}
           />
           <Kpi
             icono={Receipt}
@@ -350,11 +350,11 @@ const Contabilidad = () => {
                     tickLine={false}
                   />
                   <Tooltip
-                    cursor={{ fill: '#eef4ef' }}
+                    cursor={{ fill: 'rgb(var(--marca-50))' }}
                     formatter={(v) => [formatMoney(v), 'Ingresos']}
                     labelFormatter={(label) => `Día ${String(label)}`}
                   />
-                  <Bar dataKey="total" fill="#3d6b4f" radius={[4, 4, 0, 0]} minPointSize={4} />
+                  <Bar dataKey="total" fill="rgb(var(--marca-500))" radius={[4, 4, 0, 0]} minPointSize={4} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -377,7 +377,7 @@ const Contabilidad = () => {
                   <li key={i} className="flex items-center gap-3">
                     <span
                       className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                        i < 3 ? 'bg-matcha-500 text-white' : 'bg-gray-100 text-gray-500'
+                        i < 3 ? 'bg-marca-500 text-white' : 'bg-gray-100 text-gray-500'
                       }`}
                     >
                       {i + 1}
@@ -390,7 +390,7 @@ const Contabilidad = () => {
                       <div className="mt-1 flex items-center gap-2">
                         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100">
                           <div
-                            className="h-full rounded-full bg-matcha-400"
+                            className="h-full rounded-full bg-marca-400"
                             style={{ width: `${(Number(p.cantidad || 0) / maxProducto) * 100}%` }}
                           />
                         </div>
@@ -425,7 +425,7 @@ const Contabilidad = () => {
             icono={Scale}
             etiqueta="Utilidad bruta"
             valor={formatMoney(utilidad)}
-            colorValor={utilidad < 0 ? 'text-red-600' : 'text-green-700'}
+            colorValor={utilidad < 0 ? 'text-red-600' : 'text-marca-700'}
           />
           <Kpi icono={Percent} etiqueta="Margen bruto" valor={`${margen.toFixed(1)}%`} />
         </div>
@@ -433,7 +433,7 @@ const Contabilidad = () => {
         <Seccion titulo="De cada peso vendido">
           <div className="flex h-4 overflow-hidden rounded-full bg-gray-100">
             <div className="h-full bg-red-400" style={{ width: `${100 - margenBarra}%` }} />
-            <div className="h-full bg-matcha-500" style={{ width: `${margenBarra}%` }} />
+            <div className="h-full bg-marca-500" style={{ width: `${margenBarra}%` }} />
           </div>
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-600">
             <span className="flex items-center gap-1.5">
@@ -441,7 +441,7 @@ const Contabilidad = () => {
               Costo de insumos {(100 - margenBarra).toFixed(1)}%
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-matcha-500" />
+              <span className="h-2.5 w-2.5 rounded-full bg-marca-500" />
               Margen {margenBarra.toFixed(1)}%
             </span>
           </div>
@@ -545,7 +545,7 @@ const Contabilidad = () => {
               onClick={() => exportar('excel')}
               className="flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
-              <FileSpreadsheet className="h-4 w-4 text-green-600" /> Excel
+              <FileSpreadsheet className="h-4 w-4 text-marca-600" /> Excel
             </button>
           </div>
         </div>
@@ -599,7 +599,7 @@ const Contabilidad = () => {
 
       {loading && (
         <div className="flex justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-matcha-600" />
+          <Loader2 className="h-8 w-8 animate-spin text-marca-600" />
         </div>
       )}
 

@@ -163,13 +163,13 @@ const Bitacora = () => {
   const obtenerColorTipo = (tipo) => {
     switch (tipo?.toLowerCase()) {
       case 'login':
-        return 'bg-green-100 text-green-700 border-green-300'
+        return 'bg-marca-100 text-marca-700 border-marca-300'
       case 'logout':
         return 'bg-gray-100 text-gray-700 border-gray-300'
       case 'create':
         return 'bg-blue-100 text-blue-700 border-blue-300'
       case 'update':
-        return 'bg-yellow-100 text-yellow-700 border-yellow-300'
+        return 'bg-amber-100 text-amber-700 border-amber-300'
       case 'delete':
         return 'bg-red-100 text-red-700 border-red-300'
       case 'read':
@@ -218,7 +218,7 @@ const Bitacora = () => {
           <button
             onClick={() => setSeccion('movimientos')}
             className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium leading-tight transition-colors sm:px-4 ${
-              seccion === 'movimientos' ? 'bg-matcha-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              seccion === 'movimientos' ? 'bg-marca-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
             <FileText className="w-4 h-4 shrink-0" />
@@ -228,7 +228,7 @@ const Bitacora = () => {
           <button
             onClick={() => setSeccion('historial-caja')}
             className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium leading-tight transition-colors sm:px-4 ${
-              seccion === 'historial-caja' ? 'bg-matcha-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              seccion === 'historial-caja' ? 'bg-marca-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
             <History className="w-4 h-4 shrink-0" />
@@ -248,7 +248,7 @@ const Bitacora = () => {
             className="w-full flex items-center justify-between p-1 rounded-lg transition-colors sm:p-2"
           >
             <div className="flex items-center gap-2">
-              <Filter className="w-5 h-5 text-matcha-600" />
+              <Filter className="w-5 h-5 text-marca-600" />
               <span className="font-semibold text-gray-900">Filtros de Búsqueda</span>
             </div>
             {mostrarFiltros ? (
@@ -357,13 +357,13 @@ const Bitacora = () => {
               <p className="text-sm text-gray-600">Total: {total} registros</p>
             </div>
             {loading && (
-              <Loader2 className="w-5 h-5 animate-spin text-matcha-600" />
+              <Loader2 className="w-5 h-5 animate-spin text-marca-600" />
             )}
           </div>
 
           {loading && registros.length === 0 ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-matcha-600" />
+              <Loader2 className="w-8 h-8 animate-spin text-marca-600" />
             </div>
           ) : registros.length === 0 ? (
             <div className="text-center py-12 text-gray-400">
@@ -421,7 +421,7 @@ const Bitacora = () => {
                         {hayDetalles && (
                           <button
                             onClick={() => setRegistroExpandido(expandido ? null : registro.id_bitacora)}
-                            className="text-sm text-matcha-600 hover:text-matcha-700 flex items-center gap-1"
+                            className="text-sm text-marca-600 hover:text-marca-700 flex items-center gap-1"
                           >
                             {expandido ? (
                               <>

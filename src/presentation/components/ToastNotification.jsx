@@ -101,30 +101,30 @@ const ToastNotification = ({ notification, onClose, onNavigate, duration = 5000,
 
   const getIcon = () => {
     if (notification.icono === 'package') {
-      return <Package className={`w-5 h-5 ${notification.tipo === 'comanda' ? 'text-matcha-600' : 'text-gray-600'}`} />
+      return <Package className={`w-5 h-5 ${notification.tipo === 'comanda' ? 'text-marca-600' : 'text-gray-600'}`} />
     } else if (notification.icono === 'alert-triangle') {
-      return <AlertTriangle className={`w-5 h-5 ${notification.tipo === 'inventario' ? (notification.estado === 'critical' ? 'text-red-600' : 'text-yellow-600') : 'text-gray-600'}`} />
+      return <AlertTriangle className={`w-5 h-5 ${notification.tipo === 'inventario' ? (notification.estado === 'critical' ? 'text-red-600' : 'text-amber-600') : 'text-gray-600'}`} />
     } else if (notification.icono === 'dollar-sign') {
       return <DollarSign className="w-5 h-5 text-amber-600" />
     } else if (notification.icono === 'check') {
-      return <CheckCircle className="w-5 h-5 text-emerald-600" />
+      return <CheckCircle className="w-5 h-5 text-marca-600" />
     } else if (notification.icono === 'cake') {
-      return <Cake className="w-5 h-5 text-matcha-600" />
+      return <Cake className="w-5 h-5 text-marca-600" />
     }
-    return <Bell className={`w-5 h-5 ${notification.tipo === 'comanda' ? 'text-matcha-600' : 'text-gray-600'}`} />
+    return <Bell className={`w-5 h-5 ${notification.tipo === 'comanda' ? 'text-marca-600' : 'text-gray-600'}`} />
   }
 
   const getBackgroundColor = () => {
     if (notification.tipo === 'comanda') {
-      return 'bg-white border-matcha-200'
+      return 'bg-white border-marca-200'
     } else if (notification.tipo === 'inventario') {
-      return notification.estado === 'critical' ? 'bg-white border-red-200' : 'bg-white border-yellow-200'
+      return notification.estado === 'critical' ? 'bg-white border-red-200' : 'bg-white border-amber-200'
     } else if (notification.tipo === 'comanda-lista-cobrar') {
       return 'bg-white border-amber-200'
     } else if (notification.tipo === 'comanda-terminada') {
-      return 'bg-white border-emerald-200'
+      return 'bg-white border-marca-200'
     } else if (notification.tipo === 'aviso') {
-      return 'bg-white border-matcha-200'
+      return 'bg-white border-marca-200'
     }
     return 'bg-white border-gray-200'
   }
@@ -145,10 +145,10 @@ const ToastNotification = ({ notification, onClose, onNavigate, duration = 5000,
         <div className="flex items-start gap-3">
           {/* Icono */}
           <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${
-            notification.tipo === 'comanda' ? 'bg-matcha-100' : 
-            notification.tipo === 'inventario' ? (notification.estado === 'critical' ? 'bg-red-100' : 'bg-yellow-100') :
+            notification.tipo === 'comanda' ? 'bg-marca-100' : 
+            notification.tipo === 'inventario' ? (notification.estado === 'critical' ? 'bg-red-100' : 'bg-amber-100') :
             notification.tipo === 'comanda-lista-cobrar' ? 'bg-amber-100' :
-            notification.tipo === 'comanda-terminada' ? 'bg-emerald-100' :
+            notification.tipo === 'comanda-terminada' ? 'bg-marca-100' :
             'bg-gray-100'
           }`}>
             {getIcon()}
@@ -185,7 +185,7 @@ const ToastNotification = ({ notification, onClose, onNavigate, duration = 5000,
       {/* Barra de progreso verde */}
       <div className="h-1 bg-gray-100 rounded-b-lg overflow-hidden">
         <div
-          className="h-full bg-green-500 transition-all duration-75 ease-linear"
+          className="h-full bg-marca-500 transition-all duration-75 ease-linear"
           style={{ width: `${progress}%` }}
         />
       </div>

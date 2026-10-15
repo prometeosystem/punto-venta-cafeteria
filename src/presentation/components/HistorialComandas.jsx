@@ -47,7 +47,7 @@ const ComandaEntregada = ({ comanda }) => {
           {pagoConocido && (
             <span
               className={`text-[10px] font-bold tracking-wide uppercase leading-none ${
-                sinPagar ? 'text-red-700' : 'text-matcha-700'
+                sinPagar ? 'text-red-700' : 'text-marca-700'
               }`}
             >
               {sinPagar ? 'Sin pagar' : 'Pagado'}
@@ -74,7 +74,7 @@ const ComandaEntregada = ({ comanda }) => {
       </ul>
 
       {comentarios && (
-        <p className="mt-1.5 ml-[2.625rem] px-2 py-1 bg-yellow-50 border border-yellow-200 rounded text-[11px] text-yellow-800 italic">
+        <p className="mt-1.5 ml-[2.625rem] px-2 py-1 bg-amber-50 border border-amber-200 rounded text-[11px] text-amber-800 italic">
           {comentarios}
         </p>
       )}

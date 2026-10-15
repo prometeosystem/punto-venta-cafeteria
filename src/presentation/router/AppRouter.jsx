@@ -25,7 +25,7 @@ const MiPerfil = lazy(() => import('../pages/MiPerfil'))
 
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-[200px]">
-    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-matcha-500" />
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-marca-500" />
   </div>
 )
 

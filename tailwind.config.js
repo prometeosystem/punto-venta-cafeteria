@@ -1,17 +1,10 @@
-// Verde de la marca, derivado del pino del login y el sidebar. green y emerald
-// apuntan a la misma escala para que no se cuele el verde brillante de Tailwind.
-const verde = {
-  50: '#eef4ef',
-  100: '#e4efe6',
-  200: '#c9dccb',
-  300: '#a3c4ab',
-  400: '#6f9a7b',
-  500: '#3d6b4f',
-  600: '#2c5342',
-  700: '#24463a',
-  800: '#1d3a2f',
-  900: '#16291f',
-}
+import colors from 'tailwindcss/colors'
+
+// Los tonos de la marca salen de variables CSS (src/marcas/<marca>/paleta.css),
+// así cada marca pinta la app con su paleta sin tocar las clases.
+const variable = (nombre) => `rgb(var(--${nombre}) / <alpha-value>)`
+const escala = (nombre, tonos) =>
+  Object.fromEntries(tonos.map((t) => [t, variable(`${nombre}-${t}`)]))
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -20,30 +13,27 @@ export default {
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
-    extend: {
-      colors: {
-        matcha: verde,
-        green: verde,
-        emerald: verde,
-        coffee: {
-          50: '#f5f0e8',
-          100: '#e8ddd0',
-          200: '#d4c4a8',
-          300: '#b89a7a',
-          400: '#8b6f47', // Café principal
-          500: '#8b6f47',
-          600: '#6d5638',
-          700: '#4f3f29',
-          800: '#2d2318', // Café oscuro
-          900: '#1a150d',
-        },
-        // Verde oscuro del login, usado en el sidebar
-        pino: {
-          700: '#2a3a2d',
-          800: '#1a241c',
-          900: '#121a14',
-        },
+    // Paleta cerrada: lo que no está aquí no genera clases, para que no se
+    // vuelvan a colar tonos casi iguales (slate junto a gray, yellow junto a amber).
+    colors: {
+      transparent: 'transparent',
+      current: 'currentColor',
+      white: colors.white,
+      black: colors.black,
+      gray: colors.gray,
+      red: colors.red,
+      amber: colors.amber,
+      blue: colors.blue,
+      purple: colors.purple,
+      marca: escala('marca', [50, 100, 200, 300, 400, 500, 600, 700, 800, 900]),
+      // Fondo del sidebar y del login
+      oscuro: escala('oscuro', [700, 800, 900]),
+      acento: {
+        DEFAULT: variable('acento'),
+        claro: variable('acento-claro'),
       },
+    },
+    extend: {
       // Esquinas más rectas que la escala por defecto de Tailwind
       borderRadius: {
         DEFAULT: '0.1875rem',
@@ -61,5 +51,3 @@ export default {
   },
   plugins: [],
 }
-
-

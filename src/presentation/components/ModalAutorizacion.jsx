@@ -64,7 +64,7 @@ const ModalAutorizacion = ({
 
   const colorAccion = peligro
     ? 'bg-red-600 hover:bg-red-700'
-    : 'bg-emerald-600 hover:bg-emerald-700'
+    : 'bg-marca-600 hover:bg-marca-700'
 
   return (
     <div
@@ -80,7 +80,7 @@ const ModalAutorizacion = ({
             {peligro ? (
               <AlertTriangle className="w-5 h-5 text-red-600" />
             ) : (
-              <ShieldCheck className="w-5 h-5 text-emerald-600" />
+              <ShieldCheck className="w-5 h-5 text-marca-600" />
             )}
             <h2 className="text-xl font-bold text-gray-900">{titulo}</h2>
           </div>

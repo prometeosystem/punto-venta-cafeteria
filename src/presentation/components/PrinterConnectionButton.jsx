@@ -26,7 +26,7 @@ const PrinterConnectionButton = ({ printer, className = '', iconOnly = false }) 
         icon: 'warning',
         title: 'Bluetooth no disponible',
         text: 'Usa Chrome o Edge en HTTPS o localhost para conectar la impresora.',
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
       return
     }
@@ -43,7 +43,7 @@ const PrinterConnectionButton = ({ printer, className = '', iconOnly = false }) 
         confirmButtonText: 'Probar impresión',
         denyButtonText: 'Desconectar',
         cancelButtonText: 'Cerrar',
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
         denyButtonColor: '#ef4444',
       })
       if (result.isConfirmed) {
@@ -60,7 +60,7 @@ const PrinterConnectionButton = ({ printer, className = '', iconOnly = false }) 
             icon: 'error',
             title: 'Error al imprimir',
             text: err.message || 'No se pudo enviar la prueba',
-            confirmButtonColor: '#3d6b4f',
+            confirmButtonColor: 'rgb(var(--marca-500))',
           })
         }
       } else if (result.isDenied) {
@@ -75,7 +75,7 @@ const PrinterConnectionButton = ({ printer, className = '', iconOnly = false }) 
         icon: 'error',
         title: 'No se conectó',
         text: error || 'Enciende la impresora, acércala y vuelve a intentar.',
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
     } else {
       await Swal.fire({
@@ -93,7 +93,7 @@ const PrinterConnectionButton = ({ printer, className = '', iconOnly = false }) 
   // Sin conexión siempre en rojo: imprimir es parte del cobro y enterarse
   // hasta que falla el ticket es demasiado tarde.
   const classes = isConnected
-    ? `${base} bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100`
+    ? `${base} bg-marca-50 text-marca-700 border-marca-200 hover:bg-marca-100`
     : `${base} bg-red-50 text-red-700 border-red-200 hover:bg-red-100`
 
   const label = isConnecting
@@ -105,7 +105,7 @@ const PrinterConnectionButton = ({ printer, className = '', iconOnly = false }) 
         : ''
 
   if (iconOnly) {
-    const colorEstado = isConnected ? 'text-emerald-400' : 'text-red-400'
+    const colorEstado = isConnected ? 'text-marca-400' : 'text-red-400'
 
     return (
       <button

@@ -17,7 +17,7 @@ const NOMBRE_ROL = {
 const DATOS_VACIOS = { nombre: '', apellido_paterno: '', apellido_materno: '', correo: '', celular: '' }
 
 const aviso = (icon, title, text) =>
-  Swal.fire({ icon, title, text, confirmButtonColor: '#3d6b4f', timer: icon === 'success' ? 1500 : undefined, showConfirmButton: icon !== 'success' })
+  Swal.fire({ icon, title, text, confirmButtonColor: 'rgb(var(--marca-500))', timer: icon === 'success' ? 1500 : undefined, showConfirmButton: icon !== 'success' })
 
 const MiPerfil = () => {
   const { usuario, actualizarPerfil, cambiarCodigo, logout } = useAuth()

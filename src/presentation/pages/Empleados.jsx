@@ -63,7 +63,7 @@ const Empleados = () => {
       showCancelButton: true,
       confirmButtonText: 'Restablecer',
       cancelButtonText: 'Cancelar',
-      confirmButtonColor: '#3d6b4f',
+      confirmButtonColor: 'rgb(var(--marca-500))',
     })
 
     if (!isConfirmed) return
@@ -74,14 +74,14 @@ const Empleados = () => {
         icon: 'success',
         title: `Código: ${CODIGO_DEFAULT}`,
         text: 'Se le pedirá cambiarlo al iniciar sesión',
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
     } catch (err) {
       await Swal.fire({
         icon: 'error',
         title: 'No se pudo guardar',
         text: err?.detail || err?.message || 'Intenta de nuevo',
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
     }
   }
@@ -108,28 +108,28 @@ const Empleados = () => {
           value: estadisticas.total_empleados?.toString() || '0', 
           subtitle: 'Empleados activos', 
           icon: Users,
-          color: 'bg-blue-100 text-blue-600'
+          color: 'bg-gray-100 text-gray-600'
         },
         { 
           title: 'Vendedores', 
           value: estadisticas.vendedores?.toString() || '0', 
           subtitle: 'Activos', 
           icon: Users,
-          color: 'bg-green-100 text-green-600'
+          color: 'bg-marca-100 text-marca-600'
         },
         { 
           title: 'Cocina', 
           value: estadisticas.cocina?.toString() || '0', 
           subtitle: 'Empleados', 
           icon: Users,
-          color: 'bg-orange-100 text-orange-600'
+          color: 'bg-amber-100 text-amber-600'
         },
         { 
           title: 'Administradores', 
           value: estadisticas.administradores?.toString() || '0', 
           subtitle: 'Empleados', 
           icon: Users,
-          color: 'bg-purple-100 text-purple-600'
+          color: 'bg-blue-100 text-blue-600'
         },
       ]
     : [
@@ -139,28 +139,28 @@ const Empleados = () => {
           value: usuarios.filter(u => u.activo === 1).length.toString(), 
           subtitle: 'Empleados activos', 
           icon: Users,
-          color: 'bg-blue-100 text-blue-600'
+          color: 'bg-gray-100 text-gray-600'
         },
         { 
           title: 'Vendedores', 
           value: usuarios.filter(u => u.activo === 1 && u.rol === 'vendedor').length.toString(), 
           subtitle: 'Activos', 
           icon: Users,
-          color: 'bg-green-100 text-green-600'
+          color: 'bg-marca-100 text-marca-600'
         },
         { 
           title: 'Cocina', 
           value: usuarios.filter(u => u.activo === 1 && u.rol === 'cocina').length.toString(), 
           subtitle: 'Empleados', 
           icon: Users,
-          color: 'bg-orange-100 text-orange-600'
+          color: 'bg-amber-100 text-amber-600'
         },
         { 
           title: 'Administradores', 
           value: usuarios.filter(u => u.activo === 1 && (u.rol === 'administrador' || u.rol === 'superadministrador')).length.toString(), 
           subtitle: 'Empleados', 
           icon: Users,
-          color: 'bg-purple-100 text-purple-600'
+          color: 'bg-blue-100 text-blue-600'
         },
       ]
 
@@ -173,15 +173,15 @@ const Empleados = () => {
   const getRolColor = (rol) => {
     switch (rol) {
       case 'vendedor':
-        return 'bg-green-100 text-green-700'
+        return 'bg-marca-100 text-marca-700'
       case 'cocina':
-        return 'bg-orange-100 text-orange-700'
-      case 'mesero':
         return 'bg-amber-100 text-amber-700'
+      case 'mesero':
+        return 'bg-gray-200 text-gray-700'
       case 'administrador':
-        return 'bg-purple-100 text-purple-700'
-      case 'superadministrador':
         return 'bg-blue-100 text-blue-700'
+      case 'superadministrador':
+        return 'bg-purple-100 text-purple-700'
       default:
         return 'bg-gray-100 text-gray-700'
     }
@@ -253,7 +253,7 @@ const Empleados = () => {
           icon: 'error',
           title: 'Error de validación',
           text: 'El nombre es requerido',
-          confirmButtonColor: '#3d6b4f',
+          confirmButtonColor: 'rgb(var(--marca-500))',
         })
         setGuardando(false)
         return
@@ -266,7 +266,7 @@ const Empleados = () => {
           icon: 'error',
           title: 'Error de validación',
           text: 'El formato del correo no es válido',
-          confirmButtonColor: '#3d6b4f',
+          confirmButtonColor: 'rgb(var(--marca-500))',
         })
         setGuardando(false)
         return
@@ -282,7 +282,7 @@ const Empleados = () => {
             icon: 'error',
             title: 'Error de validación',
             text: problema,
-            confirmButtonColor: '#3d6b4f',
+            confirmButtonColor: 'rgb(var(--marca-500))',
           })
           setGuardando(false)
           return
@@ -304,7 +304,7 @@ const Empleados = () => {
           icon: 'error',
           title: 'Error de validación',
           text: 'Indica el día y el mes, o deja ambos vacíos',
-          confirmButtonColor: '#3d6b4f',
+          confirmButtonColor: 'rgb(var(--marca-500))',
         })
         setGuardando(false)
         return
@@ -334,7 +334,7 @@ const Empleados = () => {
           icon: 'success',
           title: '¡Empleado actualizado!',
           text: 'El empleado se ha actualizado correctamente',
-          confirmButtonColor: '#3d6b4f',
+          confirmButtonColor: 'rgb(var(--marca-500))',
           timer: 2000,
         })
       } else {
@@ -344,7 +344,7 @@ const Empleados = () => {
           icon: 'success',
           title: '¡Empleado creado!',
           text: 'El empleado se ha creado correctamente',
-          confirmButtonColor: '#3d6b4f',
+          confirmButtonColor: 'rgb(var(--marca-500))',
           timer: 2000,
         })
       }
@@ -404,7 +404,7 @@ const Empleados = () => {
         icon: 'error',
         title: 'Error al guardar empleado',
         text: errorMsg,
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
         width: '500px',
       })
     } finally {
@@ -421,7 +421,7 @@ const Empleados = () => {
       showCancelButton: true,
       confirmButtonText: 'Sí, desactivar',
       cancelButtonText: 'Cancelar',
-      confirmButtonColor: '#3d6b4f',
+      confirmButtonColor: 'rgb(var(--marca-500))',
       cancelButtonColor: '#6b7280',
     })
 
@@ -432,7 +432,7 @@ const Empleados = () => {
           icon: 'success',
           title: '¡Empleado desactivado!',
           text: 'El empleado se ha desactivado correctamente',
-          confirmButtonColor: '#3d6b4f',
+          confirmButtonColor: 'rgb(var(--marca-500))',
           timer: 2000,
         })
         await obtenerUsuarios()
@@ -487,7 +487,7 @@ const Empleados = () => {
           icon: 'error',
           title: 'Error',
           text: errorMsg,
-          confirmButtonColor: '#3d6b4f',
+          confirmButtonColor: 'rgb(var(--marca-500))',
           width: '500px',
         })
       }
@@ -543,7 +543,7 @@ const Empleados = () => {
       {/* Lista de empleados */}
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-matcha-600" />
+          <Loader2 className="w-8 h-8 animate-spin text-marca-600" />
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -557,7 +557,7 @@ const Empleados = () => {
               return (
                 <div key={employee.id_usuario} className="card hover:shadow-md transition-shadow">
                   <div className="flex items-start gap-4 mb-4">
-                    <div className="w-12 h-12 bg-matcha-500 rounded-full flex items-center justify-center">
+                    <div className="w-12 h-12 bg-marca-500 rounded-full flex items-center justify-center">
                       <span className="text-white font-semibold text-lg">
                         {initials}
                       </span>
@@ -823,7 +823,7 @@ const Empleados = () => {
                           type="checkbox"
                           checked={formData.activo}
                           onChange={(e) => setFormData({ ...formData, activo: e.target.checked })}
-                          className="w-4 h-4 text-matcha-600 rounded focus:ring-matcha-500"
+                          className="w-4 h-4 text-marca-600 rounded focus:ring-marca-500"
                         />
                         <span className="text-sm text-gray-700">Activo</span>
                       </label>
@@ -892,7 +892,7 @@ const Empleados = () => {
             {/* Contenido */}
             <div className="p-6">
               <div className="flex items-center gap-4 mb-6">
-                <div className="w-16 h-16 bg-matcha-500 rounded-full flex items-center justify-center">
+                <div className="w-16 h-16 bg-marca-500 rounded-full flex items-center justify-center">
                   <span className="text-white font-semibold text-2xl">
                     {`${empleadoSeleccionado.nombre?.charAt(0) || ''}${empleadoSeleccionado.apellido_paterno?.charAt(0) || ''}`.toUpperCase() || 'U'}
                   </span>

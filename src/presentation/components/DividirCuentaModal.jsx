@@ -6,14 +6,12 @@ import { repartirProporcional } from '../utils/cuentaTicket'
 const OPCIONES_PERSONAS = [2, 3, 4, 5, 6]
 const MAX_PERSONAS = 20
 
-// Clases completas para que Tailwind las incluya; se repiten a partir de la 7.ª persona.
+// Clases completas para que Tailwind las incluya; se repiten a partir de la 5.ª persona.
 const COLORES = [
-  { solido: 'bg-sky-500 border-sky-500', suave: 'bg-sky-50 border-sky-500', texto: 'text-sky-700' },
+  { solido: 'bg-blue-500 border-blue-500', suave: 'bg-blue-50 border-blue-500', texto: 'text-blue-700' },
   { solido: 'bg-amber-500 border-amber-500', suave: 'bg-amber-50 border-amber-500', texto: 'text-amber-700' },
-  { solido: 'bg-violet-500 border-violet-500', suave: 'bg-violet-50 border-violet-500', texto: 'text-violet-700' },
-  { solido: 'bg-rose-500 border-rose-500', suave: 'bg-rose-50 border-rose-500', texto: 'text-rose-700' },
-  { solido: 'bg-teal-500 border-teal-500', suave: 'bg-teal-50 border-teal-500', texto: 'text-teal-700' },
-  { solido: 'bg-orange-500 border-orange-500', suave: 'bg-orange-50 border-orange-500', texto: 'text-orange-700' },
+  { solido: 'bg-purple-500 border-purple-500', suave: 'bg-purple-50 border-purple-500', texto: 'text-purple-700' },
+  { solido: 'bg-red-500 border-red-500', suave: 'bg-red-50 border-red-500', texto: 'text-red-700' },
 ]
 const colorDe = (persona) => COLORES[persona % COLORES.length]
 
@@ -145,7 +143,7 @@ const DividirCuentaModal = ({ cuenta, onImprimir, onClose }) => {
                   }}
                   className={`w-12 h-12 rounded-lg border-2 text-lg font-semibold transition-colors ${
                     personas === n && !otraCantidad
-                      ? 'border-matcha-500 bg-matcha-50 text-matcha-700'
+                      ? 'border-marca-500 bg-marca-50 text-marca-700'
                       : 'border-gray-200 text-gray-700 hover:border-gray-300'
                   }`}
                 >
@@ -165,7 +163,7 @@ const DividirCuentaModal = ({ cuenta, onImprimir, onClose }) => {
                   if (n >= 2 && n <= MAX_PERSONAS) cambiarPersonas(n)
                 }}
                 className={`w-20 h-12 px-2 rounded-lg border-2 text-center text-lg font-semibold focus:outline-none ${
-                  esOtra || otraCantidad ? 'border-matcha-500 bg-matcha-50 text-matcha-700' : 'border-gray-200'
+                  esOtra || otraCantidad ? 'border-marca-500 bg-marca-50 text-marca-700' : 'border-gray-200'
                 }`}
               />
             </div>

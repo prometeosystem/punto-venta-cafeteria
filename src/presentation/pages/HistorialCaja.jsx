@@ -5,14 +5,14 @@ import { Loader2 } from 'lucide-react'
 const formatMoney = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n || 0)
 
 const colorDiferencia = (diferencia) =>
-  diferencia < 0 ? 'text-red-600' : diferencia > 0 ? 'text-green-600' : 'text-gray-900'
+  diferencia < 0 ? 'text-red-600' : diferencia > 0 ? 'text-marca-600' : 'text-gray-900'
 
 const hayDiferencia = (s) => s.diferencia && Math.abs(s.diferencia) > 0
 
 const EstadoSesion = ({ estado }) => (
   <span
     className={`px-2 py-1 rounded text-xs ${
-      estado === 'abierta' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'
+      estado === 'abierta' ? 'bg-marca-100 text-marca-800' : 'bg-gray-100 text-gray-700'
     }`}
   >
     {estado}
@@ -68,7 +68,7 @@ const HistorialCaja = ({ embedded = false }) => {
 
       {loading ? (
         <div className="flex justify-center py-10">
-          <Loader2 className="w-8 h-8 animate-spin text-matcha-500" />
+          <Loader2 className="w-8 h-8 animate-spin text-marca-500" />
         </div>
       ) : sesiones.length === 0 ? (
         <div className="card text-center text-gray-400">No hay sesiones de caja en este periodo</div>

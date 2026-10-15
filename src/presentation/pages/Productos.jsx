@@ -108,7 +108,7 @@ const Productos = () => {
         icon: 'warning',
         title: 'El producto se guardó, pero sus opciones no',
         text: error?.response?.data?.detail || 'Vuelve a abrir el producto e inténtalo de nuevo.',
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
     }
   }
@@ -302,7 +302,7 @@ const Productos = () => {
           icon: 'error',
           title: 'Error de validación',
           text: 'El precio debe ser un número válido mayor o igual a 0',
-          confirmButtonColor: '#3d6b4f',
+          confirmButtonColor: 'rgb(var(--marca-500))',
         })
         setGuardando(false)
         return
@@ -401,7 +401,7 @@ const Productos = () => {
           icon: 'success',
           title: '¡Producto actualizado!',
           text: 'El producto se ha actualizado correctamente',
-          confirmButtonColor: '#3d6b4f',
+          confirmButtonColor: 'rgb(var(--marca-500))',
           timer: 2000,
         })
       } else {
@@ -414,7 +414,7 @@ const Productos = () => {
           icon: 'success',
           title: '¡Producto creado!',
           text: 'El producto se ha creado correctamente',
-          confirmButtonColor: '#3d6b4f',
+          confirmButtonColor: 'rgb(var(--marca-500))',
           timer: 2000,
         })
       }
@@ -437,7 +437,7 @@ const Productos = () => {
         icon: 'error',
         title: 'Error',
         text: errorMsg,
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
     } finally {
       setGuardando(false)
@@ -496,7 +496,7 @@ const Productos = () => {
         icon: 'error',
         title: 'Error',
         text: 'La cantidad necesaria debe ser mayor a 0',
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
       return
     }
@@ -506,7 +506,7 @@ const Productos = () => {
         icon: 'error',
         title: 'Error',
         text: 'Debes seleccionar un insumo',
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
       return
     }
@@ -518,7 +518,7 @@ const Productos = () => {
           icon: 'error',
           title: 'Error',
           text: 'Debes completar el nombre del nuevo insumo',
-          confirmButtonColor: '#3d6b4f',
+          confirmButtonColor: 'rgb(var(--marca-500))',
         })
         return
       }
@@ -530,7 +530,7 @@ const Productos = () => {
         icon: 'error',
         title: 'Error',
         text: 'Debes seleccionar una unidad de medida',
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
       return
     }
@@ -589,7 +589,7 @@ const Productos = () => {
       text: 'Este producto se desactivará y no aparecerá en el punto de venta',
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#3d6b4f',
+      confirmButtonColor: 'rgb(var(--marca-500))',
       cancelButtonColor: '#6b7280',
       confirmButtonText: 'Sí, desactivar',
       cancelButtonText: 'Cancelar',
@@ -603,7 +603,7 @@ const Productos = () => {
           icon: 'success',
           title: 'Producto desactivado',
           text: 'El producto ha sido desactivado correctamente',
-          confirmButtonColor: '#3d6b4f',
+          confirmButtonColor: 'rgb(var(--marca-500))',
           timer: 2000,
         })
       } catch (error) {
@@ -612,7 +612,7 @@ const Productos = () => {
           icon: 'error',
           title: 'Error',
           text: errorMsg,
-          confirmButtonColor: '#3d6b4f',
+          confirmButtonColor: 'rgb(var(--marca-500))',
         })
       }
     }
@@ -633,8 +633,8 @@ const Productos = () => {
                 onClick={() => setFiltroLista(item.id === 'todos' || activo ? 'todos' : item.id)}
                 className={`rounded-lg border px-3 py-2 text-left transition-colors ${
                   activo
-                    ? 'border-matcha-500 bg-matcha-50'
-                    : 'border-gray-200 bg-white hover:border-matcha-300'
+                    ? 'border-marca-500 bg-marca-50'
+                    : 'border-gray-200 bg-white hover:border-marca-300'
                 }`}
               >
                 <span className="block text-lg font-semibold text-gray-900 tabular-nums leading-none">
@@ -679,7 +679,7 @@ const Productos = () => {
       <div className="card overflow-x-auto">
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-matcha-600" />
+            <Loader2 className="w-8 h-8 animate-spin text-marca-600" />
           </div>
         ) : (
           <table className="w-full">
@@ -728,7 +728,7 @@ const Productos = () => {
                       </span>
                     </td>
                     <td className="py-3 px-4">
-                      <span className="font-semibold text-matcha-600">
+                      <span className="font-semibold text-marca-600">
                         ${parseFloat(product.precio).toFixed(2)}
                       </span>
                     </td>
@@ -736,7 +736,7 @@ const Productos = () => {
                       <span
                         className={`px-2 py-1 rounded-full text-xs font-medium ${
                           product.activo
-                            ? 'bg-green-100 text-green-700'
+                            ? 'bg-marca-100 text-marca-700'
                             : 'bg-gray-100 text-gray-700'
                         }`}
                       >
@@ -893,7 +893,7 @@ const Productos = () => {
                           onClick={() => setFormData({ ...formData, area: id })}
                           className={`py-2 rounded-lg border-2 text-sm font-medium transition-colors ${
                             formData.area === id
-                              ? 'border-matcha-500 bg-matcha-50 text-matcha-700'
+                              ? 'border-marca-500 bg-marca-50 text-marca-700'
                               : 'border-gray-200 text-gray-600 hover:border-gray-300'
                           }`}
                         >
@@ -936,7 +936,7 @@ const Productos = () => {
                             name="estado"
                             checked={formData.activo === true}
                             onChange={() => setFormData({ ...formData, activo: true })}
-                            className="w-4 h-4 text-matcha-600"
+                            className="w-4 h-4 text-marca-600"
                           />
                           <span className="text-sm text-gray-700">Activo</span>
                         </label>
@@ -946,7 +946,7 @@ const Productos = () => {
                             name="estado"
                             checked={formData.activo === false}
                             onChange={() => setFormData({ ...formData, activo: false })}
-                            className="w-4 h-4 text-matcha-600"
+                            className="w-4 h-4 text-marca-600"
                           />
                           <span className="text-sm text-gray-700">Inactivo</span>
                         </label>
@@ -976,7 +976,7 @@ const Productos = () => {
                               key={grupo.id_grupo}
                               className={`flex items-start gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${
                                 marcado
-                                  ? 'border-matcha-400 bg-matcha-50'
+                                  ? 'border-marca-400 bg-marca-50'
                                   : 'border-gray-200 hover:bg-gray-50'
                               }`}
                             >
@@ -984,7 +984,7 @@ const Productos = () => {
                                 type="checkbox"
                                 checked={marcado}
                                 onChange={() => alternarGrupo(grupo.id_grupo)}
-                                className="w-4 h-4 mt-0.5 text-matcha-600 rounded"
+                                className="w-4 h-4 mt-0.5 text-marca-600 rounded"
                               />
                               <span className="min-w-0">
                                 <span className="text-sm font-medium text-gray-700">
@@ -1041,7 +1041,7 @@ const Productos = () => {
                                 icon: 'error',
                                 title: 'Formato no permitido',
                                 text: 'Solo se permiten imágenes JPEG, PNG o WebP',
-                                confirmButtonColor: '#3d6b4f',
+                                confirmButtonColor: 'rgb(var(--marca-500))',
                               })
                               e.target.value = ''
                               return
@@ -1053,7 +1053,7 @@ const Productos = () => {
                                 icon: 'error',
                                 title: 'Imagen demasiado grande',
                                 text: 'El tamaño máximo permitido es 5MB',
-                                confirmButtonColor: '#3d6b4f',
+                                confirmButtonColor: 'rgb(var(--marca-500))',
                               })
                               e.target.value = ''
                               return
@@ -1100,7 +1100,7 @@ const Productos = () => {
                               icon: 'info',
                               title: 'No hay imagen',
                               text: 'Primero selecciona una imagen',
-                              confirmButtonColor: '#3d6b4f',
+                              confirmButtonColor: 'rgb(var(--marca-500))',
                             })
                           }
                         }}
@@ -1203,7 +1203,7 @@ const Productos = () => {
 
                 {/* Formulario de receta */}
                 {mostrarFormularioReceta && (
-                  <div className="p-4 bg-matcha-50 rounded-lg border border-matcha-200 space-y-4">
+                  <div className="p-4 bg-marca-50 rounded-lg border border-marca-200 space-y-4">
                     <div className="flex items-center justify-between">
                       <h3 className="text-sm font-medium text-gray-900">
                         {recetaEditando ? 'Editar Receta' : 'Nueva Receta'}
@@ -1232,7 +1232,7 @@ const Productos = () => {
                             name="tipo_insumo"
                             checked={formReceta.tipo === 'existente'}
                             onChange={() => setFormReceta({ ...formReceta, tipo: 'existente' })}
-                            className="w-4 h-4 text-matcha-600"
+                            className="w-4 h-4 text-marca-600"
                           />
                           <span className="text-sm text-gray-700">Insumo Existente</span>
                         </label>
@@ -1242,7 +1242,7 @@ const Productos = () => {
                             name="tipo_insumo"
                             checked={formReceta.tipo === 'nuevo'}
                             onChange={() => setFormReceta({ ...formReceta, tipo: 'nuevo' })}
-                            className="w-4 h-4 text-matcha-600"
+                            className="w-4 h-4 text-marca-600"
                           />
                           <span className="text-sm text-gray-700">Crear Nuevo Insumo</span>
                         </label>

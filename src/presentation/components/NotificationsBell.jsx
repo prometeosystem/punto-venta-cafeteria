@@ -63,7 +63,7 @@ const NotificationsBell = ({ variant = 'header' }) => {
           {unreadCount > 0 && (
             <button
               onClick={markAllAsRead}
-              className="text-xs text-matcha-600 hover:text-matcha-700 font-medium"
+              className="text-xs text-marca-600 hover:text-marca-700 font-medium"
             >
               Marcar todas como leídas
             </button>
@@ -95,31 +95,31 @@ const NotificationsBell = ({ variant = 'header' }) => {
               >
                 <div className="flex items-center gap-3">
                   <div className={`flex-shrink-0 w-12 h-12 rounded-lg flex items-center justify-center ${
-                    notification.tipo === 'comanda' ? 'bg-matcha-100' :
-                    notification.tipo === 'inventario' ? (notification.estado === 'critical' ? 'bg-red-100' : 'bg-yellow-100') :
+                    notification.tipo === 'comanda' ? 'bg-marca-100' :
+                    notification.tipo === 'inventario' ? (notification.estado === 'critical' ? 'bg-red-100' : 'bg-amber-100') :
                     notification.tipo === 'comanda-lista-cobrar' ? 'bg-amber-100' :
-                    notification.tipo === 'comanda-terminada' ? 'bg-emerald-100' :
+                    notification.tipo === 'comanda-terminada' ? 'bg-marca-100' :
                     'bg-gray-100'
                   }`}>
                     {notification.icono === 'package' ? (
                       <Package className={`w-6 h-6 ${
-                        notification.tipo === 'comanda' ? 'text-matcha-600' : 'text-gray-600'
+                        notification.tipo === 'comanda' ? 'text-marca-600' : 'text-gray-600'
                       }`} />
                     ) : notification.icono === 'alert-triangle' ? (
                       <AlertTriangle className={`w-6 h-6 ${
                         notification.tipo === 'inventario' ?
-                          (notification.estado === 'critical' ? 'text-red-600' : 'text-yellow-600') :
+                          (notification.estado === 'critical' ? 'text-red-600' : 'text-amber-600') :
                           'text-gray-600'
                       }`} />
                     ) : notification.icono === 'dollar-sign' ? (
                       <DollarSign className="w-6 h-6 text-amber-600" />
                     ) : notification.icono === 'check' ? (
-                      <CheckCircle className="w-6 h-6 text-emerald-600" />
+                      <CheckCircle className="w-6 h-6 text-marca-600" />
                     ) : notification.icono === 'cake' ? (
-                      <Cake className="w-6 h-6 text-matcha-600" />
+                      <Cake className="w-6 h-6 text-marca-600" />
                     ) : (
                       <Bell className={`w-6 h-6 ${
-                        notification.tipo === 'comanda' ? 'text-matcha-600' :
+                        notification.tipo === 'comanda' ? 'text-marca-600' :
                         'text-gray-600'
                       }`} />
                     )}
@@ -165,7 +165,7 @@ const NotificationsBell = ({ variant = 'header' }) => {
       <>
         <button
           onClick={() => setAbierto(true)}
-          className="relative p-2.5 rounded-lg text-gray-300 hover:bg-pino-700 hover:text-white transition-colors"
+          className="relative p-2.5 rounded-lg text-gray-300 hover:bg-oscuro-700 hover:text-white transition-colors"
           title="Notificaciones"
           aria-label="Notificaciones"
         >

@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './presentation/App'
+import '@marca/paleta.css'
 import './presentation/styles/index.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(

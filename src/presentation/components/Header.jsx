@@ -81,7 +81,7 @@ const Header = () => {
               <Menu className="w-5 h-5 text-gray-600" />
             </button>
           )}
-          <h1 className="text-xl font-semibold text-coffee-800 truncate">
+          <h1 className="text-xl font-semibold text-gray-900 truncate">
             {pageTitle}
           </h1>
         </div>
@@ -120,7 +120,7 @@ const Header = () => {
               onClick={() => setShowDropdown(!showDropdown)}
               className="flex items-center gap-2 hover:bg-gray-50 rounded-lg p-2 transition-colors"
             >
-              <div className="w-10 h-10 bg-matcha-500 rounded-full flex items-center justify-center">
+              <div className="w-10 h-10 bg-marca-500 rounded-full flex items-center justify-center">
                 <span className="text-white font-semibold text-sm">{getInitials()}</span>
               </div>
               <div className="hidden md:block text-left">

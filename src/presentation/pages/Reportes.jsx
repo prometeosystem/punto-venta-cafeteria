@@ -237,9 +237,9 @@ const Reportes = () => {
       case 'alta':
         return 'text-red-600 bg-red-50 border-red-200'
       case 'media':
-        return 'text-yellow-600 bg-yellow-50 border-yellow-200'
+        return 'text-amber-600 bg-amber-50 border-amber-200'
       case 'baja':
-        return 'text-green-600 bg-green-50 border-green-200'
+        return 'text-marca-600 bg-marca-50 border-marca-200'
       default:
         return 'text-gray-600 bg-gray-50 border-gray-200'
     }
@@ -447,7 +447,7 @@ const Reportes = () => {
       {/* Resumen de reportes */}
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-matcha-600" />
+          <Loader2 className="w-8 h-8 animate-spin text-marca-600" />
         </div>
       ) : (
         <>
@@ -462,7 +462,7 @@ const Reportes = () => {
             </div>
             <div className="rounded-xl border border-gray-200 bg-white px-2.5 py-2 sm:p-4 min-w-0">
               <p className="truncate text-[11px] leading-tight text-gray-500 sm:text-sm">Propinas</p>
-              <p className="text-lg font-bold leading-tight text-matcha-600 sm:text-2xl">${formatPrecio(totalPropinas)}</p>
+              <p className="text-lg font-bold leading-tight text-marca-600 sm:text-2xl">${formatPrecio(totalPropinas)}</p>
             </div>
             <div className="rounded-xl border border-gray-200 bg-white px-2.5 py-2 sm:p-4 min-w-0">
               <p className="truncate text-[11px] leading-tight text-gray-500 sm:text-sm">Ticket promedio</p>
@@ -497,7 +497,7 @@ const Reportes = () => {
           </h2>
           {loadingGraficos ? (
             <div className="h-64 flex items-center justify-center">
-              <Loader2 className="w-6 h-6 animate-spin text-matcha-600" />
+              <Loader2 className="w-6 h-6 animate-spin text-marca-600" />
             </div>
           ) : ventasPorDia.length === 0 ? (
             <div className="h-64 flex items-center justify-center text-gray-400">
@@ -508,8 +508,8 @@ const Reportes = () => {
               <AreaChart data={ventasPorDia}>
                 <defs>
                   <linearGradient id="colorVentas" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3d6b4f" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#3d6b4f" stopOpacity={0.1} />
+                    <stop offset="5%" stopColor="rgb(var(--marca-500))" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="rgb(var(--marca-500))" stopOpacity={0.1} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -531,10 +531,10 @@ const Reportes = () => {
                 <Area
                   type="monotone"
                   dataKey="total_ventas"
-                  stroke="#3d6b4f"
+                  stroke="rgb(var(--marca-500))"
                   strokeWidth={3}
                   fill="url(#colorVentas)"
-                  dot={{ fill: '#3d6b4f', r: 5, strokeWidth: 2, stroke: '#fff' }}
+                  dot={{ fill: 'rgb(var(--marca-500))', r: 5, strokeWidth: 2, stroke: '#fff' }}
                   activeDot={{ r: 7 }}
                   name="Ventas ($)"
                 />
@@ -554,7 +554,7 @@ const Reportes = () => {
           </h2>
           {loadingGraficos ? (
             <div className="h-64 flex items-center justify-center">
-              <Loader2 className="w-6 h-6 animate-spin text-matcha-600" />
+              <Loader2 className="w-6 h-6 animate-spin text-marca-600" />
             </div>
           ) : productosMasVendidos.length === 0 ? (
             <div className="h-64 flex items-center justify-center text-gray-400">
@@ -578,15 +578,15 @@ const Reportes = () => {
                 <Legend />
                 <defs>
                   <linearGradient id="colorBarras" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3d6b4f" stopOpacity={0.8} />
-                    <stop offset="95%" stopColor="#3d6b4f" stopOpacity={0.4} />
+                    <stop offset="5%" stopColor="rgb(var(--marca-500))" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="rgb(var(--marca-500))" stopOpacity={0.4} />
                   </linearGradient>
                 </defs>
                 <Bar
                   dataKey="cantidad_vendida"
                   fill="url(#colorBarras)"
                   name="Cantidad Vendida"
-                  stroke="#3d6b4f"
+                  stroke="rgb(var(--marca-500))"
                   strokeWidth={1}
                 />
               </BarChart>
@@ -679,7 +679,7 @@ const Reportes = () => {
 
         {loading ? (
           <div className="py-8 text-center text-gray-500 lg:hidden">
-            <Loader2 className="w-6 h-6 animate-spin text-matcha-600 mx-auto" />
+            <Loader2 className="w-6 h-6 animate-spin text-marca-600 mx-auto" />
           </div>
         ) : ventas.length === 0 ? (
           <p className="py-8 text-center text-gray-500 lg:hidden">No hay ventas en el período seleccionado</p>
@@ -699,11 +699,11 @@ const Reportes = () => {
                     <p className="text-xs capitalize text-gray-500">{labelMetodoPago(venta.metodo_pago)}</p>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="font-semibold text-matcha-600">${formatPrecio(venta.total)}</p>
+                    <p className="font-semibold text-marca-600">${formatPrecio(venta.total)}</p>
                     <button
                       type="button"
                       onClick={() => abrirModalDetalles(venta)}
-                      className="mt-1 inline-flex items-center gap-1 rounded-lg border border-matcha-200 px-2.5 py-1 text-xs font-medium text-matcha-700"
+                      className="mt-1 inline-flex items-center gap-1 rounded-lg border border-marca-200 px-2.5 py-1 text-xs font-medium text-marca-700"
                     >
                       <Eye className="w-3.5 h-3.5" />
                       Ver
@@ -734,7 +734,7 @@ const Reportes = () => {
               {loading ? (
                 <tr>
                   <td colSpan="9" className="py-8 text-center text-gray-500">
-                    <Loader2 className="w-6 h-6 animate-spin text-matcha-600 mx-auto" />
+                    <Loader2 className="w-6 h-6 animate-spin text-marca-600 mx-auto" />
                   </td>
                 </tr>
               ) : ventas.length === 0 ? (
@@ -785,7 +785,7 @@ const Reportes = () => {
                     <td className="py-3 px-4 text-center">
                       {tienePropina(venta) ? (
                         <span
-                          className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-matcha-100 text-matcha-700"
+                          className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-marca-100 text-marca-700"
                           title={`Propina: $${formatPrecio(venta.monto_propina)}`}
                         >
                           <Coins className="w-4 h-4" />
@@ -794,14 +794,14 @@ const Reportes = () => {
                         <span className="text-gray-300">—</span>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-right font-semibold text-matcha-600 whitespace-nowrap">
+                    <td className="py-3 px-4 text-right font-semibold text-marca-600 whitespace-nowrap">
                       ${formatPrecio(venta.total)}
                     </td>
                     <td className="py-3 px-4 text-right">
                       <button
                         type="button"
                         onClick={() => abrirModalDetalles(venta)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-matcha-700 border border-matcha-200 rounded-lg hover:bg-matcha-50 transition-colors"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-marca-700 border border-marca-200 rounded-lg hover:bg-marca-50 transition-colors"
                       >
                         <Eye className="w-3.5 h-3.5" />
                         
@@ -876,7 +876,7 @@ const Reportes = () => {
 
         {loadingRecomendaciones ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-matcha-600" />
+            <Loader2 className="w-8 h-8 animate-spin text-marca-600" />
           </div>
         ) : comprasRecomendadas && comprasRecomendadas.recomendaciones ? (
           <>
@@ -893,9 +893,9 @@ const Reportes = () => {
                   {comprasRecomendadas.resumen.insumos_urgentes}
                 </p>
               </div>
-              <div className="min-w-0 rounded-lg border border-green-200 bg-green-50 p-3 sm:p-4">
-                <p className="text-xs text-green-600 mb-1 sm:text-sm">Costo estimado</p>
-                <p className="text-lg font-bold leading-tight text-green-900 sm:text-2xl">
+              <div className="min-w-0 rounded-lg border border-marca-200 bg-marca-50 p-3 sm:p-4">
+                <p className="text-xs text-marca-600 mb-1 sm:text-sm">Costo estimado</p>
+                <p className="text-lg font-bold leading-tight text-marca-900 sm:text-2xl">
                   ${formatPrecio(comprasRecomendadas.resumen.total_costo_estimado)}
                 </p>
               </div>
@@ -910,7 +910,7 @@ const Reportes = () => {
             <ul className="lg:hidden divide-y divide-gray-100">
               {comprasRecomendadas.recomendaciones.length === 0 ? (
                 <li className="py-8 text-center text-gray-500">
-                  <CheckCircle2 className="w-10 h-10 mx-auto mb-2 text-green-500" />
+                  <CheckCircle2 className="w-10 h-10 mx-auto mb-2 text-marca-500" />
                   <p>No hay recomendaciones de compra en este momento</p>
                 </li>
               ) : (
@@ -922,7 +922,7 @@ const Reportes = () => {
                         <p className="text-xs text-gray-500">
                           Stock {rec.stock_actual} {rec.unidad_medida} · mín. {rec.stock_minimo}
                         </p>
-                        <p className="text-sm text-matcha-700">
+                        <p className="text-sm text-marca-700">
                           Pedir {formatMedida(rec.cantidad_recomendada)} {rec.unidad_medida}
                         </p>
                       </div>
@@ -930,7 +930,7 @@ const Reportes = () => {
                         <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold border ${getUrgenciaColor(rec.urgencia)}`}>
                           {rec.urgencia}
                         </span>
-                        <p className="mt-1 font-semibold text-green-600">${formatPrecio(rec.costo_estimado)}</p>
+                        <p className="mt-1 font-semibold text-marca-600">${formatPrecio(rec.costo_estimado)}</p>
                       </div>
                     </div>
                   </li>
@@ -956,7 +956,7 @@ const Reportes = () => {
                   {comprasRecomendadas.recomendaciones.length === 0 ? (
                     <tr>
                       <td colSpan="8" className="py-8 text-center text-gray-500">
-                        <CheckCircle2 className="w-12 h-12 mx-auto mb-2 text-green-500" />
+                        <CheckCircle2 className="w-12 h-12 mx-auto mb-2 text-marca-500" />
                         <p>No hay recomendaciones de compra en este momento</p>
                         <p className="text-sm mt-1">El inventario está bien abastecido</p>
                       </td>
@@ -984,12 +984,12 @@ const Reportes = () => {
                           {formatMedida(rec.consumo_proyectado_mes)} {rec.unidad_medida}
                         </td>
                         <td className="py-3 px-4">
-                          <span className="font-semibold text-matcha-600">
+                          <span className="font-semibold text-marca-600">
                             {formatMedida(rec.cantidad_recomendada)} {rec.unidad_medida}
                           </span>
                         </td>
                         <td className="py-3 px-4">
-                          <span className="font-semibold text-green-600">
+                          <span className="font-semibold text-marca-600">
                             ${formatPrecio(rec.costo_estimado)}
                           </span>
                         </td>
@@ -1038,7 +1038,7 @@ const Reportes = () => {
             <div className="p-6">
               {cargandoDetalle ? (
                 <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-8 h-8 animate-spin text-matcha-600" />
+                  <Loader2 className="w-8 h-8 animate-spin text-marca-600" />
                 </div>
               ) : ventaDetalle?.error ? (
                 <div className="py-8 text-center text-gray-500">
@@ -1082,7 +1082,7 @@ const Reportes = () => {
                     )}
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Total</p>
-                      <p className="text-xl font-bold text-matcha-600">
+                      <p className="text-xl font-bold text-marca-600">
                         ${formatPrecio(ventaDetalle.total)}
                       </p>
                     </div>
@@ -1100,7 +1100,7 @@ const Reportes = () => {
                     {(ventaDetalle.monto_propina != null && parseFloat(ventaDetalle.monto_propina) > 0) && (
                       <div>
                         <p className="text-sm text-gray-600 mb-1">Propina</p>
-                        <p className="font-medium text-matcha-700">
+                        <p className="font-medium text-marca-700">
                           +${formatPrecio(ventaDetalle.monto_propina)}
                         </p>
                       </div>
@@ -1108,7 +1108,7 @@ const Reportes = () => {
                   </div>
 
                   {ventaDetalle.comentarios && (
-                    <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                    <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
                       <p className="text-sm font-semibold text-gray-900 mb-1">Comentarios</p>
                       <p className="text-sm text-gray-700 italic">{ventaDetalle.comentarios}</p>
                     </div>

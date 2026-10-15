@@ -7,10 +7,10 @@
  */
 export const servicioDe = (tipoServicio, metodoPago) => {
   if (metodoPago === 'delivery' || tipoServicio === 'delivery') {
-    return { clave: 'delivery', texto: 'Delivery', color: 'text-orange-700' }
+    return { clave: 'delivery', texto: 'Delivery', color: 'text-amber-700' }
   }
   if (tipoServicio === 'para-llevar' || tipoServicio === 'para_llevar') {
-    return { clave: 'para-llevar', texto: 'Para llevar', color: 'text-violet-700' }
+    return { clave: 'para-llevar', texto: 'Para llevar', color: 'text-purple-700' }
   }
   if (tipoServicio === 'comer-aqui') {
     return { clave: 'comer-aqui', texto: 'Comer aquí', color: 'text-blue-700' }

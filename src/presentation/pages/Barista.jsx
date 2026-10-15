@@ -186,7 +186,7 @@ const Barista = () => {
           icon: 'error',
           title: 'Error',
           text: 'No se pudieron cargar las comandas',
-          confirmButtonColor: '#3d6b4f',
+          confirmButtonColor: 'rgb(var(--marca-500))',
         })
         setCargando(false)
       }
@@ -337,7 +337,7 @@ const Barista = () => {
         icon: '',
         position: 'top',
         showCancelButton: true,
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
         cancelButtonColor: '#6b7280',
         confirmButtonText: areaFiltro ? 'Sí, está lista' : 'Sí, marcar como terminada',
         cancelButtonText: 'Cancelar',
@@ -393,7 +393,7 @@ const Barista = () => {
                     title: 'Error',
                     text: respuestaContinuar.error,
                     position: 'top',
-                    confirmButtonColor: '#3d6b4f',
+                    confirmButtonColor: 'rgb(var(--marca-500))',
                   })
                   await cargarComandas(true)
                   return
@@ -449,7 +449,7 @@ const Barista = () => {
                 showConfirmButton: false,
                 cancelButtonText: 'Entendido',
                 denyButtonText: 'Continuar de todos modos',
-                denyButtonColor: '#3d6b4f',
+                denyButtonColor: 'rgb(var(--marca-500))',
                 cancelButtonColor: '#6b7280',
                 width: '600px'
               })
@@ -463,7 +463,7 @@ const Barista = () => {
                       title: 'Error',
                       text: respuestaContinuar.error,
                       position: 'top',
-                      confirmButtonColor: '#3d6b4f',
+                      confirmButtonColor: 'rgb(var(--marca-500))',
                     })
                   } else {
                     await cargarComandas(true)
@@ -475,7 +475,7 @@ const Barista = () => {
                     title: 'Error',
                     text: errContinuar.response?.data?.detail || errContinuar.message || 'Error al terminar la comanda',
                     position: 'top',
-                    confirmButtonColor: '#3d6b4f',
+                    confirmButtonColor: 'rgb(var(--marca-500))',
                   })
                 }
               }
@@ -491,7 +491,7 @@ const Barista = () => {
             title: 'Error',
             text: errorMsg,
             position: 'top',
-            confirmButtonColor: '#3d6b4f',
+            confirmButtonColor: 'rgb(var(--marca-500))',
           })
         }
       }
@@ -504,7 +504,7 @@ const Barista = () => {
         title: 'Error',
         text: 'Ocurrió un error inesperado. Por favor, intenta nuevamente.',
         position: 'top',
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
     }
   }
@@ -534,7 +534,7 @@ const Barista = () => {
             type="button"
             onClick={() => elegirArea(id)}
             className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              area === id ? 'bg-matcha-600 text-white' : 'text-gray-600 hover:bg-gray-100'
+              area === id ? 'bg-marca-600 text-white' : 'text-gray-600 hover:bg-gray-100'
             }`}
           >
             {texto}
@@ -546,7 +546,7 @@ const Barista = () => {
       </div>
       {cargando && comandas.length === 0 ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-matcha-600" />
+          <Loader2 className="w-8 h-8 animate-spin text-marca-600" />
         </div>
       ) : comandasVisibles.length === 0 ? (
         <div className="card text-center py-12">
@@ -600,7 +600,7 @@ const Barista = () => {
               >
                 {/* Encabezado: número, cliente y estado en una sola franja */}
                 <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
-                  <span className="shrink-0 bg-matcha-100 text-matcha-800 rounded-lg w-9 h-9 flex items-center justify-center text-base font-bold">
+                  <span className="shrink-0 bg-marca-100 text-marca-800 rounded-lg w-9 h-9 flex items-center justify-center text-base font-bold">
                     {comanda.numero_dia ?? comanda.id_comanda}
                   </span>
                   <div className="flex-1 min-w-0">
@@ -620,7 +620,7 @@ const Barista = () => {
                     {pagoConocido && (
                       <span
                         className={`text-[10px] font-bold tracking-wide uppercase leading-none ${
-                          sinPagar ? 'text-red-700' : 'text-matcha-700'
+                          sinPagar ? 'text-red-700' : 'text-marca-700'
                         }`}
                       >
                         {sinPagar ? 'Sin pagar' : 'Pagado'}
@@ -659,7 +659,7 @@ const Barista = () => {
                       <span
                         key={otra}
                         className={`text-[10px] font-bold tracking-wide uppercase leading-none ${
-                          lista ? 'text-matcha-700' : 'text-gray-400'
+                          lista ? 'text-marca-700' : 'text-gray-400'
                         }`}
                       >
                         {NOMBRE_AREA[otra]} {lista ? '✓' : 'pendiente'}
@@ -673,7 +673,7 @@ const Barista = () => {
                     <span
                       className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${
                         tipoLecheGlobal?.toLowerCase() === 'deslactosada'
-                          ? 'bg-orange-200 text-orange-900 border border-orange-400'
+                          ? 'bg-amber-200 text-amber-900 border border-amber-400'
                           : 'bg-gray-100 text-gray-700'
                       }`}
                     >
@@ -725,8 +725,8 @@ const Barista = () => {
                               {tipoPreparacion && (
                                 <span className={`px-1.5 py-px rounded text-[10px] font-semibold border ${
                                   tipoPreparacion === 'heladas'
-                                    ? 'bg-cyan-100 text-cyan-700 border-cyan-300'
-                                    : 'bg-orange-100 text-orange-700 border-orange-300'
+                                    ? 'bg-blue-100 text-blue-700 border-blue-300'
+                                    : 'bg-amber-100 text-amber-700 border-amber-300'
                                 }`}>
                                   {tipoPreparacion === 'heladas' ? 'Frío' : 'Frapeada'}
                                 </span>
@@ -737,7 +737,7 @@ const Barista = () => {
                                 </span>
                               )}
                               {tipoProteinaObs && (
-                                <span className="px-1.5 py-px rounded text-[10px] font-semibold bg-yellow-100 text-yellow-700 border border-yellow-300">
+                                <span className="px-1.5 py-px rounded text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-300">
                                   {tipoProteinaObs}
                                 </span>
                               )}
@@ -767,7 +767,7 @@ const Barista = () => {
                 </div>
 
                 {comentarios && (
-                  <p className="mt-1 w-fit max-w-full px-2 py-1 bg-yellow-50 border border-yellow-200 rounded text-[11px] text-yellow-800 italic">
+                  <p className="mt-1 w-fit max-w-full px-2 py-1 bg-amber-50 border border-amber-200 rounded text-[11px] text-amber-800 italic">
                     {comentarios}
                   </p>
                 )}
@@ -776,7 +776,7 @@ const Barista = () => {
                   <button
                     onClick={() => marcarComoTerminada(comanda)}
                     disabled={loading}
-                    className="px-7 py-2 rounded-lg border-2 border-matcha-500 bg-matcha-500/15 text-matcha-700 hover:bg-matcha-500/25 active:bg-matcha-500/35 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-7 py-2 rounded-lg border-2 border-marca-500 bg-marca-500/15 text-marca-700 hover:bg-marca-500/25 active:bg-marca-500/35 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Marcar como listo y entregado; la mesa queda abierta en el punto de venta"
                     aria-label="Marcar comanda como lista"
                   >

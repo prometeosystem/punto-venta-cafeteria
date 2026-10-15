@@ -43,7 +43,7 @@ const OpcionesProductoConfig = () => {
       icon: 'error',
       title: 'No se pudo guardar',
       text: error?.response?.data?.detail || error?.message || respaldo,
-      confirmButtonColor: '#3d6b4f',
+      confirmButtonColor: 'rgb(var(--marca-500))',
     })
   }
 
@@ -186,7 +186,7 @@ const OpcionesProductoConfig = () => {
         icon: 'info',
         title: 'No se puede borrar',
         text: error?.response?.data?.detail || 'Intenta de nuevo',
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
     } finally {
       setGuardando(null)
@@ -238,7 +238,7 @@ const OpcionesProductoConfig = () => {
     `p-1.5 rounded-lg border-2 disabled:opacity-50 shrink-0 ${
       activo
         ? 'border-gray-200 text-gray-500 hover:bg-gray-100'
-        : 'border-matcha-200 text-matcha-700 hover:bg-matcha-50'
+        : 'border-marca-200 text-marca-700 hover:bg-marca-50'
     }`
 
   const botonBorrar =
@@ -252,7 +252,7 @@ const OpcionesProductoConfig = () => {
         aria-expanded={abierto}
         className="flex w-full items-center gap-3 text-left"
       >
-        <SlidersHorizontal className="w-5 h-5 text-matcha-600 shrink-0" />
+        <SlidersHorizontal className="w-5 h-5 text-marca-600 shrink-0" />
         <h2 className="flex-1 text-lg font-semibold text-gray-900">Grupos de opciones</h2>
         {abierto ? (
           <ChevronUp className="w-5 h-5 text-gray-500 shrink-0" aria-hidden="true" />
@@ -301,7 +301,7 @@ const OpcionesProductoConfig = () => {
                         onClick={() =>
                           guardarGrupo(grupo, { nombre: nombreGrupoEditado(grupo).trim() })
                         }
-                        className="p-1.5 rounded-lg border-2 border-matcha-500 text-matcha-700 hover:bg-matcha-50 disabled:opacity-50 shrink-0"
+                        className="p-1.5 rounded-lg border-2 border-marca-500 text-marca-700 hover:bg-marca-50 disabled:opacity-50 shrink-0"
                         title="Guardar nombre"
                       >
                         {ocupado ? (
@@ -396,7 +396,7 @@ const OpcionesProductoConfig = () => {
                                 precio: parseFloat(valorEditado(opcion, 'precio')) || 0,
                               })
                             }
-                            className="p-1.5 rounded-lg border-2 border-matcha-500 text-matcha-700 hover:bg-matcha-50 disabled:opacity-50 shrink-0"
+                            className="p-1.5 rounded-lg border-2 border-marca-500 text-marca-700 hover:bg-marca-50 disabled:opacity-50 shrink-0"
                             title="Guardar cambios"
                           >
                             {guardando === opcion.id_opcion ? (

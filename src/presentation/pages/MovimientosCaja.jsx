@@ -50,7 +50,7 @@ const horaCorta = (fecha) =>
 
 const TarjetaResumen = ({ icono: Icono, etiqueta, monto, detalle, tono, colorMonto = 'text-gray-900' }) => {
   const tonos = {
-    entrada: 'bg-green-100 text-green-700',
+    entrada: 'bg-marca-100 text-marca-700',
     salida: 'bg-red-100 text-red-700',
     neto: 'bg-gray-100 text-gray-700',
   }
@@ -228,7 +228,7 @@ const MovimientosCaja = () => {
             monto={formatMoney(totales.neto)}
             detalle="Entradas menos salidas"
             tono="neto"
-            colorMonto={totales.neto < 0 ? 'text-red-600' : 'text-green-700'}
+            colorMonto={totales.neto < 0 ? 'text-red-600' : 'text-marca-700'}
           />
         </div>
       </div>
@@ -264,7 +264,7 @@ const MovimientosCaja = () => {
         <div className="mt-4">
           {loading ? (
             <div className="flex justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-matcha-600" />
+              <Loader2 className="h-8 w-8 animate-spin text-marca-600" />
             </div>
           ) : grupos.length === 0 ? (
             <div className="flex flex-col items-center py-12 text-center text-gray-400">
@@ -279,7 +279,7 @@ const MovimientosCaja = () => {
                 <section key={grupo.etiqueta}>
                   <div className="mb-2 flex items-center justify-between gap-2 px-1">
                     <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">{grupo.etiqueta}</h2>
-                    <span className={`text-xs font-semibold tabular-nums ${grupo.neto < 0 ? 'text-red-600' : 'text-green-700'}`}>
+                    <span className={`text-xs font-semibold tabular-nums ${grupo.neto < 0 ? 'text-red-600' : 'text-marca-700'}`}>
                       {grupo.neto < 0 ? '−' : '+'}{formatMoney(Math.abs(grupo.neto))}
                     </span>
                   </div>
@@ -291,7 +291,7 @@ const MovimientosCaja = () => {
                         <li key={m.id_movimiento_caja} className="flex items-center gap-3 bg-white px-3 py-3 sm:px-4">
                           <span
                             className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
-                              entrada ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                              entrada ? 'bg-marca-100 text-marca-700' : 'bg-red-100 text-red-700'
                             }`}
                           >
                             <Icono className="h-4 w-4" />
@@ -313,7 +313,7 @@ const MovimientosCaja = () => {
                           </div>
                           <span
                             className={`shrink-0 text-sm font-semibold tabular-nums sm:text-base ${
-                              entrada ? 'text-green-700' : 'text-red-600'
+                              entrada ? 'text-marca-700' : 'text-red-600'
                             }`}
                           >
                             {entrada ? '+' : '−'}{formatMoney(m.monto)}
@@ -354,7 +354,7 @@ const MovimientosCaja = () => {
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { id: 'salida', label: 'Salida', Icono: ArrowUpRight, activo: 'border-red-400 bg-red-50 text-red-700' },
-                  { id: 'entrada', label: 'Entrada', Icono: ArrowDownLeft, activo: 'border-green-500 bg-green-50 text-green-700' },
+                  { id: 'entrada', label: 'Entrada', Icono: ArrowDownLeft, activo: 'border-marca-500 bg-marca-50 text-marca-700' },
                 ].map(({ id, label, Icono, activo }) => (
                   <button
                     key={id}
@@ -429,7 +429,7 @@ const MovimientosCaja = () => {
                     <button
                       type="button"
                       onClick={agregarDetalle}
-                      className="text-sm font-medium text-matcha-600 hover:text-matcha-700"
+                      className="text-sm font-medium text-marca-600 hover:text-marca-700"
                     >
                       + Renglón
                     </button>

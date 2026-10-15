@@ -68,9 +68,9 @@ const Inventario = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'ok':
-        return 'bg-green-100 text-green-700'
+        return 'bg-marca-100 text-marca-700'
       case 'low':
-        return 'bg-yellow-100 text-yellow-700'
+        return 'bg-amber-100 text-amber-700'
       case 'critical':
         return 'bg-red-100 text-red-700'
       default:
@@ -140,7 +140,7 @@ const Inventario = () => {
           icon: 'error',
           title: 'Error de validación',
           text: 'La cantidad actual debe ser un número válido mayor o igual a 0',
-          confirmButtonColor: '#3d6b4f',
+          confirmButtonColor: 'rgb(var(--marca-500))',
         })
         setGuardando(false)
         return
@@ -151,7 +151,7 @@ const Inventario = () => {
           icon: 'error',
           title: 'Error de validación',
           text: 'La cantidad mínima debe ser un número válido mayor o igual a 0',
-          confirmButtonColor: '#3d6b4f',
+          confirmButtonColor: 'rgb(var(--marca-500))',
         })
         setGuardando(false)
         return
@@ -162,7 +162,7 @@ const Inventario = () => {
           icon: 'error',
           title: 'Error de validación',
           text: 'El precio de compra debe ser un número válido mayor o igual a 0',
-          confirmButtonColor: '#3d6b4f',
+          confirmButtonColor: 'rgb(var(--marca-500))',
         })
         setGuardando(false)
         return
@@ -180,7 +180,7 @@ const Inventario = () => {
             icon: 'error',
             title: 'Error de validación',
             text: 'Debes seleccionar la unidad del precio (ej. kilogramos, litros)',
-            confirmButtonColor: '#3d6b4f',
+            confirmButtonColor: 'rgb(var(--marca-500))',
           })
           setGuardando(false)
           return
@@ -190,7 +190,7 @@ const Inventario = () => {
             icon: 'error',
             title: 'Error de validación',
             text: 'La cantidad que cuesta el precio debe ser un número mayor a 0 (ej. 1)',
-            confirmButtonColor: '#3d6b4f',
+            confirmButtonColor: 'rgb(var(--marca-500))',
           })
           setGuardando(false)
           return
@@ -218,7 +218,7 @@ const Inventario = () => {
           icon: 'success',
           title: '¡Insumo actualizado!',
           text: 'El insumo se ha actualizado correctamente',
-          confirmButtonColor: '#3d6b4f',
+          confirmButtonColor: 'rgb(var(--marca-500))',
           timer: 2000,
         })
       } else {
@@ -228,7 +228,7 @@ const Inventario = () => {
           icon: 'success',
           title: '¡Insumo creado!',
           text: 'El insumo se ha creado correctamente',
-          confirmButtonColor: '#3d6b4f',
+          confirmButtonColor: 'rgb(var(--marca-500))',
           timer: 2000,
         })
       }
@@ -245,7 +245,7 @@ const Inventario = () => {
         icon: 'error',
         title: 'Error',
         text: errorMsg,
-        confirmButtonColor: '#3d6b4f',
+        confirmButtonColor: 'rgb(var(--marca-500))',
       })
     } finally {
       setGuardando(false)
@@ -261,7 +261,7 @@ const Inventario = () => {
       showCancelButton: true,
       confirmButtonText: 'Sí, desactivar',
       cancelButtonText: 'Cancelar',
-      confirmButtonColor: '#3d6b4f',
+      confirmButtonColor: 'rgb(var(--marca-500))',
       cancelButtonColor: '#6b7280',
     })
 
@@ -272,7 +272,7 @@ const Inventario = () => {
           icon: 'success',
           title: '¡Insumo desactivado!',
           text: 'El insumo se ha desactivado correctamente',
-          confirmButtonColor: '#3d6b4f',
+          confirmButtonColor: 'rgb(var(--marca-500))',
           timer: 2000,
         })
         await obtenerInsumos()
@@ -283,7 +283,7 @@ const Inventario = () => {
           icon: 'error',
           title: 'Error',
           text: errorMsg,
-          confirmButtonColor: '#3d6b4f',
+          confirmButtonColor: 'rgb(var(--marca-500))',
         })
       }
     }
@@ -295,8 +295,8 @@ const Inventario = () => {
       <div className="grid grid-cols-3 gap-2 sm:gap-4">
         <div className="rounded-xl border border-gray-200 bg-white px-2.5 py-2 sm:p-4">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="shrink-0 rounded-lg bg-matcha-100 p-1.5 sm:p-2.5">
-              <Package className="w-4 h-4 sm:w-5 sm:h-5 text-matcha-600" />
+            <div className="shrink-0 rounded-lg bg-marca-100 p-1.5 sm:p-2.5">
+              <Package className="w-4 h-4 sm:w-5 sm:h-5 text-marca-600" />
             </div>
             <div className="min-w-0">
               <p className="truncate text-[11px] leading-tight text-gray-500 sm:text-sm">Total</p>
@@ -306,12 +306,12 @@ const Inventario = () => {
         </div>
         <div className="rounded-xl border border-gray-200 bg-white px-2.5 py-2 sm:p-4">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="shrink-0 rounded-lg bg-yellow-100 p-1.5 sm:p-2.5">
-              <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-600" />
+            <div className="shrink-0 rounded-lg bg-amber-100 p-1.5 sm:p-2.5">
+              <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600" />
             </div>
             <div className="min-w-0">
               <p className="truncate text-[11px] leading-tight text-gray-500 sm:text-sm">Stock bajo</p>
-              <p className="text-lg font-bold leading-tight text-yellow-600 sm:text-2xl">
+              <p className="text-lg font-bold leading-tight text-amber-600 sm:text-2xl">
                 {insumos.filter(i => getStatus(i) === 'low').length}
               </p>
             </div>
@@ -365,7 +365,7 @@ const Inventario = () => {
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-matcha-600" />
+            <Loader2 className="w-8 h-8 animate-spin text-marca-600" />
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -636,7 +636,7 @@ const Inventario = () => {
                           name="estado"
                           checked={formData.activo === true}
                           onChange={() => setFormData({ ...formData, activo: true })}
-                          className="w-4 h-4 text-matcha-600"
+                          className="w-4 h-4 text-marca-600"
                         />
                         <span className="text-sm text-gray-700">Activo</span>
                       </label>
@@ -646,7 +646,7 @@ const Inventario = () => {
                           name="estado"
                           checked={formData.activo === false}
                           onChange={() => setFormData({ ...formData, activo: false })}
-                          className="w-4 h-4 text-matcha-600"
+                          className="w-4 h-4 text-marca-600"
                         />
                         <span className="text-sm text-gray-700">Inactivo</span>
                       </label>

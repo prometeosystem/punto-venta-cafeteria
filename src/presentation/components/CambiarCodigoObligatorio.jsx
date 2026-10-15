@@ -48,8 +48,8 @@ const CambiarCodigoObligatorio = () => {
     <div className="fixed inset-0 z-[10000] bg-black/60 flex items-start justify-center p-4 overflow-y-auto">
       <form onSubmit={guardar} className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 mt-2 sm:mt-6">
         <div className="flex flex-col items-center text-center mb-1">
-          <div className="w-12 h-12 rounded-full bg-matcha-100 flex items-center justify-center mb-3">
-            <KeyRound className="w-6 h-6 text-matcha-600" />
+          <div className="w-12 h-12 rounded-full bg-marca-100 flex items-center justify-center mb-3">
+            <KeyRound className="w-6 h-6 text-marca-600" />
           </div>
           <h2 className="text-lg font-semibold text-gray-900">Elige tu código de acceso</h2>
          
