@@ -9,7 +9,7 @@ export default {
   heroImagen: null,
   logoTicket: null,
   logoTicketAncho: 0.5,
-  avisoLogin: 'Demo abierta: todos los usuarios entran con el código 123456. Los datos se reinician cada noche.',
+  avisoLogin: 'Demo abierta: todos los usuarios entran con el código 123456',
 
   // Con otro prefijo la demo no pisa la sesión de otro sistema en el mismo dominio.
   almacen: { prefijo: 'demo_', prefijoBase: 'demo_', baseImagenes: 'demo-pos-img' },

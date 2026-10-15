@@ -1,10 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Bell, CreditCard, Image, Loader2 } from 'lucide-react'
-import { useUsuarios } from '../hooks/useUsuarios'
-import { useVentas } from '../hooks/useVentas'
-import { useProductos } from '../hooks/useProductos'
-import { useClientes } from '../hooks/useClientes'
-import { useComandas } from '../hooks/useComandas'
+import { useState } from 'react'
+import { Bell, CreditCard, Image } from 'lucide-react'
 import {
   METODOS_PAGO_DISPONIBLES,
   obtenerMetodosPagoConfig,
@@ -16,81 +11,8 @@ import CategoriasMovimiento from './CategoriasMovimiento'
 import Swal from 'sweetalert2'
 
 const Configuracion = () => {
-  const { usuarios, loading: usuariosLoading } = useUsuarios()
-  const { obtenerVentas } = useVentas()
-  const { productos } = useProductos()
-  const { clientes } = useClientes()
-  const { obtenerComandas } = useComandas()
-
   const [metodosPagoConfig, setMetodosPagoConfig] = useState(() => obtenerMetodosPagoConfig())
   const [posConFotos, setPosConFotos] = useState(() => obtenerPosConFotos())
-  const [estadisticas, setEstadisticas] = useState({
-    totalVentas: 0,
-    totalComandas: 0,
-    productosActivos: 0,
-    productosInactivos: 0,
-    clientesTotal: 0,
-    usuariosActivos: 0
-  })
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const cargarDatos = async () => {
-      try {
-        setLoading(true)
-
-        const hoy = new Date()
-        const hace30Dias = new Date()
-        hace30Dias.setDate(hace30Dias.getDate() - 30)
-
-        const ventasRecientes = await obtenerVentas(
-          hace30Dias.toISOString().split('T')[0],
-          hoy.toISOString().split('T')[0]
-        ).catch(() => [])
-
-        let todasComandas = []
-        try {
-          const comandasPendientes = await obtenerComandas('pendiente').catch(() => [])
-          const comandasEnPreparacion = await obtenerComandas('en_preparacion').catch(() => [])
-          const comandasTerminadas = await obtenerComandas('terminada').catch(() => [])
-          const comandasCanceladas = await obtenerComandas('cancelada').catch(() => [])
-          todasComandas = [
-            ...(Array.isArray(comandasPendientes) ? comandasPendientes : []),
-            ...(Array.isArray(comandasEnPreparacion) ? comandasEnPreparacion : []),
-            ...(Array.isArray(comandasTerminadas) ? comandasTerminadas : []),
-            ...(Array.isArray(comandasCanceladas) ? comandasCanceladas : [])
-          ]
-        } catch (error) {
-          console.error('Error al obtener comandas:', error)
-          todasComandas = []
-        }
-
-        const productosActivos = productos.filter(p => p.activo === 1 || p.activo === true).length
-        const productosInactivos = productos.filter(p => p.activo === 0 || p.activo === false).length
-        const usuariosActivos = usuarios.filter(u => u.activo === 1 || u.activo === true).length
-
-        const totalVentas = Array.isArray(ventasRecientes)
-          ? ventasRecientes.reduce((sum, v) => sum + parseFloat(v.total || 0), 0)
-          : 0
-
-        setEstadisticas({
-          totalVentas,
-          totalComandas: Array.isArray(todasComandas) ? todasComandas.length : 0,
-          productosActivos,
-          productosInactivos,
-          clientesTotal: clientes.length,
-          usuariosActivos
-        })
-      } catch (error) {
-        console.error('Error al cargar datos de configuración:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    cargarDatos()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productos, usuarios, clientes])
 
   const toggleMetodoPago = (id) => {
     const activos = Object.values(metodosPagoConfig).filter(Boolean).length
@@ -103,24 +25,6 @@ const Configuracion = () => {
       [id]: !metodosPagoConfig[id],
     })
     setMetodosPagoConfig(next)
-  }
-
-  const getRolLabel = (rol) => {
-    const labels = {
-      vendedor: 'Vendedor',
-      cocina: 'Cocina',
-      administrador: 'Administrador',
-      superadministrador: 'Super Administrador',
-    }
-    return labels[rol] || rol
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-marca-600" />
-      </div>
-    )
   }
 
   return (
