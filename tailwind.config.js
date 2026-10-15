@@ -25,6 +25,8 @@ export default {
       amber: colors.amber,
       blue: colors.blue,
       purple: colors.purple,
+      // Solo para el rol de mesero: no choca con el verde de Zona 2 ni con el azul de la demo
+      rose: colors.rose,
       marca: escala('marca', [50, 100, 200, 300, 400, 500, 600, 700, 800, 900]),
       // Fondo del sidebar y del login
       oscuro: escala('oscuro', [700, 800, 900]),

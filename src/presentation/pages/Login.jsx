@@ -11,12 +11,13 @@ const LARGO_CODIGO = 6
 // Toques sobre la taza que revelan al superadministrador
 const TOQUES_PARA_REVELAR = 7
 
+// Un tono más fuerte que en Empleados: aquí van sobre la tarjeta de color de la marca
 const COLOR_ROL = {
-  superadministrador: 'bg-purple-100 text-purple-700',
-  administrador: 'bg-blue-100 text-blue-700',
+  superadministrador: 'bg-purple-600 text-white',
+  administrador: 'bg-purple-200 text-purple-800',
   vendedor: 'bg-marca-200 text-marca-800',
-  cocina: 'bg-amber-100 text-amber-700',
-  mesero: 'bg-gray-200 text-gray-700',
+  cocina: 'bg-amber-200 text-amber-800',
+  mesero: 'bg-rose-200 text-rose-800',
 }
 
 const ETIQUETA_ROL = {

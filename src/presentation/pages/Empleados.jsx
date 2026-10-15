@@ -129,7 +129,7 @@ const Empleados = () => {
           value: estadisticas.administradores?.toString() || '0', 
           subtitle: 'Empleados', 
           icon: Users,
-          color: 'bg-blue-100 text-blue-600'
+          color: 'bg-purple-100 text-purple-600'
         },
       ]
     : [
@@ -160,7 +160,7 @@ const Empleados = () => {
           value: usuarios.filter(u => u.activo === 1 && (u.rol === 'administrador' || u.rol === 'superadministrador')).length.toString(), 
           subtitle: 'Empleados', 
           icon: Users,
-          color: 'bg-blue-100 text-blue-600'
+          color: 'bg-purple-100 text-purple-600'
         },
       ]
 
@@ -177,11 +177,11 @@ const Empleados = () => {
       case 'cocina':
         return 'bg-amber-100 text-amber-700'
       case 'mesero':
-        return 'bg-gray-200 text-gray-700'
+        return 'bg-rose-100 text-rose-700'
       case 'administrador':
-        return 'bg-blue-100 text-blue-700'
-      case 'superadministrador':
         return 'bg-purple-100 text-purple-700'
+      case 'superadministrador':
+        return 'bg-purple-600 text-white'
       default:
         return 'bg-gray-100 text-gray-700'
     }
