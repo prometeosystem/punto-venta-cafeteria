@@ -1,6 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { hasRouteAccess, getAllowedRoutes } from '../utils/rolePermissions'
+import { hasRouteAccess, rutaInicial } from '../utils/rolePermissions'
 
 /**
  * Componente que protege rutas basándose en el rol del usuario
@@ -22,18 +22,7 @@ const RoleProtectedRoute = ({ children, requiredRoles }) => {
   const userRol = usuario.rol
   const currentPath = location.pathname
 
-  // Función para obtener la primera ruta permitida para el usuario
-  const getFirstAllowedRoute = (rol) => {
-    const allowedRoutes = getAllowedRoutes(rol)
-    // Priorizar ciertas rutas según el rol
-    if (rol?.toLowerCase() === 'vendedor' || rol?.toLowerCase() === 'mesero') {
-      return allowedRoutes.find(route => route === '/punto-venta') || allowedRoutes[0] || '/punto-venta'
-    } else if (rol?.toLowerCase() === 'cocina') {
-      return allowedRoutes.find(route => route === '/barista') || allowedRoutes[0] || '/barista'
-    } else {
-      return allowedRoutes.find(route => route === '/dashboard') || allowedRoutes[0] || '/dashboard'
-    }
-  }
+  const getFirstAllowedRoute = rutaInicial
 
   // Si se especificaron roles requeridos, verificar contra ellos
   if (requiredRoles && Array.isArray(requiredRoles)) {

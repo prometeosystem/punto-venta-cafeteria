@@ -10,6 +10,7 @@ import NotificationsBell from './NotificationsBell'
 import {
   LayoutDashboard,
   ShoppingCart,
+  Armchair,
   Package,
   Warehouse,
   BarChart3,
@@ -32,6 +33,7 @@ import { User as UserIcon } from 'lucide-react'
 const menuItems = [
   { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { path: '/punto-venta', icon: ShoppingCart, label: 'Punto de Venta' },
+  { path: '/mesas', icon: Armchair, label: 'Mesas' },
   { path: '/barista', icon: Coffee, label: 'Comandas' },
   { path: '/productos', icon: Package, label: 'Productos' },
   { path: '/inventario', icon: Warehouse, label: 'Insumos' },

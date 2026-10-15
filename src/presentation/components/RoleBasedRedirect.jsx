@@ -1,6 +1,6 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { getAllowedRoutes } from '../utils/rolePermissions'
+import { getAllowedRoutes, rutaInicial } from '../utils/rolePermissions'
 import { Loader2 } from 'lucide-react'
 
 /**
@@ -36,23 +36,7 @@ const RoleBasedRedirect = () => {
     return <Navigate to="/login" replace />
   }
 
-  // Priorizar ciertas rutas según el rol
-  let defaultRoute = '/dashboard'
-  
-  if (rol?.toLowerCase() === 'vendedor' || rol?.toLowerCase() === 'mesero') {
-    defaultRoute = allowedRoutes.find(route => route === '/punto-venta') || allowedRoutes[0] || '/punto-venta'
-  } else if (rol?.toLowerCase() === 'cocina') {
-    defaultRoute = allowedRoutes.find(route => route === '/barista') || allowedRoutes[0] || '/barista'
-  } else {
-    defaultRoute = allowedRoutes.find(route => route === '/dashboard') || allowedRoutes[0] || '/dashboard'
-  }
-
-  // Asegurarse de que la ruta sea válida
-  if (!defaultRoute || !allowedRoutes.includes(defaultRoute)) {
-    defaultRoute = allowedRoutes[0] || '/login'
-  }
-
-  return <Navigate to={defaultRoute} replace />
+  return <Navigate to={rutaInicial(rol)} replace />
 }
 
 export default RoleBasedRedirect

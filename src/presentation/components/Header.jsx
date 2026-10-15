@@ -10,6 +10,7 @@ import { usePrinterContext } from '../context/PrinterContext'
 const ROUTE_TITLES = {
   '/dashboard': 'Dashboard',
   '/punto-venta': 'Punto de Venta',
+  '/mesas': 'Mesas',
   '/caja': 'Caja',
   '/historial-caja': 'Historial de Caja',
   '/movimientos-caja': 'Movimientos',

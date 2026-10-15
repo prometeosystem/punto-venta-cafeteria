@@ -208,6 +208,12 @@ const PuntoVenta = () => {
   // Comanda que se está editando para agregarle productos (llega desde Barista)
   const [comandaEnEdicion, setComandaEnEdicion] = useState(null)
 
+  // Mesa del plano para la que se arma la orden: { id, numero }
+  const [mesaOrden, setMesaOrden] = useState(null)
+  // Comanda que el plano de mesas mandó a cobrar; se elige al llegar la lista
+  const [cobrarPendiente, setCobrarPendiente] = useState(null)
+  const [terminadasCargadas, setTerminadasCargadas] = useState(false)
+
   // Estados para producto personalizado
   const [nombreProductoPersonalizado, setNombreProductoPersonalizado] = useState('')
   const [precioProductoPersonalizado, setPrecioProductoPersonalizado] = useState('')
@@ -326,6 +332,8 @@ const PuntoVenta = () => {
       )
     } catch (error) {
       console.error('Error al cargar comandas terminadas sin pagar:', error)
+    } finally {
+      setTerminadasCargadas(true)
     }
   }
   useEffect(() => {
@@ -371,6 +379,7 @@ const PuntoVenta = () => {
       setCart(convertirComandaTerminadaACarrito(comanda))
       setComandaEnEdicion(comanda)
       setComandaTerminadaSeleccionada(null)
+      setMesaOrden(null)
       setNombreCliente(comanda.venta_nombre_cliente || comanda.pedido?.nombre_cliente || '')
       setTipoServicio(comanda.venta_tipo_servicio === 'para-llevar' ? 'para-llevar' : 'comer-aqui')
       setMetodoPago(null)
@@ -413,8 +422,38 @@ const PuntoVenta = () => {
     setComandaEnEdicion(null)
     setNombreCliente(datos.nombre || '')
     setTipoServicio(datos.tipoServicio === 'para-llevar' ? 'para-llevar' : 'comer-aqui')
+    // Desde el plano de mesas llega la mesa elegida
+    setMesaOrden(datos.idMesa ? { id: datos.idMesa, numero: datos.numeroMesa } : null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state?.nuevaOrdenPara])
+
+  // El plano de mesas manda aquí la mesa lista para cobrar
+  useEffect(() => {
+    const idComanda = location.state?.cobrarComandaId
+    if (!idComanda) return
+    navigate(location.pathname, { replace: true, state: null })
+    setCobrarPendiente(idComanda)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state?.cobrarComandaId])
+
+  useEffect(() => {
+    if (!cobrarPendiente || !terminadasCargadas) return
+    const comanda = comandasTerminadasSinPagar.find((c) => c.id_comanda === cobrarPendiente)
+    setCobrarPendiente(null)
+    if (comanda) {
+      setComandaEnEdicion(null)
+      seleccionarComandaTerminada(comanda)
+      subirPanelOrden()
+    } else {
+      Swal.fire({
+        icon: 'info',
+        title: 'La mesa ya no está para cobrar',
+        text: 'Puede que ya se haya cobrado o que la cocina aún no termine.',
+        confirmButtonColor: 'rgb(var(--marca-500))',
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cobrarPendiente, terminadasCargadas, comandasTerminadasSinPagar])
 
   const addToCart = (product, tipoLecheSeleccionado = null, extrasSeleccionados = [], tipoProteinaSeleccionado = null, comentarioProducto = null) => {
     // Crear un ID único que incluya tipo de leche, extras, proteína y nota
@@ -1195,6 +1234,7 @@ const PuntoVenta = () => {
         descuento_valor: totalDescuento > 0 ? descuentoValor : null,
         total_descuento: totalDescuento > 0 ? totalDescuento : null,
         autorizacion: autorizacionDescuento,
+        id_mesa: mesaOrden ? mesaOrden.id : null,
       })
       if (ventaResponse?.error) {
         throw new Error(ventaResponse.error || 'Error al crear la venta')
@@ -1277,6 +1317,7 @@ const PuntoVenta = () => {
       setPropinaPorcentaje(null)
       setMontoPropina(0)
       removerDescuento()
+      setMesaOrden(null)
       
       // Actualizar número de ticket después de crear la venta
       await cargarNumeroTicket()
@@ -1317,10 +1358,11 @@ const PuntoVenta = () => {
       })
       return
     }
-    const nombreParaEnviar = (nombreForzado ?? nombreCliente ?? '').trim()
+    const mesa = comandaEnEdicion ? null : mesaOrden
+    const nombreParaEnviar = (nombreForzado ?? (mesa ? `Mesa ${mesa.numero}` : nombreCliente) ?? '').trim()
     // El modal pide el nombre y el tipo de servicio. Las notas van por producto
-    // en el modal de opciones, no aquí.
-    if (nombreForzado === null && (!comandaEnEdicion || !nombreParaEnviar)) {
+    // en el modal de opciones, no aquí. Una mesa del plano ya trae ambos.
+    if (nombreForzado === null && !mesa && (!comandaEnEdicion || !nombreParaEnviar)) {
       // Modal propio en vez de un prompt de SweetAlert: en tablet necesitamos
       // controlar la posición sobre el teclado y que Cancelar sea confiable.
       // El tipo de servicio se reinicia al abrir, no arrastra la elección anterior.
@@ -1358,7 +1400,7 @@ const PuntoVenta = () => {
         nombre_cliente: nombreParaEnviar || nombreCliente || null,
         total: totalFinalVenta,
         metodo_pago: 'pendiente',
-        tipo_servicio: tipoServicio,
+        tipo_servicio: mesa ? 'comer-aqui' : tipoServicio,
         tipo_leche: null,
         comentarios: comentarios || null,
         extra_leche: extraLeche > 0 ? extraLeche : null,
@@ -1368,6 +1410,7 @@ const PuntoVenta = () => {
         total_descuento: totalDescuento > 0 ? totalDescuento : null,
         autorizacion: autorizacionDescuento,
         pagada: false,
+        id_mesa: mesa ? mesa.id : null,
       })
       if (ventaResponse?.error) {
         throw new Error(ventaResponse.error || 'Error al crear la venta')
@@ -1413,10 +1456,22 @@ const PuntoVenta = () => {
       setNombreCliente('')
       setComentarios('')
       removerDescuento()
+      setMesaOrden(null)
+      if (mesa) {
+        // La orden salió del plano: se regresa a él para atender la siguiente mesa
+        navigate('/mesas')
+        return
+      }
       await cargarComandasTerminadasSinPagar()
     } catch (error) {
       console.error('Error al enviar sin pagar:', error)
       const errorMsg = extraerMensajeError(error, 'Error al enviar a comandas')
+      // Otra persona abrió la mesa mientras se armaba la orden: se suelta la
+      // mesa y la orden se queda para mandarla con otro nombre o a otra mesa.
+      if (error?.response?.status === 409) {
+        setMesaOrden(null)
+        setNombreCliente('')
+      }
       await Swal.fire({
         icon: 'error',
         title: 'Error',
@@ -1777,6 +1832,7 @@ const PuntoVenta = () => {
     setNombreCliente(comanda.venta_nombre_cliente || '')
     setTipoServicio(comanda.venta_tipo_servicio === 'para-llevar' ? 'para-llevar' : 'comer-aqui')
     setComandaTerminadaSeleccionada(comanda)
+    setMesaOrden(null)
     setMetodoPago(null)
     setPropinaPorcentaje(null)
     setMontoPropina(0)
@@ -1790,6 +1846,7 @@ const PuntoVenta = () => {
 
   const salirDeEdicion = () => {
     setComandaEnEdicion(null)
+    setMesaOrden(null)
     setCart([])
     setNombreCliente('')
     setTipoServicio('comer-aqui')
@@ -1804,6 +1861,7 @@ const PuntoVenta = () => {
   /** Deja el panel de Orden Actual completamente vacío, sin comanda ni ajustes de cobro. */
   const limpiarOrden = () => {
     setComandaTerminadaSeleccionada(null)
+    setMesaOrden(null)
     setCart([])
     setNombreCliente('')
     setTipoServicio('comer-aqui')
@@ -2081,7 +2139,7 @@ const PuntoVenta = () => {
       : []
   const piezasOrden = cart.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)
   const totalBarraOrden = resumenOrden().totalFinal
-  const mesasAbiertas = comandasTerminadasSinPagar.length
+  const mesasAbiertas = puedeCobrar(usuario?.rol) ? comandasTerminadasSinPagar.length : 0
 
   return (
     <div className="relative h-full min-h-0 pt-3 px-2 pb-2 flex flex-col landscape:flex-row gap-2 overflow-hidden">
@@ -2280,6 +2338,23 @@ const PuntoVenta = () => {
                     )}
                     {comandaTerminadaSeleccionada && (
                       <span className="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-1 rounded-full">Sin pagar</span>
+                    )}
+                    {mesaOrden && !comandaEnEdicion && !comandaTerminadaSeleccionada && (
+                      <span className="inline-flex items-center gap-1 bg-marca-100 text-marca-700 text-xs font-medium pl-2 pr-1 py-0.5 rounded-full">
+                        Mesa {mesaOrden.numero}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMesaOrden(null)
+                            setNombreCliente('')
+                          }}
+                          className="p-0.5 rounded-full hover:bg-marca-200"
+                          title="Quitar mesa"
+                          aria-label="Quitar mesa"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </span>
                     )}
                     {comandaTerminadaSeleccionada && (
                       <span className="bg-marca-100 text-marca-700 text-xs font-medium px-2 py-1 rounded-full">
@@ -2644,8 +2719,9 @@ const PuntoVenta = () => {
               </>
           </div>
 
-          {/* Mesas abiertas: ya se entregó lo pedido pero la cuenta sigue viva */}
-          {comandasTerminadasSinPagar.length > 0 && (
+          {/* Mesas abiertas: ya se entregó lo pedido pero la cuenta sigue viva.
+              El mesero no cobra; él sigue sus mesas desde el plano. */}
+          {comandasTerminadasSinPagar.length > 0 && puedeCobrar(usuario?.rol) && (
             <div className="card mb-2 !p-3">
               <button
                 type="button"

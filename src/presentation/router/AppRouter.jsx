@@ -8,6 +8,7 @@ import RoleBasedRedirect from '../components/RoleBasedRedirect'
 
 const Dashboard = lazy(() => import('../pages/Dashboard'))
 const PuntoVenta = lazy(() => import('../pages/PuntoVenta'))
+const Mesas = lazy(() => import('../pages/Mesas'))
 const Productos = lazy(() => import('../pages/Productos'))
 const Inventario = lazy(() => import('../pages/Inventario'))
 const Empleados = lazy(() => import('../pages/Empleados'))
@@ -51,6 +52,7 @@ function AppRouter() {
         <Route index element={<RoleBasedRedirect />} />
         <Route path="dashboard" element={<RoleProtectedRoute><LazyPage><Dashboard /></LazyPage></RoleProtectedRoute>} />
         <Route path="punto-venta" element={<RoleProtectedRoute><LazyPage><PuntoVenta /></LazyPage></RoleProtectedRoute>} />
+        <Route path="mesas" element={<RoleProtectedRoute><LazyPage><Mesas /></LazyPage></RoleProtectedRoute>} />
         <Route path="barista" element={<RoleProtectedRoute><LazyPage><Barista /></LazyPage></RoleProtectedRoute>} />
         <Route path="productos" element={<RoleProtectedRoute><LazyPage><Productos /></LazyPage></RoleProtectedRoute>} />
         <Route path="inventario" element={<RoleProtectedRoute><LazyPage><Inventario /></LazyPage></RoleProtectedRoute>} />

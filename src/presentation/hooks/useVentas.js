@@ -43,6 +43,7 @@ export const useVentas = () => {
         descuento_valor: ventaData.descuento_valor != null ? parseFloat(ventaData.descuento_valor) : null,
         total_descuento: ventaData.total_descuento != null ? parseFloat(ventaData.total_descuento) : null,
         pagada: ventaData.pagada !== undefined ? ventaData.pagada : true,
+        id_mesa: ventaData.id_mesa ?? null,
       }
 
       const response = await ventasService.crearVenta(venta)

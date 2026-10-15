@@ -14,6 +14,7 @@ const routePermissions = {
   // los reportes, y el backend ya restringe esos endpoints a admin.
   '/dashboard': ['administrador', 'superadministrador'],
   '/punto-venta': ['vendedor', 'mesero', 'administrador', 'superadministrador'],
+  '/mesas': ['vendedor', 'mesero', 'administrador', 'superadministrador'],
   '/barista': ['vendedor', 'cocina', 'mesero', 'administrador', 'superadministrador'],
   '/productos': ['administrador', 'superadministrador'],
   '/inventario': ['administrador', 'superadministrador'],
@@ -93,11 +94,28 @@ export const puedeCobrar = (rol) => {
   return rol.toLowerCase() !== 'mesero'
 }
 
+/**
+ * Pantalla con la que abre cada rol al entrar o al caer en una ruta sin permiso.
+ * El mesero trabaja desde el plano de mesas.
+ * @param {string} rol - El rol del usuario
+ * @returns {string}
+ */
+export const rutaInicial = (rol) => {
+  const allowedRoutes = getAllowedRoutes(rol)
+  const preferida = {
+    mesero: '/mesas',
+    vendedor: '/punto-venta',
+    cocina: '/barista',
+  }[rol?.toLowerCase()] || '/dashboard'
+  return allowedRoutes.includes(preferida) ? preferida : allowedRoutes[0] || '/login'
+}
+
 export default {
   hasRouteAccess,
   getAllowedRoutes,
   isAdmin,
   puedeCobrar,
+  rutaInicial,
   routePermissions,
 }
 
