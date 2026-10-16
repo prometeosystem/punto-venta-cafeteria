@@ -241,7 +241,7 @@ const Bitacora = () => {
         {seccion === 'movimientos' && (
         <>
         {/* Filtros */}
-        <div className="card mb-4 !p-3 sm:mb-6 sm:!p-4">
+        <div className="card mb-4 overflow-x-hidden !p-3 sm:mb-6 sm:!p-4">
           <button
             onClick={() => setMostrarFiltros(!mostrarFiltros)}
             aria-expanded={mostrarFiltros}
@@ -305,28 +305,29 @@ const Bitacora = () => {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Fecha Desde
-                </label>
-                <input
-                  type="datetime-local"
-                  value={filtros.fecha_desde}
-                  onChange={(e) => setFiltros(prev => ({ ...prev, fecha_desde: e.target.value }))}
-                  className="input w-full"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Fecha Hasta
-                </label>
-                <input
-                  type="datetime-local"
-                  value={filtros.fecha_hasta}
-                  onChange={(e) => setFiltros(prev => ({ ...prev, fecha_hasta: e.target.value }))}
-                  className="input w-full"
-                />
+              <div className="grid min-w-0 grid-cols-2 gap-2 sm:col-span-2 md:col-span-2">
+                <div className="min-w-0">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Desde
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={filtros.fecha_desde}
+                    onChange={(e) => setFiltros(prev => ({ ...prev, fecha_desde: e.target.value }))}
+                    className="input w-full min-w-0"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Hasta
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={filtros.fecha_hasta}
+                    onChange={(e) => setFiltros(prev => ({ ...prev, fecha_hasta: e.target.value }))}
+                    className="input w-full min-w-0"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2 sm:col-span-2 sm:flex sm:gap-3 md:col-span-3">

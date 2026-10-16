@@ -171,13 +171,15 @@ const MiPerfil = () => {
         </form>
       </div>
 
-      <button
-        onClick={salir}
-        className="w-full flex items-center justify-center gap-2 py-3 rounded-lg border-2 border-red-200 text-red-600 font-medium hover:bg-red-50 transition-colors"
-      >
-        <LogOut className="w-5 h-5" />
-        Cerrar sesión
-      </button>
+      <div className="flex justify-end">
+        <button
+          onClick={salir}
+          className="inline-flex items-center gap-2 rounded-lg border-2 border-red-200 px-4 py-3 font-medium text-red-600 hover:bg-red-50 transition-colors"
+        >
+          <LogOut className="w-5 h-5" />
+          Cerrar sesión
+        </button>
+      </div>
     </div>
   )
 }

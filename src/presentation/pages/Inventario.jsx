@@ -372,8 +372,8 @@ const Inventario = () => {
 
       {/* Búsqueda y acciones */}
       <div className="card">
-        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-          <div className="relative flex-1 w-full md:w-auto">
+        <div className="flex gap-2 items-center">
+          <div className="relative min-w-0 flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
               type="text"
@@ -384,11 +384,13 @@ const Inventario = () => {
             />
           </div>
           <button
+            type="button"
             onClick={abrirModalCrear}
-            className="btn-primary flex items-center gap-2"
+            className="btn-primary shrink-0 flex h-[42px] w-[42px] items-center justify-center p-0"
+            aria-label="Nuevo insumo"
+            title="Nuevo insumo"
           >
-            <Plus className="w-4 h-4" />
-            Nuevo Insumo
+            <Plus className="w-5 h-5" />
           </button>
         </div>
       </div>
@@ -406,7 +408,44 @@ const Inventario = () => {
             <Loader2 className="w-8 h-8 animate-spin text-marca-600" />
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <ul className="md:hidden divide-y divide-gray-100">
+            {filteredInsumos.length === 0 ? (
+              <li className="py-8 text-center text-sm text-gray-500">
+                {searchTerm ? 'No se encontraron insumos' : 'No hay insumos registrados'}
+              </li>
+            ) : (
+              filteredInsumos.map((item) => {
+                const status = getStatus(item)
+                const cantidad = parseFloat(item.cantidad_actual ?? 0).toFixed(4).replace(/\.?0+$/, '')
+                return (
+                  <li key={item.id_insumo}>
+                    <button
+                      type="button"
+                      onClick={() => abrirModalEditar(item)}
+                      className="flex w-full items-center gap-2.5 py-2 text-left"
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-gray-900">{item.nombre}</span>
+                        <span className={`block truncate text-[11px] ${
+                          status === 'critical' ? 'text-red-600' : status === 'low' ? 'text-amber-600' : 'text-gray-500'
+                        }`}>
+                          {item.unidad_medida} · {status === 'ok' ? 'Normal' : status === 'low' ? 'Bajo' : 'Crítico'}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-right">
+                        <span className="block text-sm font-semibold text-gray-900 tabular-nums">{cantidad}</span>
+                        <span className="block text-[11px] text-gray-400 tabular-nums">
+                          ${parseFloat(item.precio_compra || 0).toFixed(2)}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                )
+              })
+            )}
+          </ul>
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200">
@@ -491,6 +530,7 @@ const Inventario = () => {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
 

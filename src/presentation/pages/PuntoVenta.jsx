@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Plus, Minus, Trash2, ShoppingCart, Loader2, X, Search, Coins, Percent, Check, CheckCircle, ChefHat, Lock, Bike, Utensils, ShoppingBag, CreditCard, Banknote, ArrowLeftRight, Image as ImageIcon, ImageOff, LayoutGrid, Folder, ChevronUp, ChevronDown } from 'lucide-react'
 import { useProductos } from '../hooks/useProductos'
@@ -6,6 +6,7 @@ import { useVentas } from '../hooks/useVentas'
 import { useComandas } from '../hooks/useComandas'
 import { useAuth } from '../context/AuthContext'
 import { usePreferencias } from '../context/PreferenciasContext'
+import { productoDelModo } from '../utils/preferenciasUi'
 import { useCaja } from '../hooks/useCaja'
 import { productosService } from '../../application/services/productosService'
 import { imprimirTicket, itemsDesdeCarrito } from '../utils/imprimirTicket'
@@ -169,6 +170,10 @@ const PuntoVenta = () => {
   const { crearComanda, editarComanda, obtenerComanda, obtenerComandasTerminadasSinPagar, cancelarComanda, loading: comandaLoading } = useComandas()
   const { usuario } = useAuth()
   const { modoRestaurante, modoTienda } = usePreferencias()
+  const catalogo = useMemo(
+    () => productos.filter((producto) => productoDelModo(producto, modoTienda)),
+    [productos, modoTienda],
+  )
   const { estado: estadoCaja, loading: cajaLoading } = useCaja(15000)
   const [metodosPagoActivos, setMetodosPagoActivos] = useState(() => obtenerMetodosPagoActivos())
   const [posConFotos, setPosConFotos] = useState(() => obtenerPosConFotos())
@@ -302,9 +307,9 @@ const PuntoVenta = () => {
   useEffect(() => {
     if (!posConFotos || productos.length === 0) return undefined
     let vivo = true
-    Promise.all(productos.map(async (producto) => {
+    Promise.all(catalogo.map(async (producto) => {
       const url = producto.tipo_imagen
-        ? `${API_BASE_URL}/api/productos/imagen/${producto.id_producto}`
+        ? `${API_BASE_URL}/api/productos/imagen/${producto.id_producto}?v=${encodeURIComponent(producto.fecha_actualizacion || '')}`
         : null
       const local = url ? await obtenerImagenCacheada(url) : null
       return [producto.id_producto, local]
@@ -312,7 +317,7 @@ const PuntoVenta = () => {
       if (vivo) setFotosPorId(Object.fromEntries(entradas))
     })
     return () => { vivo = false }
-  }, [posConFotos, productos, cacheFotos])
+  }, [posConFotos, catalogo, cacheFotos])
 
   // Cargar número de ticket actual
   const cargarNumeroTicket = async () => {
@@ -792,7 +797,7 @@ const PuntoVenta = () => {
 
   // Agrupar productos activos por categoría (orden del menú de la marca)
   const categories = sortMenuCategories(
-    [...new Set(productos.filter((p) => p.activo).map((p) => p.categoria))]
+    [...new Set(catalogo.filter((p) => p.activo).map((p) => p.categoria))]
   )
 
   // Función helper para extraer mensaje de error
@@ -2002,7 +2007,7 @@ const PuntoVenta = () => {
   // Función para formatear fecha
 
   const productosDeCategoria = (category) =>
-    productos.filter((p) => p.categoria === category && p.activo)
+    catalogo.filter((p) => p.categoria === category && p.activo)
 
   const abrirCategoria = (category) => {
     setCategoriaActiva((prev) => (prev === category ? null : category))
@@ -2021,7 +2026,7 @@ const PuntoVenta = () => {
   }
 
   // Filtrar productos según búsqueda (nombre, categoría, código o SKU)
-  const productosFiltrados = productos.filter((producto) => {
+  const productosFiltrados = catalogo.filter((producto) => {
     if (!producto.activo) return false
     const q = searchTerm.toLowerCase().trim()
     if (!q) return true
@@ -2050,7 +2055,7 @@ const PuntoVenta = () => {
   const intentarAgregarPorCodigo = async (codigoRaw) => {
     const codigo = (codigoRaw || '').trim()
     if (!codigo) return false
-    const local = productos.find(
+    const local = catalogo.find(
       (p) =>
         p.activo &&
         (String(p.codigo_barras || '') === codigo || String(p.sku || '') === codigo),
@@ -2061,7 +2066,7 @@ const PuntoVenta = () => {
     }
     try {
       const remoto = await productosService.buscarPorCodigo(codigo)
-      if (remoto?.id_producto) {
+      if (remoto?.id_producto && productoDelModo(remoto, modoTienda)) {
         agregarProductoEscaneado(remoto)
         return true
       }
@@ -2098,7 +2103,7 @@ const PuntoVenta = () => {
   }
 
   const productosMasVendidos = idsMasVendidos
-    .map((id) => productos.find((p) => p.id_producto === id && p.activo))
+    .map((id) => catalogo.find((p) => p.id_producto === id && p.activo))
     .filter(Boolean)
 
   // Función para seleccionar producto desde búsqueda
@@ -2403,7 +2408,7 @@ const PuntoVenta = () => {
                   Personalizado
                 </span>
               </button>
-              {productos.filter((p) => p.activo).map((product) => renderProductTile(product))}
+              {catalogo.filter((p) => p.activo).map((product) => renderProductTile(product))}
             </div>
           ) : (
             <div className="space-y-3">

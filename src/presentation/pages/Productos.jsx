@@ -4,8 +4,37 @@ import { Plus, Search, Edit, Trash2, Loader2 } from 'lucide-react'
 import { useProductos } from '../hooks/useProductos'
 import { proveedoresService } from '../../application/services/proveedoresService'
 import { usePreferencias } from '../context/PreferenciasContext'
+import { productoDelModo } from '../utils/preferenciasUi'
+import { obtenerImagenCacheada } from '../utils/posVistaConfig'
 import { API_BASE_URL } from '../../infrastructure/api'
 import Swal from 'sweetalert2'
+
+function MiniaturaProducto({ producto }) {
+  const version = producto.fecha_actualizacion || ''
+  const [src, setSrc] = useState(null)
+
+  useEffect(() => {
+    if (!producto.tipo_imagen) return undefined
+    let vivo = true
+    const url = `${API_BASE_URL}/api/productos/imagen/${producto.id_producto}?v=${encodeURIComponent(version)}`
+    obtenerImagenCacheada(url).then((local) => {
+      if (vivo) setSrc(local)
+    })
+    return () => {
+      vivo = false
+    }
+  }, [producto.id_producto, producto.tipo_imagen, version])
+
+  if (!producto.tipo_imagen || !src) {
+    return (
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded bg-gray-100 text-[10px] text-gray-400">
+        {producto.tipo_imagen ? '' : 'Sin foto'}
+      </span>
+    )
+  }
+
+  return <img src={src} alt="" className="h-11 w-11 shrink-0 rounded object-cover bg-gray-100" />
+}
 
 const Productos = () => {
   const navigate = useNavigate()
@@ -18,7 +47,8 @@ const Productos = () => {
   const [proveedores, setProveedores] = useState([])
   const [idsProductoProveedor, setIdsProductoProveedor] = useState(null)
 
-  const { productos, loading, eliminarProducto, obtenerProductos } = useProductos()
+  const { productos: productosTodos, loading, eliminarProducto, obtenerProductos } = useProductos()
+  const productos = productosTodos.filter((producto) => productoDelModo(producto, modoTienda))
 
   useEffect(() => {
     let cancelado = false
@@ -258,17 +288,7 @@ const Productos = () => {
                         product.activo ? '' : 'opacity-50'
                       }`}
                     >
-                      {product.tipo_imagen ? (
-                        <img
-                          src={`${API_BASE_URL}/api/productos/imagen/${product.id_producto}`}
-                          alt=""
-                          className="h-11 w-11 shrink-0 rounded object-cover bg-gray-100"
-                        />
-                      ) : (
-                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded bg-gray-100 text-[10px] text-gray-400">
-                          Sin foto
-                        </span>
-                      )}
+                      <MiniaturaProducto producto={product} />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[11px] text-gray-500">
                           {product.es_reventa ? `PZA ${codigo}` : codigo}

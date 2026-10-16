@@ -35,6 +35,9 @@
   input[type='time'].input,
   input[type='datetime-local'].input {
     display: block;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
   }
 
   /* Safari en iPhone/iPad amplía la página al enfocar un campo con letra

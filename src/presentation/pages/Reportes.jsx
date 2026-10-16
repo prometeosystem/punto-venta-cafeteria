@@ -498,7 +498,7 @@ const Reportes = () => {
       {/* Filtros de fecha */}
       <div className="card min-w-0 overflow-hidden !p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-end gap-3 min-w-0">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0 flex-1">
+          <div className="grid grid-cols-2 gap-2 min-w-0 flex-1 sm:gap-3">
             <div className="min-w-0">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Fecha Inicio

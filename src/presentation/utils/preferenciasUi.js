@@ -3,6 +3,11 @@
 export const MODO_RESTAURANTE = 'restaurante'
 export const MODO_TIENDA = 'tienda'
 
+export function productoDelModo(producto, modoTienda) {
+  const canal = producto?.canal === 'tienda' ? 'tienda' : 'restaurante'
+  return canal === (modoTienda ? 'tienda' : 'restaurante')
+}
+
 export const RUTAS_SOLO_RESTAURANTE = ['/mesas', '/barista']
 
 const METRICAS_METODO_PAGO = [

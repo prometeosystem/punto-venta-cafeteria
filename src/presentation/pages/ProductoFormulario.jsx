@@ -224,6 +224,7 @@ const ProductoFormulario = () => {
           stock_actual: producto.stock_actual ?? '',
           stock_minimo: producto.stock_minimo ?? '',
           es_reventa: !!producto.es_reventa,
+          canal: producto.canal === 'tienda' ? 'tienda' : 'restaurante',
         })
 
         setUsandoCategoriaNueva(categoria && !categoriasExistentes.includes(categoria))
@@ -337,7 +338,11 @@ const ProductoFormulario = () => {
       }
       formDataToSend.append('categoria', formData.categoria.trim())
       formDataToSend.append('precio', precio.toString())
-      formDataToSend.append('activo', formData.activo.toString())
+      formDataToSend.append('activo', (esEdicion ? formData.activo : true).toString())
+      formDataToSend.append(
+        'canal',
+        esEdicion ? (formData.canal === 'tienda' ? 'tienda' : 'restaurante') : (modoTienda ? 'tienda' : 'restaurante'),
+      )
       if (!modoTienda) formDataToSend.append('area', formData.area)
       formDataToSend.append('codigo_barras', (formData.codigo_barras || '').trim())
       const esReventa = modoTienda ? true : !!formData.es_reventa
@@ -638,7 +643,6 @@ const ProductoFormulario = () => {
       >
         {/* Sección: Datos básicos */}
         <section className="card">
-          <h2 className="text-base font-semibold text-gray-800 mb-4">Datos básicos</h2>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="codigo-barras-producto">
@@ -660,9 +664,6 @@ const ProductoFormulario = () => {
                 className="input w-full"
                 placeholder="Escanea o escribe el código"
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Con el campo activo, el escáner lo escribe aquí.
-              </p>
             </div>
 
             <div>
@@ -770,7 +771,7 @@ const ProductoFormulario = () => {
             </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className={esEdicion ? 'grid grid-cols-2 gap-4' : ''}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Precio <span className="text-red-500">*</span>
@@ -792,6 +793,7 @@ const ProductoFormulario = () => {
                 </div>
               </div>
 
+              {esEdicion && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Estado</label>
                 <div className="flex gap-3">
@@ -817,6 +819,7 @@ const ProductoFormulario = () => {
                   </label>
                 </div>
               </div>
+              )}
             </div>
 
             {!modoTienda && (

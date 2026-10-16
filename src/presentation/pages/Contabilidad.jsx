@@ -334,7 +334,7 @@ const Contabilidad = () => {
           )}
         >
           {data.ingresos_por_dia?.length > 0 ? (
-            <div className="h-56 w-full sm:h-72">
+            <div className="h-56 w-full min-w-0 overflow-hidden sm:h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data.ingresos_por_dia} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
@@ -458,23 +458,23 @@ const Contabilidad = () => {
             {productos.length === 0 ? (
               <SinDatos texto="Sin productos con receta vendidos en el periodo" />
             ) : (
-              <div className="-mx-4 overflow-x-auto sm:-mx-5">
-                <table className="w-full min-w-[420px] text-sm">
-                  <thead className="border-y border-gray-200 bg-gray-50 text-xs text-gray-500">
+              <div className="min-w-0 overflow-hidden">
+                <table className="w-full table-fixed text-xs sm:text-sm">
+                  <thead className="border-y border-gray-200 bg-gray-50 text-[11px] text-gray-500 sm:text-xs">
                     <tr>
-                      <th className="px-4 py-2 text-left font-medium sm:px-5">Producto</th>
-                      <th className="px-2 py-2 text-right font-medium">Vendidos</th>
-                      <th className="px-2 py-2 text-right font-medium">Costo unit.</th>
-                      <th className="px-4 py-2 text-right font-medium sm:px-5">Costo total</th>
+                      <th className="w-[40%] px-2 py-2 text-left font-medium sm:px-5">Producto</th>
+                      <th className="px-1 py-2 text-right font-medium">Cant.</th>
+                      <th className="px-1 py-2 text-right font-medium">Unit.</th>
+                      <th className="px-2 py-2 text-right font-medium sm:px-5">Total</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {productos.map((p, i) => (
                       <tr key={i}>
-                        <td className="max-w-[12rem] truncate px-4 py-2 text-gray-800 sm:px-5">{p.nombre}</td>
-                        <td className="px-2 py-2 text-right tabular-nums text-gray-600">{p.cantidad_vendida}</td>
-                        <td className="px-2 py-2 text-right tabular-nums text-gray-600">{formatMoney(p.costo_unitario)}</td>
-                        <td className="px-4 py-2 text-right font-semibold tabular-nums text-gray-900 sm:px-5">
+                        <td className="truncate px-2 py-2 text-gray-800 sm:px-5">{p.nombre}</td>
+                        <td className="px-1 py-2 text-right tabular-nums text-gray-600">{p.cantidad_vendida}</td>
+                        <td className="px-1 py-2 text-right tabular-nums text-gray-600">{formatMoney(p.costo_unitario)}</td>
+                        <td className="truncate px-2 py-2 text-right font-semibold tabular-nums text-gray-900 sm:px-5">
                           {formatMoney(p.costo_total)}
                         </td>
                       </tr>
@@ -516,7 +516,7 @@ const Contabilidad = () => {
   }
 
   return (
-    <div className="min-w-0 max-w-full space-y-4 lg:p-2 sm:space-y-5">
+    <div className="min-w-0 max-w-full space-y-4 overflow-x-hidden lg:p-2 sm:space-y-5">
       <div className="card min-w-0 space-y-3 !p-3 sm:!p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="grid grid-cols-3 gap-1 rounded-lg bg-gray-100 p-1 sm:inline-grid">
