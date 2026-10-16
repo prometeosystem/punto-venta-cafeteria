@@ -1,21 +1,66 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Search, Edit, Trash2, Loader2 } from 'lucide-react'
 import { useProductos } from '../hooks/useProductos'
+import { proveedoresService } from '../../application/services/proveedoresService'
 import Swal from 'sweetalert2'
 
 const Productos = () => {
   const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('Todas las categorías')
+  const [selectedProveedor, setSelectedProveedor] = useState('todos')
   const [filtroLista, setFiltroLista] = useState('todos')
   const [filtroArea, setFiltroArea] = useState('todos')
+  const [proveedores, setProveedores] = useState([])
+  const [idsProductoProveedor, setIdsProductoProveedor] = useState(null)
 
   const { productos, loading, eliminarProducto, obtenerProductos } = useProductos()
 
+  useEffect(() => {
+    let cancelado = false
+    proveedoresService
+      .listar(true)
+      .then((lista) => {
+        if (!cancelado) setProveedores(Array.isArray(lista) ? lista : [])
+      })
+      .catch(() => {
+        if (!cancelado) setProveedores([])
+      })
+    return () => {
+      cancelado = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (selectedProveedor === 'todos') {
+      setIdsProductoProveedor(null)
+      return
+    }
+
+    let cancelado = false
+    proveedoresService
+      .obtener(Number(selectedProveedor))
+      .then((proveedor) => {
+        if (cancelado) return
+        const ids = new Set(
+          (proveedor.items || [])
+            .filter((item) => item.tipo_item === 'producto')
+            .map((item) => Number(item.id_item))
+        )
+        setIdsProductoProveedor(ids)
+      })
+      .catch(() => {
+        if (!cancelado) setIdsProductoProveedor(new Set())
+      })
+
+    return () => {
+      cancelado = true
+    }
+  }, [selectedProveedor])
+
   const productoActivo = (product) => product.activo === 1 || product.activo === true
   const productoConFoto = (product) => Boolean(product.tipo_imagen)
-  const esReventa = (product) => product.es_reventa === true || product.es_reventa === 1 || product.es_reventa === '1'
   const resumenProductos = [
     { id: 'todos', label: 'Total', valor: productos.length },
     { id: 'activos', label: 'Activos', valor: productos.filter(productoActivo).length },
@@ -27,7 +72,6 @@ const Productos = () => {
     { id: 'todos', label: 'Todos' },
     { id: 'barra', label: 'Barra' },
     { id: 'cocina', label: 'Cocina' },
-    { id: 'proveedor', label: 'Proveedor' },
   ]
 
   // Filtrar productos
@@ -41,10 +85,11 @@ const Productos = () => {
       || (filtroLista === 'con-foto' && productoConFoto(product))
       || (filtroLista === 'sin-foto' && !productoConFoto(product))
     const matchesArea = filtroArea === 'todos'
-      || (filtroArea === 'proveedor' && esReventa(product))
-      || (filtroArea === 'cocina' && !esReventa(product) && product.area === 'cocina')
-      || (filtroArea === 'barra' && !esReventa(product) && product.area !== 'cocina')
-    return matchesSearch && matchesCategory && matchesResumen && matchesArea
+      || (filtroArea === 'cocina' && product.area === 'cocina')
+      || (filtroArea === 'barra' && product.area !== 'cocina')
+    const matchesProveedor =
+      !idsProductoProveedor || idsProductoProveedor.has(Number(product.id_producto))
+    return matchesSearch && matchesCategory && matchesResumen && matchesArea && matchesProveedor
   })
 
   // Obtener categorías únicas
@@ -143,13 +188,25 @@ const Productos = () => {
               )
             })}
           </div>
-          <select 
+          <select
             className="input lg:w-48"
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
           >
             {categories.map(cat => (
               <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+          <select
+            className="input lg:w-48"
+            value={selectedProveedor}
+            onChange={(e) => setSelectedProveedor(e.target.value)}
+          >
+            <option value="todos">Todos los proveedores</option>
+            {proveedores.map((proveedor) => (
+              <option key={proveedor.id_proveedor} value={String(proveedor.id_proveedor)}>
+                {proveedor.nombre}
+              </option>
             ))}
           </select>
           <button
@@ -211,11 +268,7 @@ const Productos = () => {
                     <td className="py-3 px-4">
                       <span className="text-sm text-gray-600">{product.categoria}</span>
                       <span className="block text-[11px] text-gray-400">
-                        {esReventa(product)
-                          ? 'Proveedor'
-                          : product.area === 'cocina'
-                            ? 'Cocina'
-                            : 'Barra'}
+                        {product.area === 'cocina' ? 'Cocina' : 'Barra'}
                       </span>
                     </td>
                     <td className="py-3 px-4">
@@ -264,6 +317,3 @@ const Productos = () => {
 }
 
 export default Productos
-
-
-
