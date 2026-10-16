@@ -5,6 +5,7 @@ import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import ToastNotification from '../components/ToastNotification'
 import CambiarCodigoObligatorio from '../components/CambiarCodigoObligatorio'
+import ElegirModoAlEntrar from '../components/ElegirModoAlEntrar'
 import { useLayout } from '../context/LayoutContext'
 import { useNotifications } from '../context/NotificationContext'
 
@@ -122,6 +123,7 @@ const MainLayout = () => {
       </div>
 
       <CambiarCodigoObligatorio />
+      <ElegirModoAlEntrar />
     </>
   )
 }

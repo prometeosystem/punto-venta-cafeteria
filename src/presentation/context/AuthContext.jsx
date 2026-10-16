@@ -113,17 +113,20 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (correo, contrasena) => {
     const response = await authService.login(correo, contrasena)
+    sessionStorage.setItem('pos_preguntar_modo', '1')
     setUsuario(response.usuario)
     return response
   }
 
   const loginConCodigo = async (idUsuario, codigo) => {
     const response = await authService.loginConCodigo(idUsuario, codigo)
+    sessionStorage.setItem('pos_preguntar_modo', '1')
     setUsuario(response.usuario)
     return response
   }
 
   const logout = () => {
+    sessionStorage.removeItem('pos_preguntar_modo')
     authService.logout()
     setUsuario(null)
   }
