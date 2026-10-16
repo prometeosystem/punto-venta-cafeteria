@@ -1,5 +1,14 @@
 import { useState } from 'react'
-import { Bell, CreditCard, Image, LayoutDashboard, Store, UtensilsCrossed } from 'lucide-react'
+import {
+  Bell,
+  ChevronDown,
+  ChevronUp,
+  CreditCard,
+  Image,
+  LayoutDashboard,
+  Store,
+  UtensilsCrossed,
+} from 'lucide-react'
 import {
   METODOS_PAGO_DISPONIBLES,
 } from '../utils/metodosPagoConfig'
@@ -68,6 +77,7 @@ const Configuracion = () => {
   const { preferencias, guardar, modoTienda } = usePreferencias()
   const [posConFotos, setPosConFotos] = useState(() => obtenerPosConFotos())
   const [guardando, setGuardando] = useState(false)
+  const [metricasAbiertas, setMetricasAbiertas] = useState(false)
 
   const persistir = async (parcial, mensajeOk) => {
     setGuardando(true)
@@ -121,7 +131,7 @@ const Configuracion = () => {
           <h2 className="text-lg font-semibold text-gray-900">Tipo de negocio</h2>
         </div>
         <p className="text-sm text-gray-600 mb-4">
-          Se guarda en el servidor y aplica a todas las tablets. En modo tienda se ocultan mesas,
+          En modo tienda se ocultan mesas,
           comandas, meseros, propinas, tipo de servicio y enviar a cocina.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -222,7 +232,7 @@ const Configuracion = () => {
           </h2>
         </div>
         <p className="text-sm text-gray-600 mb-4">
-          Se guarda en el servidor: al cambiarlo aquí, todas las tablets ven lo mismo.
+          Se guarda en el servidor: al cambiarlo aquí, todos los dispositivos ven lo mismo.
         </p>
         <div className="space-y-3">
           {METODOS_PAGO_DISPONIBLES.map((metodo) => (
@@ -245,31 +255,46 @@ const Configuracion = () => {
         </div>
       </div>
 
-      <div className="card">
-        <div className="flex items-center gap-3 mb-2">
-          <LayoutDashboard className="w-5 h-5 text-marca-600" />
-          <h2 className="text-lg font-semibold text-gray-900">Métricas visibles</h2>
-        </div>
-        <p className="text-sm text-gray-600 mb-4">
-          Elige qué cards aparecen en el Dashboard y en Reportes. También puedes editarlas
-          desde cada pantalla con el botón «Editar métricas».
-        </p>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <ChecksMetricas
-            titulo="Dashboard"
-            catalogo={METRICAS_DASHBOARD}
-            valores={preferencias.metricas_dashboard}
-            modoTienda={modoTienda}
-            onToggle={(id) => toggleMetrica('dashboard', id)}
-          />
-          <ChecksMetricas
-            titulo="Reportes"
-            catalogo={METRICAS_REPORTES}
-            valores={preferencias.metricas_reportes}
-            modoTienda={modoTienda}
-            onToggle={(id) => toggleMetrica('reportes', id)}
-          />
-        </div>
+      <div className="card min-w-0 overflow-hidden !p-4 sm:p-6">
+        <button
+          type="button"
+          onClick={() => setMetricasAbiertas((v) => !v)}
+          aria-expanded={metricasAbiertas}
+          className="flex w-full items-center gap-3 text-left"
+        >
+          <LayoutDashboard className="w-5 h-5 text-marca-600 shrink-0" />
+          <h2 className="flex-1 text-lg font-semibold text-gray-900">Métricas visibles</h2>
+          {metricasAbiertas ? (
+            <ChevronUp className="w-5 h-5 text-gray-500 shrink-0" aria-hidden="true" />
+          ) : (
+            <ChevronDown className="w-5 h-5 text-gray-500 shrink-0" aria-hidden="true" />
+          )}
+        </button>
+
+        {metricasAbiertas && (
+          <div className="mt-4 space-y-4">
+            <p className="text-sm text-gray-600">
+              Elige qué cards aparecen en el Dashboard y en Reportes. También puedes editarlas
+              desde cada pantalla con el botón «Editar métricas».
+            </p>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <ChecksMetricas
+                titulo="Dashboard"
+                catalogo={METRICAS_DASHBOARD}
+                valores={preferencias.metricas_dashboard}
+                modoTienda={modoTienda}
+                onToggle={(id) => toggleMetrica('dashboard', id)}
+              />
+              <ChecksMetricas
+                titulo="Reportes"
+                catalogo={METRICAS_REPORTES}
+                valores={preferencias.metricas_reportes}
+                modoTienda={modoTienda}
+                onToggle={(id) => toggleMetrica('reportes', id)}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Notificaciones */}

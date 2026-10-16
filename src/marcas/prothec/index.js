@@ -1,4 +1,5 @@
 import Logo from './Logo'
+import LogoIcon from './LogoIcon'
 
 export default {
   id: 'prothec',
@@ -6,6 +7,7 @@ export default {
   nombreTicket: 'POS PROTHEC',
   encabezadoWhatsapp: '*POS Prothec* - Ticket',
   Logo,
+  LogoIcon,
   heroImagen: null,
   logoTicket: null,
   logoTicketAncho: 0.5,

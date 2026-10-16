@@ -10,6 +10,7 @@ const Dashboard = lazy(() => import('../pages/Dashboard'))
 const PuntoVenta = lazy(() => import('../pages/PuntoVenta'))
 const Mesas = lazy(() => import('../pages/Mesas'))
 const Productos = lazy(() => import('../pages/Productos'))
+const ProductoFormulario = lazy(() => import('../pages/ProductoFormulario'))
 const Inventario = lazy(() => import('../pages/Inventario'))
 const Empleados = lazy(() => import('../pages/Empleados'))
 const Reportes = lazy(() => import('../pages/Reportes'))
@@ -23,6 +24,8 @@ const CategoriasMovimiento = lazy(() => import('../pages/CategoriasMovimiento'))
 const Contabilidad = lazy(() => import('../pages/Contabilidad'))
 const TestNotificationSounds = lazy(() => import('../pages/TestNotificationSounds'))
 const MiPerfil = lazy(() => import('../pages/MiPerfil'))
+const Devoluciones = lazy(() => import('../pages/Devoluciones'))
+const Proveedores = lazy(() => import('../pages/Proveedores'))
 
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-[200px]">
@@ -55,7 +58,11 @@ function AppRouter() {
         <Route path="mesas" element={<RoleProtectedRoute><LazyPage><Mesas /></LazyPage></RoleProtectedRoute>} />
         <Route path="barista" element={<RoleProtectedRoute><LazyPage><Barista /></LazyPage></RoleProtectedRoute>} />
         <Route path="productos" element={<RoleProtectedRoute><LazyPage><Productos /></LazyPage></RoleProtectedRoute>} />
+        <Route path="productos/nuevo" element={<RoleProtectedRoute><LazyPage><ProductoFormulario /></LazyPage></RoleProtectedRoute>} />
+        <Route path="productos/:idProducto/editar" element={<RoleProtectedRoute><LazyPage><ProductoFormulario /></LazyPage></RoleProtectedRoute>} />
         <Route path="inventario" element={<RoleProtectedRoute><LazyPage><Inventario /></LazyPage></RoleProtectedRoute>} />
+        <Route path="proveedores" element={<RoleProtectedRoute><LazyPage><Proveedores /></LazyPage></RoleProtectedRoute>} />
+        <Route path="devoluciones" element={<RoleProtectedRoute><LazyPage><Devoluciones /></LazyPage></RoleProtectedRoute>} />
         <Route path="empleados" element={<RoleProtectedRoute><LazyPage><Empleados /></LazyPage></RoleProtectedRoute>} />
         <Route path="reportes" element={<RoleProtectedRoute><LazyPage><Reportes /></LazyPage></RoleProtectedRoute>} />
         <Route path="bitacora" element={<RoleProtectedRoute><LazyPage><Bitacora /></LazyPage></RoleProtectedRoute>} />

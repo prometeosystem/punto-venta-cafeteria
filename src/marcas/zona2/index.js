@@ -1,4 +1,5 @@
 import Logo from './Logo'
+import LogoIcon from './LogoIcon'
 import heroImagen from './hero.jpg'
 import logoTicket from './logo-ticket.png'
 
@@ -8,6 +9,7 @@ export default {
   nombreTicket: 'ZONA 2',
   encabezadoWhatsapp: '*Zona 2* - Ticket',
   Logo,
+  LogoIcon,
   heroImagen,
   logoTicket,
   // Es solo la palabra ZONA 2, así que con la mitad del papel ya se lee bien.

@@ -542,105 +542,143 @@ const Empleados = () => {
         </div>
       </div>
 
-      {/* Lista de empleados */}
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-marca-600" />
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredEmployees.length === 0 ? (
-            <div className="col-span-full text-center py-12 text-gray-500">
-              No se encontraron empleados
-            </div>
-          ) : (
-            filteredEmployees.map((employee) => {
-              const initials = `${employee.nombre?.charAt(0) || ''}${employee.apellido_paterno?.charAt(0) || ''}`.toUpperCase() || 'U'
-              return (
-                <div key={employee.id_usuario} className="card hover:shadow-md transition-shadow">
-                  <div className="flex items-start gap-4 mb-4">
-                    <div className="w-12 h-12 bg-marca-500 rounded-full flex items-center justify-center">
-                      <span className="text-white font-semibold text-lg">
-                        {initials}
-                      </span>
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        {getFullName(employee)}
-                      </h3>
-                      <p className="text-sm text-gray-600">{getRolLabel(employee.rol)}</p>
-                      <span
-                        className={`inline-block mt-2 px-2 py-1 rounded-full text-xs font-medium ${getRolColor(
-                          employee.rol
-                        )}`}
-                      >
-                        {employee.activo === 1 ? 'Activo' : 'Inactivo'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 border-t border-gray-200 pt-4">
-                    {employee.correo && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Mail className="w-4 h-4" />
-                        <span className="truncate">{employee.correo}</span>
-                      </div>
-                    )}
-                    {employee.celular && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Phone className="w-4 h-4" />
-                        <span>{employee.celular}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mt-4 pt-4 border-t border-gray-200 flex gap-2">
-                    <button 
-                      onClick={() => abrirModalDetalles(employee)}
-                      className="btn-outline flex-1 text-sm py-2"
+      {/* Tabla de empleados */}
+      <div className="card overflow-x-auto">
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-marca-600" />
+          </div>
+        ) : (
+          <table className="w-full min-w-[720px]">
+            <thead>
+              <tr className="border-b border-gray-200">
+                <th className="text-left py-3 px-4 font-semibold text-gray-900">Empleado</th>
+                <th className="text-left py-3 px-4 font-semibold text-gray-900">Rol</th>
+                <th className="text-left py-3 px-4 font-semibold text-gray-900">Estado</th>
+                <th className="text-left py-3 px-4 font-semibold text-gray-900">Correo</th>
+                <th className="text-left py-3 px-4 font-semibold text-gray-900">Celular</th>
+                <th className="text-right py-3 px-4 font-semibold text-gray-900">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredEmployees.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="py-8 text-center text-gray-500">
+                    No se encontraron empleados
+                  </td>
+                </tr>
+              ) : (
+                filteredEmployees.map((employee) => {
+                  const initials = `${employee.nombre?.charAt(0) || ''}${employee.apellido_paterno?.charAt(0) || ''}`.toUpperCase() || 'U'
+                  const activo = employee.activo === 1 || employee.activo === true
+                  return (
+                    <tr
+                      key={employee.id_usuario}
+                      className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
                     >
-                      Ver Detalles
-                    </button>
-                    <button
-                      onClick={() => abrirModalEditar(employee)}
-                      className="p-2 rounded-lg hover:bg-gray-100 transition-colors border border-gray-300"
-                      title="Editar"
-                    >
-                      <Edit className="w-4 h-4 text-gray-600" />
-                    </button>
-                    <button
-                      onClick={() => handleCodigo(employee)}
-                      className={`p-2 rounded-lg transition-colors border ${
-                        employee.tiene_codigo
-                          ? 'border-gray-300 hover:bg-gray-100 text-gray-600'
-                          : 'border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-700'
-                      }`}
-                      title={
-                        !employee.tiene_codigo
-                          ? `Sin código. Restablecer a ${CODIGO_DEFAULT} para que vuelva al inicio`
-                          : employee.debe_cambiar_codigo
-                            ? `Tiene el código por defecto (${CODIGO_DEFAULT}) pendiente de cambiar`
-                            : 'Restablecer código si lo olvidó'
-                      }
-                    >
-                      <KeyRound className="w-4 h-4" />
-                    </button>
-                    {puedeDesactivar(employee) && (
-                      <button
-                        onClick={() => handleEliminar(employee)}
-                        className="p-2 rounded-lg hover:bg-red-100 transition-colors border border-gray-300"
-                        title="Desactivar"
-                      >
-                        <Trash2 className="w-4 h-4 text-red-600" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )
-            })
-          )}
-        </div>
-      )}
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 shrink-0 bg-marca-500 rounded-full flex items-center justify-center">
+                            <span className="text-white font-semibold text-sm">{initials}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => abrirModalDetalles(employee)}
+                            className="font-medium text-gray-900 hover:text-marca-700 truncate text-left"
+                            title="Ver detalles"
+                          >
+                            {getFullName(employee)}
+                          </button>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getRolColor(employee.rol)}`}>
+                          {getRolLabel(employee.rol)}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span
+                          className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                            activo ? 'bg-marca-100 text-marca-700' : 'bg-gray-100 text-gray-600'
+                          }`}
+                        >
+                          {activo ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-sm text-gray-600">
+                        <span className="inline-flex items-center gap-1.5 max-w-[220px]">
+                          {employee.correo ? (
+                            <>
+                              <Mail className="w-3.5 h-3.5 shrink-0 text-gray-400" />
+                              <span className="truncate">{employee.correo}</span>
+                            </>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-sm text-gray-600 whitespace-nowrap">
+                        {employee.celular ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            <Phone className="w-3.5 h-3.5 shrink-0 text-gray-400" />
+                            {employee.celular}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => abrirModalDetalles(employee)}
+                            className="px-2.5 py-1.5 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors"
+                            title="Ver detalles"
+                          >
+                            Detalles
+                          </button>
+                          <button
+                            onClick={() => abrirModalEditar(employee)}
+                            className="p-2 rounded-lg hover:bg-gray-100 transition-colors border border-gray-300"
+                            title="Editar"
+                          >
+                            <Edit className="w-4 h-4 text-gray-600" />
+                          </button>
+                          <button
+                            onClick={() => handleCodigo(employee)}
+                            className={`p-2 rounded-lg transition-colors border ${
+                              employee.tiene_codigo
+                                ? 'border-gray-300 hover:bg-gray-100 text-gray-600'
+                                : 'border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-700'
+                            }`}
+                            title={
+                              !employee.tiene_codigo
+                                ? `Sin código. Restablecer a ${CODIGO_DEFAULT} para que vuelva al inicio`
+                                : employee.debe_cambiar_codigo
+                                  ? `Tiene el código por defecto (${CODIGO_DEFAULT}) pendiente de cambiar`
+                                  : 'Restablecer código si lo olvidó'
+                            }
+                          >
+                            <KeyRound className="w-4 h-4" />
+                          </button>
+                          {puedeDesactivar(employee) && (
+                            <button
+                              onClick={() => handleEliminar(employee)}
+                              className="p-2 rounded-lg hover:bg-red-100 transition-colors border border-gray-300"
+                              title="Desactivar"
+                            >
+                              <Trash2 className="w-4 h-4 text-red-600" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
 
       {/* Modal Crear/Editar Empleado */}
       {mostrarModalCrear && (

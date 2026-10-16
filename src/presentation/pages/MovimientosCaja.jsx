@@ -200,7 +200,6 @@ const MovimientosCaja = () => {
   return (
     <div className="min-w-0 max-w-full space-y-4 lg:p-2 sm:space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="min-w-0 text-sm text-gray-500">Entradas y salidas de efectivo fuera de las ventas</p>
         <button onClick={abrirModal} className="btn-primary flex shrink-0 items-center justify-center gap-2">
           <Plus className="h-4 w-4" /> Nuevo movimiento
         </button>

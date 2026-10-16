@@ -18,6 +18,8 @@ const ROUTE_TITLES = {
   '/barista': 'Comandas',
   '/productos': 'Productos',
   '/inventario': 'Inventario',
+  '/proveedores': 'Proveedores',
+  '/devoluciones': 'Devoluciones',
   '/empleados': 'Empleados',
   '/reportes': 'Reportes',
   '/contabilidad': 'Contabilidad',
@@ -31,7 +33,8 @@ const ROUTE_TITLES = {
 const Header = () => {
   const {
     sidebarOpen,
-    toggleSidebar,
+    sidebarCollapsed,
+    openSidebar,
     toggleHeader,
     isFullscreen,
     toggleFullscreen,
@@ -45,7 +48,12 @@ const Header = () => {
   const [showDropdown, setShowDropdown] = useState(false)
   const userDropdownRef = useRef(null)
 
-  const pageTitle = ROUTE_TITLES[pathname] || 'Punto de Cafetería'
+  const pageTitle = (() => {
+    if (ROUTE_TITLES[pathname]) return ROUTE_TITLES[pathname]
+    if (pathname === '/productos/nuevo') return 'Nuevo producto'
+    if (pathname.startsWith('/productos/') && pathname.endsWith('/editar')) return 'Editar producto'
+    return 'Punto de Cafetería'
+  })()
 
   const handleLogout = () => {
     logout()
@@ -81,11 +89,12 @@ const Header = () => {
     <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
       <div className="flex items-center justify-between px-4 lg:px-6 h-16">
         <div className="flex items-center gap-3 min-w-0">
-          {!sidebarOpen && (
+          {(!sidebarOpen || sidebarCollapsed) && (
             <button
-              onClick={toggleSidebar}
+              onClick={openSidebar}
               className="p-2 rounded-lg hover:bg-gray-100 transition-colors shrink-0"
-              aria-label="Abrir menú"
+              aria-label="Expandir menú"
+              title="Expandir menú"
             >
               <Menu className="w-5 h-5 text-gray-600" />
             </button>

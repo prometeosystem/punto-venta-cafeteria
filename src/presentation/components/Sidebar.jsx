@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useLayout } from '../context/LayoutContext'
 import { useAuth } from '../context/AuthContext'
@@ -14,6 +15,8 @@ import {
   Armchair,
   Package,
   Warehouse,
+  Truck,
+  RotateCcw,
   BarChart3,
   Settings,
   X,
@@ -26,25 +29,29 @@ import {
   Maximize,
   Minimize,
   ChevronLeft,
+  ChevronRight,
   LogOut,
+  UserRound,
 } from 'lucide-react'
 
 import { User as UserIcon } from 'lucide-react'
 
 const menuItems = [
-  { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { path: '/punto-venta', icon: ShoppingCart, label: 'Punto de Venta' },
-  { path: '/mesas', icon: Armchair, label: 'Mesas' },
-  { path: '/barista', icon: Coffee, label: 'Comandas' },
-  { path: '/productos', icon: Package, label: 'Productos' },
-  { path: '/inventario', icon: Warehouse, label: 'Insumos' },
-  { path: '/empleados', icon: UserIcon, label: 'Empleados' },
-  { path: '/caja', icon: Wallet, label: 'Caja' },
-  { path: '/movimientos-caja', icon: ArrowLeftRight, label: 'Movimientos' },
-  { path: '/contabilidad', icon: Calculator, label: 'Contabilidad' },
-  { path: '/reportes', icon: BarChart3, label: 'Reportes' },
-  { path: '/bitacora', icon: FileText, label: 'Bitácora' },
-  { path: '/configuracion', icon: Settings, label: 'Configuración' },
+  { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', corto: 'Dashboard' },
+  { path: '/punto-venta', icon: ShoppingCart, label: 'Punto de Venta', corto: 'Venta' },
+  { path: '/mesas', icon: Armchair, label: 'Mesas', corto: 'Mesas' },
+  { path: '/barista', icon: Coffee, label: 'Comandas', corto: 'Cocina' },
+  { path: '/productos', icon: Package, label: 'Productos', corto: 'Prods.' },
+  { path: '/inventario', icon: Warehouse, label: 'Insumos', corto: 'Insumos' },
+  { path: '/proveedores', icon: Truck, label: 'Proveedores', corto: 'Provs.' },
+  { path: '/devoluciones', icon: RotateCcw, label: 'Devoluciones', corto: 'Devs.' },
+  { path: '/empleados', icon: UserIcon, label: 'Empleados', corto: 'Staff' },
+  { path: '/caja', icon: Wallet, label: 'Caja', corto: 'Caja' },
+  { path: '/movimientos-caja', icon: ArrowLeftRight, label: 'Movimientos', corto: 'Movs.' },
+  { path: '/contabilidad', icon: Calculator, label: 'Contabilidad', corto: 'Conta.' },
+  { path: '/reportes', icon: BarChart3, label: 'Reportes', corto: 'Reportes' },
+  { path: '/bitacora', icon: FileText, label: 'Bitácora', corto: 'Bitácora' },
+  { path: '/configuracion', icon: Settings, label: 'Configuración', corto: 'Config' },
 ]
 
 const ICONO_SIDEBAR =
@@ -53,7 +60,9 @@ const ICONO_SIDEBAR =
 const Sidebar = () => {
   const {
     sidebarOpen,
+    sidebarCollapsed,
     toggleSidebar,
+    openSidebar,
     headerVisible,
     toggleHeader,
     isFullscreen,
@@ -65,11 +74,35 @@ const Sidebar = () => {
   const printer = usePrinterContext()
   const navigate = useNavigate()
   const isMobile = useMediaQuery('(max-width: 1023px)')
+  const [menuPerfilAbierto, setMenuPerfilAbierto] = useState(false)
+  const refPerfil = useRef(null)
 
   const handleLogout = () => {
+    setMenuPerfilAbierto(false)
     logout()
     navigate('/login')
   }
+
+  const irAPerfil = () => {
+    setMenuPerfilAbierto(false)
+    navigate('/mi-perfil')
+    if (isMobile) toggleSidebar()
+  }
+
+  useEffect(() => {
+    if (!menuPerfilAbierto) return undefined
+    const alClicFuera = (e) => {
+      if (refPerfil.current && !refPerfil.current.contains(e.target)) {
+        setMenuPerfilAbierto(false)
+      }
+    }
+    document.addEventListener('mousedown', alClicFuera)
+    return () => document.removeEventListener('mousedown', alClicFuera)
+  }, [menuPerfilAbierto])
+
+  useEffect(() => {
+    setMenuPerfilAbierto(false)
+  }, [sidebarCollapsed, sidebarOpen])
 
   const getInitials = () => {
     if (!usuario) return 'U'
@@ -83,15 +116,16 @@ const Sidebar = () => {
     return `${usuario.nombre || ''} ${usuario.apellido_paterno || ''}`.trim() || 'Usuario'
   }
 
-  // Filtrar items del menú según el rol y el modo del negocio (tienda oculta mesas/comandas)
-  const filteredMenuItems = menuItems.filter(item => {
+  const filteredMenuItems = menuItems.filter((item) => {
     if (!usuario || !usuario.rol) return false
     return hasRouteAccess(usuario.rol, item.path, preferencias)
   })
 
+  const etiquetaOcultar = sidebarCollapsed ? 'Ocultar menú' : 'Comprimir menú'
+  const LogoIcono = marca.LogoIcon || marca.Logo
+
   return (
     <>
-      {/* Overlay para cerrar sidebar (solo en móvil) */}
       {sidebarOpen && isMobile && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40"
@@ -99,35 +133,53 @@ const Sidebar = () => {
         />
       )}
 
-      {/* Sidebar */}
       <aside
         className={`
           fixed inset-y-0 left-0 z-50
-          w-64 bg-oscuro-800 border-r border-oscuro-900
-          transform transition-transform duration-300 ease-in-out
+          bg-oscuro-800 border-r border-oscuro-900
+          transition-[transform,width] duration-300 ease-in-out
+          ${sidebarCollapsed ? 'w-20' : 'w-64'}
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-          ${isMobile ? '' : sidebarOpen ? 'lg:translate-x-0' : 'lg:-translate-x-full'}
           flex flex-col
           shadow-lg lg:shadow-none
         `}
       >
-        {/* Header del Sidebar */}
-        <div className="relative flex items-center justify-center px-12 py-5 border-b border-oscuro-700">
-          <marca.Logo className="w-40 text-white" />
-          <button
-            onClick={toggleSidebar}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg hover:bg-oscuro-700 transition-colors"
-            aria-label="Cerrar menú"
-          >
-            <X className="w-5 h-5 text-gray-300" />
-          </button>
+        {/* Header */}
+        <div
+          className={`relative flex items-center border-b border-oscuro-700 ${
+            sidebarCollapsed ? 'justify-center px-1 py-3' : 'justify-center px-12 py-5'
+          }`}
+        >
+          {sidebarCollapsed ? (
+            <button
+              type="button"
+              onClick={openSidebar}
+              className="w-11 h-11 rounded-lg flex items-center justify-center hover:bg-oscuro-700 transition-colors p-1.5"
+              title="Expandir menú"
+              aria-label="Expandir menú"
+            >
+              <LogoIcono className="w-9 h-9 max-h-9" />
+            </button>
+          ) : (
+            <>
+              <marca.Logo className="w-40 text-white" />
+              <button
+                onClick={toggleSidebar}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg hover:bg-oscuro-700 transition-colors"
+                aria-label={etiquetaOcultar}
+                title={etiquetaOcultar}
+              >
+                <X className="w-5 h-5 text-gray-300" />
+              </button>
+            </>
+          )}
         </div>
 
         {/* Navegación */}
-        <nav className="flex-1 overflow-y-auto p-4 space-y-1">
+        <nav className={`flex-1 overflow-y-auto space-y-1 ${sidebarCollapsed ? 'px-1.5 py-2' : 'p-4'}`}>
           {filteredMenuItems.length === 0 ? (
             <div className="text-gray-400 text-sm text-center py-4">
-              No hay opciones disponibles
+              {!sidebarCollapsed && 'No hay opciones disponibles'}
             </div>
           ) : (
             filteredMenuItems.map((item) => {
@@ -136,33 +188,46 @@ const Sidebar = () => {
                 <NavLink
                   key={item.path}
                   to={item.path}
+                  title={item.label}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors duration-200 ${
+                    `flex rounded-lg transition-colors duration-200 ${
+                      sidebarCollapsed
+                        ? 'flex-col items-center justify-center gap-0.5 px-1 py-1.5'
+                        : 'flex-row items-center gap-3 px-4 py-3'
+                    } ${
                       isActive
                         ? 'bg-marca-500 text-white font-medium'
                         : 'text-gray-300 hover:bg-oscuro-700 hover:text-white'
                     }`
                   }
                   onClick={() => {
-                    // En pantallas chicas el sidebar tapa la vista; en grandes se queda abierto
                     if (isMobile) toggleSidebar()
                   }}
                 >
-                  <Icon className="w-5 h-5" />
-                  <span>{item.label}</span>
+                  <Icon className="w-5 h-5 shrink-0" />
+                  {sidebarCollapsed ? (
+                    <span className="text-[9px] leading-tight text-center max-w-full truncate opacity-90">
+                      {item.corto || item.label}
+                    </span>
+                  ) : (
+                    <span className="truncate">{item.label}</span>
+                  )}
                 </NavLink>
               )
             })
           )}
         </nav>
 
-        {/* Footer del Sidebar */}
-        <div className="px-4 pt-3 pb-2 border-t border-oscuro-700">
-          {/* Controles que antes vivían en la barra superior */}
-          <div className="flex items-center gap-1 mb-2">
+        {/* Footer */}
+        <div
+          className={`border-t-2 border-gray-500/40 pb-2 ${
+            sidebarCollapsed ? 'px-1.5 pt-2' : 'px-4 pt-3'
+          }`}
+        >
+          <div className={`flex items-center mb-2 ${sidebarCollapsed ? 'flex-col gap-1' : 'gap-1'}`}>
             <PrinterConnectionButton printer={printer} iconOnly className="hover:bg-oscuro-700" />
 
-            <NotificationsBell variant="sidebar" />
+            {!sidebarCollapsed && <NotificationsBell variant="sidebar" />}
 
             <button
               onClick={toggleHeader}
@@ -184,50 +249,76 @@ const Sidebar = () => {
               </button>
             )}
 
+            {sidebarCollapsed && (
+              <button
+                onClick={openSidebar}
+                className={ICONO_SIDEBAR}
+                title="Expandir menú"
+                aria-label="Expandir menú"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            )}
+
             <button
               onClick={toggleSidebar}
               className={ICONO_SIDEBAR}
-              title="Cerrar menú"
-              aria-label="Cerrar menú"
+              title={etiquetaOcultar}
+              aria-label={etiquetaOcultar}
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
           </div>
 
-          <div className="flex items-center gap-1">
-            <NavLink
-              to="/mi-perfil"
-              onClick={() => {
-                if (isMobile) toggleSidebar()
-              }}
-              title="Mi perfil"
-              className={({ isActive }) =>
-                `flex-1 min-w-0 flex items-center gap-2 p-1.5 -ml-1.5 rounded-lg transition-colors ${
-                  isActive ? 'bg-oscuro-700' : 'hover:bg-oscuro-700'
-                }`
-              }
-            >
-              <div className="w-9 h-9 shrink-0 bg-marca-500 rounded-full flex items-center justify-center">
-                <span className="text-white font-semibold text-sm">{getInitials()}</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-white truncate">{getFullName()}</div>
-                <div className="text-xs text-gray-400 truncate">Mi perfil</div>
-              </div>
-            </NavLink>
-            <button
-              onClick={handleLogout}
-              className="shrink-0 p-2 rounded-lg text-red-300 hover:bg-red-500/15 hover:text-red-200 transition-colors"
-              title="Cerrar sesión"
-              aria-label="Cerrar sesión"
-            >
-              <LogOut className="w-5 h-5" />
-            </button>
-          </div>
+          {!sidebarCollapsed && (
+            <>
+              <div className="relative" ref={refPerfil}>
+                <button
+                  type="button"
+                  onClick={() => setMenuPerfilAbierto((v) => !v)}
+                  title="Cuenta"
+                  aria-label="Cuenta"
+                  aria-expanded={menuPerfilAbierto}
+                  className={`w-full min-w-0 flex items-center gap-2 rounded-lg p-1.5 -ml-1.5 transition-colors hover:bg-oscuro-700 ${
+                    menuPerfilAbierto ? 'bg-oscuro-700' : ''
+                  }`}
+                >
+                  <div className="w-9 h-9 shrink-0 bg-marca-500 rounded-full flex items-center justify-center">
+                    <span className="text-white font-semibold text-sm">{getInitials()}</span>
+                  </div>
+                  <div className="flex-1 min-w-0 text-left">
+                    <div className="text-sm font-medium text-white truncate">{getFullName()}</div>
+                    <div className="text-xs text-gray-400 truncate">Cuenta</div>
+                  </div>
+                </button>
 
-          <div className="text-[11px] text-gray-500 text-center mt-1.5">
-            v6.2.5 · Desarrollado por Prothec
-          </div>
+                {menuPerfilAbierto && (
+                  <div className="absolute z-50 left-0 right-0 bottom-full mb-2 rounded-lg border border-oscuro-600 bg-oscuro-800 shadow-xl overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={irAPerfil}
+                      className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-gray-200 hover:bg-oscuro-700 text-left"
+                    >
+                      <UserRound className="w-4 h-4 shrink-0" />
+                      Mi perfil
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-red-300 hover:bg-red-500/15 text-left border-t border-oscuro-700"
+                    >
+                      <LogOut className="w-4 h-4 shrink-0" />
+                      Cerrar sesión
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="text-[11px] text-gray-500 text-center mt-1.5">
+                v6.2.5 · Desarrollado por Prothec
+              </div>
+            </>
+          )}
         </div>
       </aside>
     </>
@@ -235,4 +326,3 @@ const Sidebar = () => {
 }
 
 export default Sidebar
-

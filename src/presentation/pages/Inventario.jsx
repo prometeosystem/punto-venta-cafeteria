@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { AlertTriangle, CheckCircle, Package, Plus, Loader2, Edit, Trash2, Search, X } from 'lucide-react'
 import { useInventario } from '../hooks/useInventario'
+import VinculosProveedores from '../components/VinculosProveedores'
+import { proveedoresService } from '../../application/services/proveedoresService'
 import Swal from 'sweetalert2'
 
 const Inventario = () => {
@@ -21,6 +23,8 @@ const Inventario = () => {
   const [mostrarModalInsumo, setMostrarModalInsumo] = useState(false)
   const [insumoEditando, setInsumoEditando] = useState(null)
   const [guardando, setGuardando] = useState(false)
+  const [listaProveedores, setListaProveedores] = useState([])
+  const [vinculosProveedores, setVinculosProveedores] = useState([])
   const [formData, setFormData] = useState({
     nombre: '',
     descripcion: '',
@@ -90,6 +94,15 @@ const Inventario = () => {
     }
   }
 
+  const cargarProveedoresCatalogo = async () => {
+    try {
+      const lista = await proveedoresService.listar(true)
+      setListaProveedores(Array.isArray(lista) ? lista : [])
+    } catch {
+      setListaProveedores([])
+    }
+  }
+
   // Abrir modal para crear insumo
   const abrirModalCrear = () => {
     setInsumoEditando(null)
@@ -104,11 +117,13 @@ const Inventario = () => {
       cantidad_compra_referencia: '',
       activo: true,
     })
+    setVinculosProveedores([])
     setMostrarModalInsumo(true)
+    cargarProveedoresCatalogo()
   }
 
   // Abrir modal para editar insumo
-  const abrirModalEditar = (insumo) => {
+  const abrirModalEditar = async (insumo) => {
     setInsumoEditando(insumo)
     setFormData({
       nombre: insumo.nombre || '',
@@ -121,7 +136,21 @@ const Inventario = () => {
       cantidad_compra_referencia: insumo.cantidad_compra_referencia != null ? String(insumo.cantidad_compra_referencia) : '',
       activo: insumo.activo !== undefined ? insumo.activo : true,
     })
+    setVinculosProveedores([])
     setMostrarModalInsumo(true)
+    cargarProveedoresCatalogo()
+    try {
+      const vins = await proveedoresService.proveedoresDeItem('insumo', insumo.id_insumo)
+      setVinculosProveedores(
+        (Array.isArray(vins) ? vins : []).map((v) => ({
+          id_proveedor: v.id_proveedor,
+          precio_compra: v.precio_compra ?? '',
+          es_preferido: !!v.es_preferido,
+        })),
+      )
+    } catch {
+      setVinculosProveedores([])
+    }
   }
 
   // Guardar insumo (crear o editar)
@@ -212,24 +241,33 @@ const Inventario = () => {
       }
 
       if (insumoEditando) {
-        // Editar insumo existente
         await editarInsumo(insumoEditando.id_insumo, insumoData)
+        await proveedoresService.sincronizarItem(
+          'insumo',
+          insumoEditando.id_insumo,
+          vinculosProveedores,
+        )
         await Swal.fire({
           icon: 'success',
           title: '¡Insumo actualizado!',
           text: 'El insumo se ha actualizado correctamente',
           confirmButtonColor: 'rgb(var(--marca-500))',
           timer: 2000,
+          position: 'top',
         })
       } else {
-        // Crear nuevo insumo
-        await crearInsumo(insumoData)
+        const creado = await crearInsumo(insumoData)
+        const idNuevo = creado?.id_insumo
+        if (idNuevo) {
+          await proveedoresService.sincronizarItem('insumo', idNuevo, vinculosProveedores)
+        }
         await Swal.fire({
           icon: 'success',
           title: '¡Insumo creado!',
           text: 'El insumo se ha creado correctamente',
           confirmButtonColor: 'rgb(var(--marca-500))',
           timer: 2000,
+          position: 'top',
         })
       }
 
@@ -458,29 +496,31 @@ const Inventario = () => {
 
       {/* Modal Crear/Editar Insumo */}
       {mostrarModalInsumo && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-900">
-                {insumoEditando ? 'Editar Insumo' : 'Nuevo Insumo'}
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full my-2 max-h-[min(96vh,820px)] flex flex-col">
+            <div className="flex items-center justify-between gap-3 px-3 py-2.5 border-b shrink-0">
+              <h2 className="text-sm font-semibold text-gray-800">
+                {insumoEditando ? 'Editar insumo' : 'Nuevo insumo'}
               </h2>
               <button
+                type="button"
                 onClick={() => {
                   setMostrarModalInsumo(false)
                   setInsumoEditando(null)
+                  setVinculosProveedores([])
                 }}
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                className="p-1.5 rounded-md hover:bg-gray-100"
+                aria-label="Cerrar"
               >
-                <X className="w-5 h-5 text-gray-600" />
+                <X className="w-4 h-4 text-gray-600" />
               </button>
             </div>
 
-            {/* Formulario */}
-            <form onSubmit={handleGuardar} className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <form onSubmit={handleGuardar} className="flex flex-col min-h-0 flex-1">
+              <div className="overflow-y-auto flex-1 px-3 py-3 sm:px-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                 {/* Columna Izquierda */}
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {/* Nombre */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -552,11 +592,11 @@ const Inventario = () => {
                 </div>
 
                 {/* Columna Derecha */}
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {/* Descripción */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Descripción <span className="text-gray-400">(Opcional)</span>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      Descripción <span className="text-gray-400 font-normal">opcional</span>
                     </label>
                     <textarea
                       value={formData.descripcion}
@@ -655,15 +695,28 @@ const Inventario = () => {
                 </div>
               </div>
 
-              {/* Botones */}
-              <div className="flex gap-3 pt-6 border-t border-gray-200 mt-6">
+              <div className="pt-3 mt-3 border-t border-gray-200">
+                <label className="block text-xs font-medium text-gray-600 mb-2">
+                  Proveedores que lo surten
+                </label>
+                <VinculosProveedores
+                  proveedores={listaProveedores}
+                  vinculos={vinculosProveedores}
+                  onChange={setVinculosProveedores}
+                  compact
+                />
+              </div>
+              </div>
+
+              <div className="flex gap-2 px-3 py-2.5 sm:px-4 border-t shrink-0">
                 <button
                   type="button"
                   onClick={() => {
                     setMostrarModalInsumo(false)
                     setInsumoEditando(null)
+                    setVinculosProveedores([])
                   }}
-                  className="btn-outline flex-1"
+                  className="btn-outline flex-1 py-2 text-sm"
                   disabled={guardando}
                 >
                   Cancelar
@@ -671,15 +724,15 @@ const Inventario = () => {
                 <button
                   type="submit"
                   disabled={guardando}
-                  className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="btn-primary flex-1 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {guardando ? (
                     <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Guardando...
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Guardando…
                     </>
                   ) : (
-                    insumoEditando ? 'Actualizar' : 'Crear'
+                    insumoEditando ? 'Guardar' : 'Crear'
                   )}
                 </button>
               </div>

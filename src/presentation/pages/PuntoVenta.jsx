@@ -7,6 +7,7 @@ import { useComandas } from '../hooks/useComandas'
 import { useAuth } from '../context/AuthContext'
 import { usePreferencias } from '../context/PreferenciasContext'
 import { useCaja } from '../hooks/useCaja'
+import { productosService } from '../../application/services/productosService'
 import { imprimirTicket, itemsDesdeCarrito } from '../utils/imprimirTicket'
 import { obtenerMetodosPagoActivos } from '../utils/metodosPagoConfig'
 import { obtenerImagenCacheada, obtenerPosConFotos } from '../utils/posVistaConfig'
@@ -134,6 +135,8 @@ const PuntoVenta = () => {
   const location = useLocation()
   const printer = usePrinterContext()
   const panelOrdenRef = useRef(null)
+  const searchInputRef = useRef(null)
+  const cobroExactoPendienteRef = useRef(false)
   const [cart, setCart] = useState([])
   const [lineaEditandoId, setLineaEditandoId] = useState(null)
   const [ordenDesplegada, setOrdenDesplegada] = useState(false)
@@ -165,7 +168,7 @@ const PuntoVenta = () => {
   const { crearVenta, obtenerInfoTicketActual, procesarPagoVenta, loading: ventaLoading } = useVentas()
   const { crearComanda, editarComanda, obtenerComanda, obtenerComandasTerminadasSinPagar, cancelarComanda, loading: comandaLoading } = useComandas()
   const { usuario } = useAuth()
-  const { modoRestaurante } = usePreferencias()
+  const { modoRestaurante, modoTienda } = usePreferencias()
   const { estado: estadoCaja, loading: cajaLoading } = useCaja(15000)
   const [metodosPagoActivos, setMetodosPagoActivos] = useState(() => obtenerMetodosPagoActivos())
   const [posConFotos, setPosConFotos] = useState(() => obtenerPosConFotos())
@@ -2017,14 +2020,82 @@ const PuntoVenta = () => {
     setProductoExpandido(null)
   }
 
-  // Filtrar productos según búsqueda
-  const productosFiltrados = productos.filter(producto => 
-    producto.activo && (
-      producto.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      producto.descripcion?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      producto.categoria?.toLowerCase().includes(searchTerm.toLowerCase())
+  // Filtrar productos según búsqueda (nombre, categoría, código o SKU)
+  const productosFiltrados = productos.filter((producto) => {
+    if (!producto.activo) return false
+    const q = searchTerm.toLowerCase().trim()
+    if (!q) return true
+    return (
+      producto.nombre?.toLowerCase().includes(q) ||
+      producto.descripcion?.toLowerCase().includes(q) ||
+      producto.categoria?.toLowerCase().includes(q) ||
+      String(producto.codigo_barras || '').toLowerCase() === q ||
+      String(producto.sku || '').toLowerCase() === q ||
+      String(producto.codigo_barras || '').toLowerCase().includes(q) ||
+      String(producto.sku || '').toLowerCase().includes(q)
     )
-  )
+  })
+
+  const pareceCodigoBarras = (texto) => {
+    const t = (texto || '').trim()
+    return t.length >= 4 && /^[0-9A-Za-z\-]+$/.test(t) && /\d/.test(t)
+  }
+
+  const agregarProductoEscaneado = (producto) => {
+    handleProductClick(producto)
+    setSearchTerm('')
+    setTimeout(() => searchInputRef.current?.focus(), 0)
+  }
+
+  const intentarAgregarPorCodigo = async (codigoRaw) => {
+    const codigo = (codigoRaw || '').trim()
+    if (!codigo) return false
+    const local = productos.find(
+      (p) =>
+        p.activo &&
+        (String(p.codigo_barras || '') === codigo || String(p.sku || '') === codigo),
+    )
+    if (local) {
+      agregarProductoEscaneado(local)
+      return true
+    }
+    try {
+      const remoto = await productosService.buscarPorCodigo(codigo)
+      if (remoto?.id_producto) {
+        agregarProductoEscaneado(remoto)
+        return true
+      }
+    } catch {
+      /* no encontrado */
+    }
+    return false
+  }
+
+  const onBusquedaKeyDown = async (e) => {
+    if (e.key !== 'Enter') return
+    e.preventDefault()
+    const texto = searchTerm.trim()
+    if (!texto) return
+
+    if (pareceCodigoBarras(texto)) {
+      const ok = await intentarAgregarPorCodigo(texto)
+      if (!ok) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Código no encontrado',
+          text: texto,
+          timer: 1600,
+          showConfirmButton: false,
+        })
+        setSearchTerm('')
+      }
+      return
+    }
+
+    if (productosFiltrados.length === 1) {
+      seleccionarProductoDesdeBusqueda(productosFiltrados[0])
+    }
+  }
 
   const productosMasVendidos = idsMasVendidos
     .map((id) => productos.find((p) => p.id_producto === id && p.activo))
@@ -2050,6 +2121,114 @@ const PuntoVenta = () => {
     setSearchTerm('')
     setHighlightedProduct(null)
   }
+
+  // Cobro exacto pendiente (Ctrl+Enter): al abrir el modal, confirma solo
+  useEffect(() => {
+    if (!mostrarModalFinalizar || !cobroExactoPendienteRef.current) return
+    cobroExactoPendienteRef.current = false
+    if (!puedeCobrar(usuario?.rol) || cart.length === 0) return
+    procesarVenta()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mostrarModalFinalizar])
+
+  // Atajos de cobro rápido (modo tienda)
+  useEffect(() => {
+    if (!modoTienda) return undefined
+
+    const enCampoTexto = (el) => {
+      if (!el) return false
+      const tag = el.tagName
+      return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable
+    }
+
+    const abrirCobroCon = (metodo) => {
+      if (cart.length === 0) return
+      setMetodoPago(metodo)
+      setTipoServicio('para-llevar')
+      setMontoRecibido('')
+      setMontoEfectivoPago('')
+      setMontoTarjetaPago('')
+      setMostrarModalFinalizar(true)
+    }
+
+    const onKey = (e) => {
+      if (e.key === 'F2') {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+        searchInputRef.current?.select?.()
+        return
+      }
+
+      if (e.key === 'Escape' && mostrarModalFinalizar) {
+        e.preventDefault()
+        cobroExactoPendienteRef.current = false
+        setMostrarModalFinalizar(false)
+        return
+      }
+
+      if (e.key === 'F4') {
+        e.preventDefault()
+        abrirCobroCon(metodoPago || 'efectivo')
+        return
+      }
+
+      if (e.key === 'F5') {
+        e.preventDefault()
+        setMetodoPago('efectivo')
+        return
+      }
+      if (e.key === 'F6') {
+        e.preventDefault()
+        setMetodoPago('tarjeta')
+        return
+      }
+      if (e.key === 'F7') {
+        e.preventDefault()
+        setMetodoPago('transferencia')
+        return
+      }
+      if (e.key === 'F9') {
+        e.preventDefault()
+        if (cart.length === 0) return
+        const totalExacto = resumenOrden().totalFinal
+        setMetodoPago('efectivo')
+        setTipoServicio('para-llevar')
+        setMontoRecibido(String(totalExacto.toFixed(2)))
+        setMostrarModalFinalizar(true)
+        return
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault()
+        if (cart.length === 0 || !puedeCobrar(usuario?.rol)) return
+        const totalExacto = resumenOrden().totalFinal
+        setMetodoPago('efectivo')
+        setTipoServicio('para-llevar')
+        setMontoRecibido(String(totalExacto.toFixed(2)))
+        if (mostrarModalFinalizar) {
+          procesarVenta()
+        } else {
+          cobroExactoPendienteRef.current = true
+          setMostrarModalFinalizar(true)
+        }
+        return
+      }
+
+      if (e.key === 'Enter' && mostrarModalFinalizar && metodoPago === 'efectivo' && !enCampoTexto(e.target)) {
+        e.preventDefault()
+        procesarVenta()
+      }
+    }
+
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [
+    modoTienda,
+    cart.length,
+    metodoPago,
+    mostrarModalFinalizar,
+    usuario?.rol,
+  ])
 
   if (productosLoading || cajaLoading) {
     return (
@@ -2154,14 +2333,16 @@ const PuntoVenta = () => {
           <div className="relative flex-1 min-w-0">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             <input
+              ref={searchInputRef}
               type="text"
-              placeholder="Buscar..."
+              placeholder={modoTienda ? 'Buscar o escanear código…' : 'Buscar...'}
               className={`input pl-8 w-full py-2.5 text-sm ${searchTerm ? 'pr-12' : ''}`}
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value)
                 if (e.target.value) setCategoriaActiva(null)
               }}
+              onKeyDown={onBusquedaKeyDown}
             />
             {searchTerm && (
               <button

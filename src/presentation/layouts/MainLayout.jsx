@@ -9,10 +9,16 @@ import { useLayout } from '../context/LayoutContext'
 import { useNotifications } from '../context/NotificationContext'
 
 const MainLayout = () => {
-  const { sidebarOpen, toggleSidebar, headerVisible } = useLayout()
+  const { sidebarOpen, sidebarCollapsed, openSidebar, headerVisible } = useLayout()
   const { pathname } = useLocation()
   const { toastNotifications, removeToastNotification, removeNotification } = useNotifications()
   const isPuntoVenta = pathname.includes('punto-venta')
+
+  const margenSidebar = !sidebarOpen
+    ? 'lg:ml-0'
+    : sidebarCollapsed
+      ? 'lg:ml-20'
+      : 'lg:ml-64'
 
   useEffect(() => {
     const ajustar = () => {
@@ -88,10 +94,8 @@ const MainLayout = () => {
       
       <div className="fixed left-0 right-0 z-0 flex w-full overflow-hidden bg-gray-50 top-[var(--arriba-visible,0px)] h-[var(--alto-visible,100dvh)] max-h-[var(--alto-visible,100dvh)]">
         <Sidebar />
-        <div 
-          className={`flex-1 flex flex-col min-h-0 min-w-0 transition-all duration-300 ease-in-out ${
-            sidebarOpen ? 'lg:ml-64' : 'lg:ml-0'
-          }`}
+        <div
+          className={`flex-1 flex flex-col min-h-0 min-w-0 transition-all duration-300 ease-in-out ${margenSidebar}`}
         >
           {headerVisible && <Header />}
 
@@ -106,7 +110,7 @@ const MainLayout = () => {
 
         {!headerVisible && !sidebarOpen && (
           <button
-            onClick={toggleSidebar}
+            onClick={openSidebar}
             className={`absolute left-4 z-40 p-3 rounded-full bg-oscuro-800/90 text-white shadow-lg hover:bg-oscuro-700 transition-colors ${
               isPuntoVenta ? 'bottom-24 landscape:bottom-4' : 'bottom-4'
             }`}

@@ -78,7 +78,7 @@ const CategoriasMovimiento = ({ desplegado = false }) => {
         className="flex w-full items-center gap-3 text-left"
       >
         <Tags className="w-5 h-5 text-marca-600 shrink-0" />
-        <h2 className="flex-1 text-lg font-semibold text-gray-900">Categorías de movimiento</h2>
+        <h2 className="flex-1 text-lg font-semibold text-gray-900">Categorías de movimientos a la caja</h2>
         {abierto ? (
           <ChevronUp className="w-5 h-5 text-gray-500 shrink-0" aria-hidden="true" />
         ) : (

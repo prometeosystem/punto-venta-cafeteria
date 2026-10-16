@@ -13,6 +13,12 @@ export const productosService = {
     return response.data
   },
 
+  // Buscar por código de barras o SKU
+  buscarPorCodigo: async (codigo) => {
+    const response = await api.get(`/api/productos/por_codigo/${encodeURIComponent(codigo)}`)
+    return response.data
+  },
+
   // Crear producto (acepta FormData o JSON)
   crearProducto: async (productoData) => {
     // Si es FormData, el interceptor de api.js ya maneja el Content-Type

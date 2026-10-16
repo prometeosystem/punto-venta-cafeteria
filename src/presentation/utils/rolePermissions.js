@@ -17,7 +17,11 @@ const routePermissions = {
   '/mesas': ['vendedor', 'mesero', 'administrador', 'superadministrador'],
   '/barista': ['vendedor', 'cocina', 'mesero', 'administrador', 'superadministrador'],
   '/productos': ['administrador', 'superadministrador'],
+  '/productos/nuevo': ['administrador', 'superadministrador'],
+  '/productos/:idProducto/editar': ['administrador', 'superadministrador'],
   '/inventario': ['administrador', 'superadministrador'],
+  '/proveedores': ['administrador', 'superadministrador'],
+  '/devoluciones': ['vendedor', 'administrador', 'superadministrador'],
   '/empleados': ['administrador', 'superadministrador'],
   '/reportes': ['administrador', 'superadministrador'],
   '/configuracion': ['administrador', 'superadministrador'],
@@ -34,6 +38,29 @@ const routePermissions = {
 import { RUTAS_SOLO_RESTAURANTE, esModoTienda } from './preferenciasUi'
 
 /**
+ * Resuelve la clave de permisos: match exacto o patrón tipo /productos/:idProducto/editar
+ */
+const resolverClavePermiso = (route) => {
+  if (!route) return null
+  const path = route.split('?')[0]
+  if (routePermissions[path]) return path
+
+  for (const pattern of Object.keys(routePermissions)) {
+    if (!pattern.includes(':')) continue
+    const regex = new RegExp(
+      `^${pattern
+        .split('/')
+        .map((seg) =>
+          seg.startsWith(':') ? '[^/]+' : seg.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+        )
+        .join('/')}$`,
+    )
+    if (regex.test(path)) return pattern
+  }
+  return null
+}
+
+/**
  * Verifica si un rol tiene acceso a una ruta específica
  * @param {string} rol - El rol del usuario
  * @param {string} route - La ruta a verificar
@@ -44,11 +71,13 @@ export const hasRouteAccess = (rol, route, preferencias) => {
   if (!rol) return false
 
   const normalizedRol = rol.toLowerCase()
-  const allowedRoles = routePermissions[route] || []
+  const clave = resolverClavePermiso(route)
+  const allowedRoles = (clave && routePermissions[clave]) || []
   if (!allowedRoles.some((allowedRol) => allowedRol.toLowerCase() === normalizedRol)) {
     return false
   }
-  if (esModoTienda(preferencias) && RUTAS_SOLO_RESTAURANTE.includes(route)) {
+  const rutaParaModo = clave || route
+  if (esModoTienda(preferencias) && RUTAS_SOLO_RESTAURANTE.includes(rutaParaModo)) {
     return false
   }
   return true
