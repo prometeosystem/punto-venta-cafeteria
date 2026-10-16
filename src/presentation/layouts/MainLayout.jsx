@@ -109,12 +109,12 @@ const MainLayout = () => {
           </main>
         </div>
 
-        {!headerVisible && !sidebarOpen && (
+        {!sidebarOpen && (
           <button
             onClick={openSidebar}
-            className={`absolute left-4 z-40 p-3 rounded-full bg-oscuro-800/90 text-white shadow-lg hover:bg-oscuro-700 transition-colors ${
-              isPuntoVenta ? 'bottom-24 landscape:bottom-4' : 'bottom-4'
-            }`}
+            className={`absolute right-4 z-[60] p-3 rounded-full bg-oscuro-800/90 text-white shadow-lg hover:bg-oscuro-700 transition-colors ${
+              headerVisible ? 'lg:hidden' : 'lg:left-4 lg:right-auto'
+            } ${isPuntoVenta ? 'bottom-24 landscape:bottom-4' : 'bottom-4'}`}
             aria-label="Abrir menú"
           >
             <Menu className="w-5 h-5" />

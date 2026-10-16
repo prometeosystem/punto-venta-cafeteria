@@ -92,7 +92,7 @@ const Header = () => {
           {(!sidebarOpen || sidebarCollapsed) && (
             <button
               onClick={openSidebar}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors shrink-0"
+              className="hidden lg:inline-flex p-2 rounded-lg hover:bg-gray-100 transition-colors shrink-0"
               aria-label="Expandir menú"
               title="Expandir menú"
             >
