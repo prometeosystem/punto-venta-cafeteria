@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { ArrowLeft, Loader2, Plus, Edit, Trash2, X } from 'lucide-react'
 import { useProductos } from '../hooks/useProductos'
 import { useInventario } from '../hooks/useInventario'
@@ -12,6 +12,18 @@ import Swal from 'sweetalert2'
 import ImageCropModal from '../components/ImageCropModal'
 import VinculosProveedores from '../components/VinculosProveedores'
 import { proveedoresService } from '../../application/services/proveedoresService'
+import { usePreferencias } from '../context/PreferenciasContext'
+
+const claveBorradorProducto = (idProducto) => `borrador-producto-${idProducto || 'nuevo'}`
+
+const leerBorradorProducto = (idProducto) => {
+  try {
+    const raw = sessionStorage.getItem(claveBorradorProducto(idProducto))
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
 
 // Grupos con banderas en tablas propias
 const GRUPOS_CON_BANDERA = {
@@ -22,10 +34,18 @@ const GRUPOS_CON_BANDERA = {
 
 const ProductoFormulario = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const { idProducto } = useParams()
   const esEdicion = Boolean(idProducto)
+  const { modoTienda } = usePreferencias()
+  const conservarBorrador = useRef(Boolean(leerBorradorProducto(idProducto)))
+  const borradorActivo = useRef(true)
+  const codigoBarrasRef = useRef(null)
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(() => {
+    const borrador = leerBorradorProducto(idProducto)
+    if (borrador?.formData) return borrador.formData
+    return {
     nombre: '',
     descripcion: '',
     categoria: '',
@@ -40,9 +60,12 @@ const ProductoFormulario = () => {
     stock_actual: '',
     stock_minimo: '',
     es_reventa: false,
+  }
   })
 
-  const [usandoCategoriaNueva, setUsandoCategoriaNueva] = useState(false)
+  const [usandoCategoriaNueva, setUsandoCategoriaNueva] = useState(
+    () => !!leerBorradorProducto(idProducto)?.usandoCategoriaNueva
+  )
   const [guardando, setGuardando] = useState(false)
   const [cargando, setCargando] = useState(false)
   const [imagen, setImagen] = useState(null)
@@ -50,7 +73,7 @@ const ProductoFormulario = () => {
   const [eliminarImagen, setEliminarImagen] = useState(false)
   const [mostrarCropModal, setMostrarCropModal] = useState(false)
   const [imagenParaRecortar, setImagenParaRecortar] = useState(null)
-  const [recetas, setRecetas] = useState([])
+  const [recetas, setRecetas] = useState(() => leerBorradorProducto(idProducto)?.recetas || [])
   const [mostrarFormularioReceta, setMostrarFormularioReceta] = useState(false)
   const [recetaEditando, setRecetaEditando] = useState(null)
   const [formReceta, setFormReceta] = useState({
@@ -65,9 +88,13 @@ const ProductoFormulario = () => {
   })
 
   const [listaProveedores, setListaProveedores] = useState([])
-  const [vinculosProveedores, setVinculosProveedores] = useState([])
+  const [vinculosProveedores, setVinculosProveedores] = useState(
+    () => leerBorradorProducto(idProducto)?.vinculosProveedores || []
+  )
   const [gruposOpcion, setGruposOpcion] = useState([])
-  const [gruposMarcados, setGruposMarcados] = useState([])
+  const [gruposMarcados, setGruposMarcados] = useState(
+    () => leerBorradorProducto(idProducto)?.gruposMarcados || []
+  )
 
   const unidadesMedida = [
     'gramos',
@@ -108,6 +135,48 @@ const ProductoFormulario = () => {
     cargarProveedoresCatalogo()
   }, [])
 
+  useEffect(() => {
+    if (cargando || !borradorActivo.current) return
+    sessionStorage.setItem(
+      claveBorradorProducto(idProducto),
+      JSON.stringify({
+        formData,
+        usandoCategoriaNueva,
+        recetas,
+        vinculosProveedores,
+        gruposMarcados,
+      })
+    )
+  }, [cargando, idProducto, formData, usandoCategoriaNueva, recetas, vinculosProveedores, gruposMarcados])
+
+  useEffect(() => {
+    const idNuevo = location.state?.proveedorCreado
+    if (!idNuevo) return
+    setVinculosProveedores((prev) => {
+      if (prev.some((v) => Number(v.id_proveedor) === Number(idNuevo))) return prev
+      return [
+        ...prev,
+        {
+          id_proveedor: Number(idNuevo),
+          precio_compra: '',
+          es_preferido: prev.length === 0,
+        },
+      ]
+    })
+    cargarProveedoresCatalogo()
+    navigate(location.pathname, { replace: true, state: null })
+  }, [location.state, location.pathname, navigate])
+
+  useEffect(() => {
+    codigoBarrasRef.current?.focus()
+  }, [])
+
+  const irACrearProveedor = () => {
+    navigate('/proveedores', {
+      state: { volverA: location.pathname, abrirAlta: true },
+    })
+  }
+
   // Cargar producto si es edición
   useEffect(() => {
     const cargarProducto = async () => {
@@ -129,6 +198,12 @@ const ProductoFormulario = () => {
 
         const categoria = producto.categoria || ''
         const categoriasExistentes = [...new Set(productos.map((p) => p.categoria))]
+
+        if (producto.tipo_imagen) {
+          setImagenPreview(`${API_BASE_URL}/api/productos/imagen/${idProducto}`)
+        }
+
+        if (conservarBorrador.current) return
 
         setFormData({
           nombre: producto.nombre || '',
@@ -152,11 +227,6 @@ const ProductoFormulario = () => {
         })
 
         setUsandoCategoriaNueva(categoria && !categoriasExistentes.includes(categoria))
-
-        // Cargar imagen existente si hay
-        if (producto.tipo_imagen) {
-          setImagenPreview(`${API_BASE_URL}/api/productos/imagen/${idProducto}`)
-        }
 
         // Cargar grupos marcados
         try {
@@ -268,9 +338,10 @@ const ProductoFormulario = () => {
       formDataToSend.append('categoria', formData.categoria.trim())
       formDataToSend.append('precio', precio.toString())
       formDataToSend.append('activo', formData.activo.toString())
-      formDataToSend.append('area', formData.area)
+      if (!modoTienda) formDataToSend.append('area', formData.area)
       formDataToSend.append('codigo_barras', (formData.codigo_barras || '').trim())
-      formDataToSend.append('es_reventa', (!!formData.es_reventa).toString())
+      const esReventa = modoTienda ? true : !!formData.es_reventa
+      formDataToSend.append('es_reventa', esReventa.toString())
       if (formData.precio_compra !== '' && formData.precio_compra != null) {
         formDataToSend.append('precio_compra', String(formData.precio_compra))
       }
@@ -281,16 +352,22 @@ const ProductoFormulario = () => {
         formDataToSend.append('stock_minimo', String(formData.stock_minimo))
       }
 
-      const clavesMarcadas = new Set(
-        gruposOpcion.filter((g) => gruposMarcados.includes(g.id_grupo)).map((g) => g.clave)
-      )
-      Object.entries(GRUPOS_CON_BANDERA).forEach(([clave, bandera]) => {
-        formDataToSend.append(bandera, clavesMarcadas.has(clave).toString())
-      })
+      if (!modoTienda) {
+        const clavesMarcadas = new Set(
+          gruposOpcion.filter((g) => gruposMarcados.includes(g.id_grupo)).map((g) => g.clave)
+        )
+        Object.entries(GRUPOS_CON_BANDERA).forEach(([clave, bandera]) => {
+          formDataToSend.append(bandera, clavesMarcadas.has(clave).toString())
+        })
+      }
 
-      const recetasParaEnviar = recetas !== undefined && recetas !== null ? recetas : []
+      const recetasParaEnviar = modoTienda
+        ? null
+        : recetas !== undefined && recetas !== null
+          ? recetas
+          : []
 
-      const recetasData = recetasParaEnviar
+      const recetasData = (recetasParaEnviar || [])
         .map((receta) => {
           if (receta.id_insumo) {
             return {
@@ -312,8 +389,10 @@ const ProductoFormulario = () => {
         })
         .filter((r) => r !== null)
 
-      const recetasJSON = JSON.stringify(recetasData)
-      formDataToSend.append('recetas', recetasJSON)
+      if (recetasParaEnviar !== null) {
+        const recetasJSON = JSON.stringify(recetasData)
+        formDataToSend.append('recetas', recetasJSON)
+      }
 
       if (imagen) {
         formDataToSend.append('imagen', imagen, imagen.name)
@@ -325,7 +404,7 @@ const ProductoFormulario = () => {
 
       if (esEdicion) {
         await editarProducto(idProducto, formDataToSend)
-        await guardarGrupos(idProducto)
+        if (!modoTienda) await guardarGrupos(idProducto)
         await proveedoresService.sincronizarItem('producto', idProducto, vinculosProveedores)
 
         await Swal.fire({
@@ -339,7 +418,7 @@ const ProductoFormulario = () => {
       } else {
         const creado = await crearProducto(formDataToSend)
         if (creado?.id_producto) {
-          await guardarGrupos(creado.id_producto)
+          if (!modoTienda) await guardarGrupos(creado.id_producto)
           await proveedoresService.sincronizarItem(
             'producto',
             creado.id_producto,
@@ -356,6 +435,8 @@ const ProductoFormulario = () => {
         })
       }
 
+      borradorActivo.current = false
+      sessionStorage.removeItem(claveBorradorProducto(idProducto))
       navigate('/productos')
     } catch (error) {
       console.error('Error al guardar producto:', error)
@@ -519,7 +600,11 @@ const ProductoFormulario = () => {
       <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 shrink-0">
         <button
           type="button"
-          onClick={() => navigate('/productos')}
+          onClick={() => {
+            borradorActivo.current = false
+            sessionStorage.removeItem(claveBorradorProducto(idProducto))
+            navigate('/productos')
+          }}
           className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
           aria-label="Volver"
         >
@@ -556,10 +641,36 @@ const ProductoFormulario = () => {
           <h2 className="text-base font-semibold text-gray-800 mb-4">Datos básicos</h2>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="codigo-barras-producto">
+                Código de barras
+              </label>
+              <input
+                id="codigo-barras-producto"
+                ref={codigoBarrasRef}
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                value={formData.codigo_barras}
+                onChange={(e) => setFormData({ ...formData, codigo_barras: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return
+                  e.preventDefault()
+                  document.getElementById('nombre-producto')?.focus()
+                }}
+                className="input w-full"
+                placeholder="Escanea o escribe el código"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Con el campo activo, el escáner lo escribe aquí.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="nombre-producto">
                 Nombre <span className="text-red-500">*</span>
               </label>
               <input
+                id="nombre-producto"
                 type="text"
                 required
                 value={formData.nombre}
@@ -629,6 +740,7 @@ const ProductoFormulario = () => {
               </div>
             </div>
 
+            {!modoTienda && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Área de preparación
@@ -656,6 +768,7 @@ const ProductoFormulario = () => {
                 En Comandas, cada área solo ve sus productos.
               </p>
             </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -706,19 +819,7 @@ const ProductoFormulario = () => {
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Código de barras
-              </label>
-              <input
-                type="text"
-                value={formData.codigo_barras}
-                onChange={(e) => setFormData({ ...formData, codigo_barras: e.target.value })}
-                className="input w-full"
-                placeholder="EAN / UPC"
-              />
-            </div>
-
+            {!modoTienda && (
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -727,8 +828,9 @@ const ProductoFormulario = () => {
               />
               Producto de reventa (stock propio, sin receta)
             </label>
+            )}
 
-            {formData.es_reventa && (
+            {(modoTienda || formData.es_reventa) && (
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -898,6 +1000,8 @@ const ProductoFormulario = () => {
           </div>
         </section>
 
+        {!modoTienda && (
+        <>
         {/* Sección: Opciones del producto */}
         <section className="card">
           <h2 className="text-base font-semibold text-gray-800 mb-2">Opciones del producto</h2>
@@ -1180,10 +1284,22 @@ const ProductoFormulario = () => {
             </div>
           )}
         </section>
+        </>
+        )}
 
         {/* Sección: Proveedores */}
         <section className="card">
-          <h2 className="text-base font-semibold text-gray-800 mb-3">Proveedores</h2>
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h2 className="text-base font-semibold text-gray-800">Proveedores</h2>
+            <button
+              type="button"
+              onClick={irACrearProveedor}
+              className="btn-outline text-sm py-1.5 px-3 flex items-center gap-1 shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              Crear proveedor
+            </button>
+          </div>
           <VinculosProveedores
             proveedores={listaProveedores}
             vinculos={vinculosProveedores}

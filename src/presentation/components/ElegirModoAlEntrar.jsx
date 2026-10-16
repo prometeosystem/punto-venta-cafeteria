@@ -3,6 +3,7 @@ import { Store, UtensilsCrossed, Loader2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { usePreferencias } from '../context/PreferenciasContext'
 import { MODO_RESTAURANTE, MODO_TIENDA } from '../utils/preferenciasUi'
+import marca from '@marca'
 
 const CLAVE = 'pos_preguntar_modo'
 
@@ -13,7 +14,7 @@ const ElegirModoAlEntrar = () => {
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
 
-  if (!usuario || usuario.debe_cambiar_codigo || !abierto) return null
+  if (marca.id !== 'prothec' || !usuario || usuario.debe_cambiar_codigo || !abierto) return null
 
   const elegir = async (modo) => {
     setGuardando(true)
@@ -34,7 +35,7 @@ const ElegirModoAlEntrar = () => {
       <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
         <h2 className="text-xl font-semibold text-gray-900">¿Qué quieres ver?</h2>
         <p className="mt-2 text-sm text-gray-600">
-          Elige el tipo de negocio para esta sesión. Más tarde puedes cambiarlo en Configuración.
+          Más tarde puedes cambiarlo en Configuración.
         </p>
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <button

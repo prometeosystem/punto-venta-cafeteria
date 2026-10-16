@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Plus, Minus, Trash2, ShoppingCart, Loader2, X, Search, Coins, Percent, Check, CheckCircle, ChefHat, Lock, Bike, Utensils, ShoppingBag, CreditCard, Banknote, ArrowLeftRight, Image as ImageIcon, LayoutGrid, Folder, ChevronUp, ChevronDown } from 'lucide-react'
+import { Plus, Minus, Trash2, ShoppingCart, Loader2, X, Search, Coins, Percent, Check, CheckCircle, ChefHat, Lock, Bike, Utensils, ShoppingBag, CreditCard, Banknote, ArrowLeftRight, Image as ImageIcon, ImageOff, LayoutGrid, Folder, ChevronUp, ChevronDown } from 'lucide-react'
 import { useProductos } from '../hooks/useProductos'
 import { useVentas } from '../hooks/useVentas'
 import { useComandas } from '../hooks/useComandas'
@@ -10,7 +10,7 @@ import { useCaja } from '../hooks/useCaja'
 import { productosService } from '../../application/services/productosService'
 import { imprimirTicket, itemsDesdeCarrito } from '../utils/imprimirTicket'
 import { obtenerMetodosPagoActivos } from '../utils/metodosPagoConfig'
-import { obtenerImagenCacheada, obtenerPosConFotos } from '../utils/posVistaConfig'
+import { obtenerImagenCacheada, obtenerPosConFotos, guardarPosConFotos } from '../utils/posVistaConfig'
 import { API_BASE_URL } from '../../infrastructure/api'
 import { isAdmin, puedeCobrar } from '../utils/rolePermissions'
 import ModalAutorizacion from '../components/ModalAutorizacion'
@@ -2357,6 +2357,20 @@ const PuntoVenta = () => {
               </button>
             )}
           </div>
+          <button
+            type="button"
+            onClick={() => guardarPosConFotos(!posConFotos)}
+            title={posConFotos ? 'Ocultar fotos' : 'Ver fotos'}
+            aria-label={posConFotos ? 'Ocultar fotos' : 'Ver fotos'}
+            aria-pressed={posConFotos}
+            className={`shrink-0 flex h-[42px] w-[42px] items-center justify-center rounded-lg border bg-white hover:border-marca-400 hover:text-marca-700 ${
+              posConFotos
+                ? 'border-marca-500 text-marca-700'
+                : 'border-gray-200 text-gray-600'
+            }`}
+          >
+            {posConFotos ? <ImageIcon className="w-5 h-5" /> : <ImageOff className="w-5 h-5" />}
+          </button>
           <button
             type="button"
             onClick={alternarVistaCatalogo}

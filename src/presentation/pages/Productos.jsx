@@ -3,10 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { Plus, Search, Edit, Trash2, Loader2 } from 'lucide-react'
 import { useProductos } from '../hooks/useProductos'
 import { proveedoresService } from '../../application/services/proveedoresService'
+import { usePreferencias } from '../context/PreferenciasContext'
+import { API_BASE_URL } from '../../infrastructure/api'
 import Swal from 'sweetalert2'
 
 const Productos = () => {
   const navigate = useNavigate()
+  const { modoTienda } = usePreferencias()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('Todas las categorías')
   const [selectedProveedor, setSelectedProveedor] = useState('todos')
@@ -84,7 +87,8 @@ const Productos = () => {
       || (filtroLista === 'inactivos' && !productoActivo(product))
       || (filtroLista === 'con-foto' && productoConFoto(product))
       || (filtroLista === 'sin-foto' && !productoConFoto(product))
-    const matchesArea = filtroArea === 'todos'
+    const matchesArea = modoTienda
+      || filtroArea === 'todos'
       || (filtroArea === 'cocina' && product.area === 'cocina')
       || (filtroArea === 'barra' && product.area !== 'cocina')
     const matchesProveedor =
@@ -131,10 +135,10 @@ const Productos = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Filtros, búsqueda y alta */}
-      <div className="card space-y-4">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+      <div className="card space-y-3 p-3 sm:p-4">
+        <div className="grid grid-cols-5 gap-1">
           {resumenProductos.map((item) => {
             const activo = filtroLista === item.id
             return (
@@ -143,21 +147,21 @@ const Productos = () => {
                 type="button"
                 aria-pressed={activo}
                 onClick={() => setFiltroLista(item.id === 'todos' || activo ? 'todos' : item.id)}
-                className={`rounded-lg border px-3 py-2 text-left transition-colors ${
+                className={`rounded-md border px-1 py-1 text-center transition-colors ${
                   activo
                     ? 'border-marca-500 bg-marca-50'
                     : 'border-gray-200 bg-white hover:border-marca-300'
                 }`}
               >
-                <span className="block text-lg font-semibold text-gray-900 tabular-nums leading-none">
+                <span className="block text-sm font-semibold text-gray-900 tabular-nums leading-none">
                   {item.valor}
                 </span>
-                <span className="mt-1 block text-xs text-gray-500">{item.label}</span>
+                <span className="mt-0.5 block text-[10px] leading-tight text-gray-500">{item.label}</span>
               </button>
             )
           })}
         </div>
-        <div className="flex flex-col lg:flex-row gap-3 lg:items-center">
+        <div className="flex gap-2 items-center">
           <div className="flex-1 relative min-w-0">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
@@ -168,7 +172,18 @@ const Productos = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="flex flex-wrap gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={() => navigate('/productos/nuevo')}
+            className="btn-primary shrink-0 flex h-[42px] w-[42px] items-center justify-center p-0"
+            aria-label="Nuevo producto"
+            title="Nuevo producto"
+          >
+            <Plus className="w-5 h-5" />
+          </button>
+        </div>
+        {!modoTienda && (
+          <div className="flex flex-wrap gap-1.5">
             {filtrosArea.map((item) => {
               const activo = filtroArea === item.id
               return (
@@ -188,45 +203,95 @@ const Productos = () => {
               )
             })}
           </div>
+        )}
+        <div className="grid grid-cols-2 gap-2">
           <select
-            className="input lg:w-48"
+            className="input"
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
+            aria-label="Categorías"
           >
-            {categories.map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
+            {categories.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat === 'Todas las categorías' ? 'Categorías' : cat}
+              </option>
             ))}
           </select>
           <select
-            className="input lg:w-48"
+            className="input"
             value={selectedProveedor}
             onChange={(e) => setSelectedProveedor(e.target.value)}
+            aria-label="Proveedores"
           >
-            <option value="todos">Todos los proveedores</option>
+            <option value="todos">Proveedores</option>
             {proveedores.map((proveedor) => (
               <option key={proveedor.id_proveedor} value={String(proveedor.id_proveedor)}>
                 {proveedor.nombre}
               </option>
             ))}
           </select>
-          <button
-            onClick={() => navigate('/productos/nuevo')}
-            className="btn-primary flex items-center justify-center gap-2 shrink-0 whitespace-nowrap"
-          >
-            <Plus className="w-5 h-5" />
-            Nuevo Producto
-          </button>
         </div>
       </div>
 
       {/* Tabla de productos */}
-      <div className="card overflow-x-auto">
+      <div className="card overflow-x-auto p-2 sm:p-4">
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-marca-600" />
           </div>
         ) : (
-          <table className="w-full">
+          <>
+          <ul className="md:hidden divide-y divide-gray-100">
+            {filteredProducts.length === 0 ? (
+              <li className="py-8 text-center text-sm text-gray-500">No se encontraron productos</li>
+            ) : (
+              filteredProducts.map((product) => {
+                const codigo = product.codigo_barras || product.categoria
+                const stock = product.stock_actual
+                const tieneStock = stock !== null && stock !== undefined && stock !== ''
+                return (
+                  <li key={product.id_producto}>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/productos/${product.id_producto}/editar`)}
+                      className={`flex w-full items-center gap-2.5 py-2 text-left ${
+                        product.activo ? '' : 'opacity-50'
+                      }`}
+                    >
+                      {product.tipo_imagen ? (
+                        <img
+                          src={`${API_BASE_URL}/api/productos/imagen/${product.id_producto}`}
+                          alt=""
+                          className="h-11 w-11 shrink-0 rounded object-cover bg-gray-100"
+                        />
+                      ) : (
+                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded bg-gray-100 text-[10px] text-gray-400">
+                          Sin foto
+                        </span>
+                      )}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[11px] text-gray-500">
+                          {product.es_reventa ? `PZA ${codigo}` : codigo}
+                        </span>
+                        <span className="block truncate text-sm font-medium text-gray-900">
+                          {product.nombre}
+                        </span>
+                        {tieneStock && (
+                          <span className="block text-[11px] text-gray-400 tabular-nums">
+                            {Number(stock)}
+                          </span>
+                        )}
+                      </span>
+                      <span className="shrink-0 text-sm font-semibold text-gray-900 tabular-nums">
+                        ${parseFloat(product.precio).toFixed(2)}
+                      </span>
+                    </button>
+                  </li>
+                )
+              })
+            )}
+          </ul>
+          <table className="hidden w-full md:table">
             <thead>
               <tr className="border-b border-gray-200">
                 <th className="text-left py-3 px-4 font-semibold text-gray-900">
@@ -267,9 +332,11 @@ const Productos = () => {
                     </td>
                     <td className="py-3 px-4">
                       <span className="text-sm text-gray-600">{product.categoria}</span>
+                      {!modoTienda && (
                       <span className="block text-[11px] text-gray-400">
                         {product.area === 'cocina' ? 'Cocina' : 'Barra'}
                       </span>
+                      )}
                     </td>
                     <td className="py-3 px-4">
                       <span className="font-semibold text-marca-600">
@@ -310,6 +377,7 @@ const Productos = () => {
               )}
             </tbody>
           </table>
+          </>
         )}
       </div>
     </div>

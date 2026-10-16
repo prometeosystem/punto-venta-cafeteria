@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
   Plus, Loader2, Truck, PackagePlus, Search, Trash2, History,
 } from 'lucide-react'
@@ -35,6 +36,9 @@ const urgenciaClass = {
 }
 
 const Proveedores = () => {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const volverA = location.state?.volverA || null
   const [tab, setTab] = useState('lista') // lista | comprar | detalle
   const [proveedores, setProveedores] = useState([])
   const [sugerencias, setSugerencias] = useState([])
@@ -74,6 +78,13 @@ const Proveedores = () => {
   useEffect(() => {
     cargar()
   }, [])
+
+  useEffect(() => {
+    if (!location.state?.abrirAlta) return
+    setEditId(null)
+    setForm(formVacio)
+    setModalProv(true)
+  }, [location.state])
 
   const abrirDetalle = async (id) => {
     setLoading(true)
@@ -119,9 +130,14 @@ const Proveedores = () => {
         notas: form.notas || null,
         activo: !!form.activo,
       }
+      let creado = null
       if (editId) await proveedoresService.editar(editId, payload)
-      else await proveedoresService.crear(payload)
+      else creado = await proveedoresService.crear(payload)
       setModalProv(false)
+      if (!editId && volverA) {
+        navigate(volverA, { state: { proveedorCreado: creado?.id_proveedor } })
+        return
+      }
       setForm(formVacio)
       setEditId(null)
       await cargar()
@@ -278,8 +294,21 @@ const Proveedores = () => {
     )
   }
 
+  const volverAlProducto = () => {
+    if (volverA) navigate(volverA)
+  }
+
   return (
     <div className="space-y-4">
+      {volverA && (
+        <button
+          type="button"
+          onClick={volverAlProducto}
+          className="text-sm text-marca-700 hover:underline"
+        >
+          ← Volver al producto
+        </button>
+      )}
       <div className="flex flex-wrap gap-2 items-center justify-between">
         <div className="flex gap-2">
           <button
@@ -582,7 +611,7 @@ const Proveedores = () => {
               <h3 className="text-sm font-semibold text-gray-800">
                 {editId ? 'Editar proveedor' : 'Nuevo proveedor'}
               </h3>
-              <button type="button" className="p-1 rounded hover:bg-gray-100" onClick={() => setModalProv(false)}>
+              <button type="button" className="p-1 rounded hover:bg-gray-100" onClick={() => (volverA && !editId ? volverAlProducto() : setModalProv(false))}>
                 ×
               </button>
             </div>
@@ -695,8 +724,12 @@ const Proveedores = () => {
               </label>
             </div>
             <div className="flex gap-2 px-3 py-2.5 border-t shrink-0">
-              <button type="button" className="btn-outline flex-1 py-2 text-sm" onClick={() => setModalProv(false)}>
-                Cancelar
+              <button
+                type="button"
+                className="btn-outline flex-1 py-2 text-sm"
+                onClick={() => (volverA && !editId ? volverAlProducto() : setModalProv(false))}
+              >
+                {volverA && !editId ? 'Volver al producto' : 'Cancelar'}
               </button>
               <button type="button" className="btn-primary flex-1 py-2 text-sm" onClick={guardarProveedor} disabled={guardando}>
                 {guardando ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Guardar'}
