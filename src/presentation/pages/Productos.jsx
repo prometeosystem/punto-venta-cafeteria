@@ -345,10 +345,15 @@ const Productos = () => {
                     className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
                   >
                     <td className="py-3 px-4">
-                      <p className="font-medium text-gray-900">{product.nombre}</p>
-                      {product.descripcion && (
-                        <p className="text-sm text-gray-500">{product.descripcion}</p>
-                      )}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <MiniaturaProducto producto={product} />
+                        <div className="min-w-0">
+                          <p className="font-medium text-gray-900">{product.nombre}</p>
+                          {product.descripcion && (
+                            <p className="text-sm text-gray-500">{product.descripcion}</p>
+                          )}
+                        </div>
+                      </div>
                     </td>
                     <td className="py-3 px-4">
                       <span className="text-sm text-gray-600">{product.categoria}</span>
