@@ -1083,7 +1083,7 @@ const Reportes = () => {
         )}
       </div>
 
-      {/* Recomendaciones de Compra */}
+      {!modoTienda && (
       <div className="card min-w-0 overflow-hidden !p-4 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
           <div className="min-w-0">
@@ -1257,6 +1257,7 @@ const Reportes = () => {
           </div>
         )}
       </div>
+      )}
 
       {/* Modal de detalles de venta */}
       {mostrarModalDetalles && (

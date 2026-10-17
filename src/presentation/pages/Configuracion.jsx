@@ -132,7 +132,7 @@ const Configuracion = () => {
         </div>
         <p className="text-sm text-gray-600 mb-4">
           En modo tienda se ocultan mesas,
-          comandas, meseros, propinas, tipo de servicio y enviar a cocina.
+          comandas, inventario, meseros, propinas, tipo de servicio y enviar a cocina.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <button

@@ -205,11 +205,12 @@ const Productos = () => {
           <button
             type="button"
             onClick={() => navigate('/productos/nuevo')}
-            className="btn-primary order-2 flex h-[42px] w-[42px] shrink-0 items-center justify-center p-0 md:order-3"
-            aria-label="Nuevo producto"
-            title="Nuevo producto"
+            className="btn-primary order-2 flex h-[42px] w-[42px] shrink-0 items-center justify-center p-0 md:order-3 md:w-auto md:gap-2 md:px-4"
+            aria-label="Agregar producto"
+            title="Agregar producto"
           >
             <Plus className="w-5 h-5" />
+            <span className="hidden md:inline">Agregar</span>
           </button>
           {!modoTienda && (
             <div className="order-3 flex w-full gap-1.5 md:order-2 md:w-auto md:shrink-0">

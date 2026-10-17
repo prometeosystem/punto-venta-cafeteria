@@ -378,11 +378,12 @@ const Inventario = () => {
           <button
             type="button"
             onClick={abrirModalCrear}
-            className="btn-primary shrink-0 flex h-[42px] w-[42px] items-center justify-center p-0"
-            aria-label="Nuevo insumo"
-            title="Nuevo insumo"
+            className="btn-primary flex h-[42px] w-[42px] shrink-0 items-center justify-center p-0 md:w-auto md:gap-2 md:px-4"
+            aria-label="Agregar insumo"
+            title="Agregar insumo"
           >
             <Plus className="w-5 h-5" />
+            <span className="hidden md:inline">Agregar</span>
           </button>
         </div>
       </div>

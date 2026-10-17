@@ -8,7 +8,7 @@ export function productoDelModo(producto, modoTienda) {
   return canal === (modoTienda ? 'tienda' : 'restaurante')
 }
 
-export const RUTAS_SOLO_RESTAURANTE = ['/mesas', '/barista']
+export const RUTAS_SOLO_RESTAURANTE = ['/mesas', '/barista', '/inventario']
 
 const METRICAS_METODO_PAGO = [
   { id: 'conteo_efectivo', label: 'Conteo: efectivo', grupo: 'metodos' },
@@ -145,6 +145,6 @@ export function metricaVisible(prefs, seccion, id) {
   const valor = mapa?.[id]
   const visible = valor === undefined ? !METRICAS_OFF_POR_DEFECTO.includes(id) : !!valor
   if (!visible) return false
-  if (esModoTienda(prefs) && (id === 'propinas' || id === 'ordenes_activas')) return false
+  if (esModoTienda(prefs) && (id === 'propinas' || id === 'ordenes_activas' || id === 'stock_critico')) return false
   return true
 }

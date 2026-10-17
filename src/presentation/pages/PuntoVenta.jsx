@@ -1274,7 +1274,7 @@ const PuntoVenta = () => {
           id_producto: idProducto,
           cantidad,
           nombre_producto: item.personalizado ? (item.nombre || item.nombre_producto) : null,
-          area: idProducto === null ? item.area || 'barra' : null,
+          area: !modoTienda && idProducto === null ? item.area || 'barra' : null,
           observaciones: item.observaciones || null,
           tipo_preparacion: item.tipoPreparacion || null, // Incluir tipo de preparación
         }
@@ -1449,7 +1449,7 @@ const PuntoVenta = () => {
           id_producto: idProducto,
           cantidad,
           nombre_producto: item.personalizado ? (item.nombre || item.nombre_producto) : null,
-          area: idProducto === null ? item.area || 'barra' : null,
+          area: !modoTienda && idProducto === null ? item.area || 'barra' : null,
           observaciones: item.observaciones || null,
           tipo_preparacion: item.tipoPreparacion || null,
         }
@@ -1710,7 +1710,7 @@ const PuntoVenta = () => {
       id_producto: null, // Enviar null al backend para productos personalizados
       nombre: nombre,
       precio: precio,
-      area: areaProductoPersonalizado,
+      area: modoTienda ? null : areaProductoPersonalizado,
       personalizado: true // Marca para identificar productos personalizados
     }
 
@@ -1973,7 +1973,7 @@ const PuntoVenta = () => {
         observaciones: item.observaciones || null,
         tipo_preparacion: item.tipoPreparacion || null,
         nombre_producto: item.personalizado ? (item.nombre || item.nombre_producto) : (item.nombre || null),
-        area: idProducto === null ? item.area || 'barra' : null,
+        area: !modoTienda && idProducto === null ? item.area || 'barra' : null,
       }
     })
 
@@ -3054,6 +3054,7 @@ const PuntoVenta = () => {
                   />
                 </div>
               </div>
+              {modoRestaurante && (
               <div>
                 <label className="campo-label">
                   ¿Dónde se prepara?
@@ -3078,6 +3079,7 @@ const PuntoVenta = () => {
                   ))}
                 </div>
               </div>
+              )}
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <button
                   type="button"

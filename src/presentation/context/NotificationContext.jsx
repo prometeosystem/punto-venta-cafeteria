@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { inventarioService } from '../../application/services/inventarioService'
 import { usuariosService } from '../../application/services/usuariosService'
 import { useAuth } from './AuthContext'
+import { usePreferencias } from './PreferenciasContext'
 import { clave as claveLocal } from '../utils/almacenLocal'
 
 const AVISOS_VISTOS = claveLocal('avisos_vistos')
@@ -34,6 +35,7 @@ export const useNotifications = () => {
 
 export const NotificationProvider = ({ children }) => {
   const { usuario } = useAuth() // Obtener usuario autenticado
+  const { modoTienda } = usePreferencias()
   const [notifications, setNotifications] = useState([])
   const [toastNotifications, setToastNotifications] = useState([]) // Notificaciones toast temporales
   // Reproducir sonido de notificación (similar a campanita de hotel o iPhone)
@@ -277,8 +279,8 @@ export const NotificationProvider = ({ children }) => {
 
   // Función para verificar insumos con stock bajo/crítico
   const verificarInsumosStock = useCallback(async () => {
-    // Solo verificar si hay un usuario autenticado
-    if (!usuario) {
+    // Los insumos son de recetas de restaurante; en tienda no se avisa de ese stock
+    if (!usuario || modoTienda) {
       return
     }
     
@@ -368,7 +370,7 @@ export const NotificationProvider = ({ children }) => {
         }
       }
     }
-  }, [playErrorSound, usuario])
+  }, [playErrorSound, usuario, modoTienda])
 
   // Escuchar eventos de creación de comandas
   useEffect(() => {
@@ -506,6 +508,11 @@ export const NotificationProvider = ({ children }) => {
       }
     }
   }, [usuario, playNotificationSound])
+
+  useEffect(() => {
+    if (!modoTienda) return
+    setNotifications((prev) => prev.filter((notif) => notif.tipo !== 'inventario'))
+  }, [modoTienda])
 
   // Verificar insumos periódicamente (cada 2 minutos)
   useEffect(() => {
