@@ -56,7 +56,7 @@ export const METRICAS_REPORTES = [
   { id: 'cancelaciones', label: 'Cancelaciones', grupo: 'nuevas' },
   { id: 'grafico_dias', label: 'Gráfico: ventas por día', grupo: 'graficos' },
   { id: 'grafico_productos', label: 'Gráfico: productos más vendidos', grupo: 'graficos' },
-  { id: 'grafico_menos_vendidos', label: 'Gráfico: productos menos vendidos', grupo: 'graficos' },
+  { id: 'grafico_menos_vendidos', label: 'Lista: productos menos vendidos', grupo: 'graficos' },
 ]
 
 const METRICAS_OFF_POR_DEFECTO = [

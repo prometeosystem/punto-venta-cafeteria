@@ -35,7 +35,6 @@ import {
   Area,
   BarChart,
   Bar,
-  LabelList,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -188,7 +187,9 @@ const Reportes = () => {
     return productos
       .filter((producto) => productoDelModo(producto, modoTienda) && (producto.activo === 1 || producto.activo === true))
       .map((producto) => ({
+        id_producto: producto.id_producto,
         nombre: producto.nombre,
+        categoria: producto.categoria,
         cantidad_vendida: conteo.get(Number(producto.id_producto)) || 0,
       }))
       .sort((a, b) => a.cantidad_vendida - b.cantidad_vendida || a.nombre.localeCompare(b.nombre, 'es'))
@@ -730,38 +731,28 @@ const Reportes = () => {
             Del catálogo actual, en este periodo. Incluye los que no se vendieron.
           </p>
           {loadingGraficos ? (
-            <div className="h-64 flex items-center justify-center">
+            <div className="flex items-center justify-center py-8">
               <Loader2 className="w-6 h-6 animate-spin text-marca-600" />
             </div>
           ) : productosMenosVendidos.length === 0 ? (
-            <div className="h-64 flex items-center justify-center text-gray-400">
-              <p>No hay datos para mostrar</p>
-            </div>
+            <p className="py-4 text-center text-gray-500">No hay datos para mostrar</p>
           ) : (
-            <ResponsiveContainer width="100%" height={320}>
-              <BarChart
-                data={productosMenosVendidos}
-                layout="vertical"
-                margin={{ top: 4, right: 28, left: 4, bottom: 4 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
-                <XAxis type="number" allowDecimals={false} stroke="#6b7280" />
-                <YAxis
-                  type="category"
-                  dataKey="nombre"
-                  width={128}
-                  stroke="#6b7280"
-                  tickFormatter={(nombre) => (String(nombre).length > 18 ? `${String(nombre).slice(0, 16)}…` : nombre)}
-                />
-                <Tooltip
-                  formatter={(value) => [`${value} pzas`, 'Vendidas']}
-                  contentStyle={{ backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                />
-                <Bar dataKey="cantidad_vendida" fill="#d97706" name="Cantidad" radius={[0, 4, 4, 0]} barSize={18}>
-                  <LabelList dataKey="cantidad_vendida" position="right" className="fill-gray-600 text-xs" />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="space-y-3">
+              {productosMenosVendidos.map((product, index) => (
+                <div key={product.id_producto} className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-sm font-semibold text-amber-700">
+                    {index + 1}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium text-gray-900">{product.nombre}</p>
+                    <p className="truncate text-sm text-gray-500">{product.categoria || 'Sin categoría'}</p>
+                  </div>
+                  <p className="shrink-0 text-lg tabular-nums leading-none text-gray-900">
+                    {product.cantidad_vendida}
+                  </p>
+                </div>
+              ))}
+            </div>
           )}
         </div>
         )}
