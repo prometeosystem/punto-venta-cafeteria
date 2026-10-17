@@ -378,7 +378,7 @@ const PuntoVenta = () => {
     let vivo = true
     const canal = modoTienda ? 'tienda' : 'restaurante'
     reportesService
-      .obtenerMasVendidosPos(8, canal)
+      .obtenerMasVendidosPos(10, canal)
       .then((data) => {
         if (vivo && Array.isArray(data)) setIdsMasVendidos(data.map((p) => p.id_producto))
       })
@@ -2409,17 +2409,6 @@ const PuntoVenta = () => {
                   </div>
             )
           ) : verTodos ? (
-            <div className="space-y-3">
-              {productosMasVendidos.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5 px-0.5">
-                    Más vendidos
-                  </p>
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2">
-                    {productosMasVendidos.map((product) => renderProductTile(product))}
-                  </div>
-                </div>
-              )}
             <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2">
               <button
                 type="button"
@@ -2431,7 +2420,6 @@ const PuntoVenta = () => {
                 </span>
               </button>
               {catalogo.filter((p) => p.activo).map((product) => renderProductTile(product))}
-            </div>
             </div>
           ) : (
             <div className="space-y-3">

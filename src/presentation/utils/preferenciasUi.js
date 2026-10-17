@@ -57,6 +57,7 @@ export const METRICAS_REPORTES = [
   { id: 'grafico_dias', label: 'Gráfico: ventas por día', grupo: 'graficos' },
   { id: 'grafico_productos', label: 'Gráfico: productos más vendidos', grupo: 'graficos' },
   { id: 'grafico_menos_vendidos', label: 'Lista: productos menos vendidos', grupo: 'graficos' },
+  { id: 'grafico_metodos', label: 'Gráfico: ventas por método de pago', grupo: 'graficos' },
 ]
 
 const METRICAS_OFF_POR_DEFECTO = [
@@ -141,7 +142,9 @@ export function fusionarPreferencias(parcial) {
 /** En modo tienda estas métricas no aplican aunque estén activas. */
 export function metricaVisible(prefs, seccion, id) {
   const mapa = seccion === 'reportes' ? prefs?.metricas_reportes : prefs?.metricas_dashboard
-  if (!mapa?.[id]) return false
+  const valor = mapa?.[id]
+  const visible = valor === undefined ? !METRICAS_OFF_POR_DEFECTO.includes(id) : !!valor
+  if (!visible) return false
   if (esModoTienda(prefs) && (id === 'propinas' || id === 'ordenes_activas')) return false
   return true
 }

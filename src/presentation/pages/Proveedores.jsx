@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   Plus, Loader2, Truck, PackagePlus, Search, Trash2, History,
+  Eye, Pencil, ArrowLeft, Phone, Mail, MessageCircle, CalendarDays, Clock,
 } from 'lucide-react'
 import { proveedoresService } from '../../application/services/proveedoresService'
 import { inventarioService } from '../../application/services/inventarioService'
@@ -363,6 +364,7 @@ const Proveedores = () => {
                 key={p.id_proveedor}
                 type="button"
                 className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center justify-between gap-3"
+                aria-label={`Ver ${p.nombre}`}
                 onClick={() => abrirDetalle(p.id_proveedor)}
               >
                 <div className="flex items-center gap-3">
@@ -375,7 +377,9 @@ const Proveedores = () => {
                     </p>
                   </div>
                 </div>
-                <span className="text-xs text-marca-600">Ver</span>
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400">
+                  <Eye className="h-4 w-4" />
+                </span>
               </button>
             ))
           )}
@@ -468,36 +472,50 @@ const Proveedores = () => {
       {tab === 'detalle' && seleccionado && (
         <div className="space-y-4">
           <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
-            <div className="flex flex-wrap justify-between gap-3 mb-4">
-              <div>
-                <h2 className="text-lg font-semibold">{seleccionado.nombre}</h2>
-                <p className="text-sm text-gray-500">
-                  {[seleccionado.telefono, seleccionado.whatsapp, seleccionado.correo].filter(Boolean).join(' · ') || 'Sin contacto'}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Visita: {etiquetaDiasVisita(seleccionado.dias_visita)}
-                  {' · '}
-                  Entrega: {etiquetaEntrega(seleccionado.tiempo_entrega_dias)}
-                </p>
-                {seleccionado.notas && <p className="text-sm text-gray-600 mt-1">{seleccionado.notas}</p>}
-              </div>
+            <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">{seleccionado.nombre}</h2>
               <div className="flex gap-2">
                 <button
                   type="button"
-                  className="px-3 py-1.5 text-sm rounded-lg bg-gray-100"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:border-marca-300 hover:bg-marca-50 hover:text-marca-700"
                   onClick={() => {
                     setEditId(seleccionado.id_proveedor)
                     setForm(formDesdeProveedor(seleccionado))
                     setModalProv(true)
                   }}
                 >
+                  <Pencil className="h-4 w-4" />
                   Editar
                 </button>
-                <button type="button" className="px-3 py-1.5 text-sm rounded-lg bg-gray-100" onClick={() => setTab('lista')}>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                  onClick={() => setTab('lista')}
+                >
+                  <ArrowLeft className="h-4 w-4" />
                   Volver
                 </button>
               </div>
             </div>
+            <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {[
+                seleccionado.telefono && { clave: 'tel', icono: Phone, texto: seleccionado.telefono },
+                seleccionado.whatsapp && { clave: 'wa', icono: MessageCircle, texto: seleccionado.whatsapp },
+                seleccionado.correo && { clave: 'mail', icono: Mail, texto: seleccionado.correo },
+                { clave: 'visita', icono: CalendarDays, texto: etiquetaDiasVisita(seleccionado.dias_visita) },
+                { clave: 'entrega', icono: Clock, texto: etiquetaEntrega(seleccionado.tiempo_entrega_dias) },
+              ].filter(Boolean).map((dato) => (
+                <div key={dato.clave} className="flex items-center gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                  <dato.icono className="h-4 w-4 shrink-0 text-gray-400" />
+                  <span className="min-w-0 truncate">{dato.texto}</span>
+                </div>
+              ))}
+            </div>
+            {seleccionado.notas && (
+              <p className="mb-4 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                {seleccionado.notas}
+              </p>
+            )}
 
             <h3 className="text-sm font-semibold text-gray-800 mb-1">Qué le compras</h3>
             <p className="text-xs text-gray-500 mb-2">

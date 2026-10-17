@@ -722,6 +722,54 @@ const Reportes = () => {
         </div>
         )}
 
+        {ver('grafico_metodos') && (
+        <div className="card min-w-0 overflow-hidden !p-4 sm:p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            Ventas por método de pago
+          </h2>
+          {loadingGraficos ? (
+            <div className="flex h-64 items-center justify-center">
+              <Loader2 className="w-6 h-6 animate-spin text-marca-600" />
+            </div>
+          ) : conteoPorMetodo.every((metodo) => metodo.cantidad === 0) ? (
+            <div className="flex h-64 items-center justify-center text-gray-400">
+              <p>No hay datos para mostrar</p>
+            </div>
+          ) : RechartsAvailable ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart
+                data={conteoPorMetodo
+                  .filter((metodo) => metodo.cantidad > 0)
+                  .map((metodo) => ({
+                    nombre: metodo.id === 'transferencia' ? 'Transferencia' : metodo.label,
+                    cantidad: metodo.cantidad,
+                  }))}
+                layout="vertical"
+                margin={{ left: 8, right: 16 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis type="number" allowDecimals={false} stroke="#6b7280" />
+                <YAxis type="category" dataKey="nombre" width={110} stroke="#6b7280" />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                />
+                <Bar
+                  dataKey="cantidad"
+                  fill="rgb(var(--marca-500))"
+                  name="Ventas"
+                  radius={[0, 6, 6, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex h-64 flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 text-gray-400">
+              <AlertCircle className="mb-2 h-8 w-8" />
+              <p className="text-sm">Recharts no está instalado</p>
+            </div>
+          )}
+        </div>
+        )}
+
         {ver('grafico_menos_vendidos') && (
         <div className="card min-w-0 overflow-hidden !p-4 sm:p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-1">

@@ -436,12 +436,12 @@ const Inventario = () => {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-semibold text-gray-900">Estado</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-900">Insumo</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-900">Unidad</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-900">Cantidad Actual</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-900">Cantidad Mínima</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-900">Precio Compra</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-900">Estado</th>
                   <th className="text-right py-3 px-4 font-semibold text-gray-900">Acciones</th>
                 </tr>
               </thead>
@@ -460,12 +460,6 @@ const Inventario = () => {
                         key={item.id_insumo}
                         className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
                       >
-                        <td className="py-3 px-4">
-                          <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
-                            {getStatusIcon(status)}
-                            {status === 'ok' ? 'Normal' : status === 'low' ? 'Bajo' : 'Crítico'}
-                          </div>
-                        </td>
                         <td className="py-3 px-4">
                           <p className="font-medium text-gray-900">{item.nombre}</p>
                           {item.descripcion && (
@@ -489,6 +483,12 @@ const Inventario = () => {
                           <span className="text-sm text-gray-600">
                             ${parseFloat(item.precio_compra || 0).toFixed(2)}
                           </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
+                            {getStatusIcon(status)}
+                            {status === 'ok' ? 'Normal' : status === 'low' ? 'Bajo' : 'Crítico'}
+                          </div>
                         </td>
                         <td className="py-3 px-4">
                           <div className="flex items-center justify-end gap-2">
