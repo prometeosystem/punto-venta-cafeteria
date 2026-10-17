@@ -2,7 +2,26 @@ import { useEffect, useState } from 'react'
 import { Search, Loader2, RotateCcw, Package } from 'lucide-react'
 import { devolucionesService } from '../../application/services/devolucionesService'
 import { usePreferencias } from '../context/PreferenciasContext'
+import ModalAutorizacion from '../components/ModalAutorizacion'
 import Swal from 'sweetalert2'
+
+const METODOS = {
+  efectivo: 'Efectivo',
+  tarjeta: 'Tarjeta',
+  transferencia: 'Transferencia',
+  nota_credito: 'Nota de crédito',
+}
+
+const fechaCorta = (valor) => {
+  if (!valor) return ''
+  return String(valor).replace('T', ' ').slice(0, 16)
+}
+
+const cantidadCorta = (valor) => {
+  const n = Number(valor)
+  if (!Number.isFinite(n)) return valor
+  return Number.isInteger(n) ? String(n) : String(n)
+}
 
 const alertArriba = (opts) =>
   Swal.fire({
@@ -23,10 +42,28 @@ const Devoluciones = () => {
   const [reingresarStock, setReingresarStock] = useState(true)
   const [cargando, setCargando] = useState(false)
   const [procesando, setProcesando] = useState(false)
+  const [pedirCodigo, setPedirCodigo] = useState(false)
+  const [historial, setHistorial] = useState([])
+  const [cargandoHistorial, setCargandoHistorial] = useState(true)
 
   useEffect(() => {
     setReingresarStock(!!modoTienda)
   }, [modoTienda])
+
+  const cargarHistorial = async () => {
+    try {
+      const data = await devolucionesService.historial()
+      setHistorial(Array.isArray(data) ? data : [])
+    } catch {
+      setHistorial([])
+    } finally {
+      setCargandoHistorial(false)
+    }
+  }
+
+  useEffect(() => {
+    cargarHistorial()
+  }, [])
 
   const buscar = async () => {
     const q = busqueda.trim()
@@ -107,18 +144,11 @@ const Devoluciones = () => {
       })
       return
     }
-    const ok = await alertArriba({
-      title: reingresarStock ? 'Confirmar devolución' : 'Confirmar reembolso',
-      html: reingresarStock
-        ? `Se reembolsarán <b>$${montoEstimado().toFixed(2)}</b> (${metodo}) y se <b>reingresa</b> el stock/insumos.`
-        : `Se reembolsarán <b>$${montoEstimado().toFixed(2)}</b> (${metodo}) <b>sin</b> regresar nada al inventario (comida ya preparada o no usable).`,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: reingresarStock ? 'Devolver' : 'Reembolsar',
-      cancelButtonText: 'Cancelar',
-    })
-    if (!ok.isConfirmed) return
+    setPedirCodigo(true)
+  }
 
+  const registrar = async (autorizacion) => {
+    const items = itemsADevolver()
     setProcesando(true)
     try {
       const res = await devolucionesService.devolver({
@@ -127,6 +157,7 @@ const Devoluciones = () => {
         metodo_reembolso: metodo,
         motivo: motivo.trim() || null,
         reingresar_stock: reingresarStock,
+        autorizacion,
       })
       await alertArriba({
         icon: 'success',
@@ -135,9 +166,11 @@ const Devoluciones = () => {
         timer: 2500,
         showConfirmButton: false,
       })
+      setPedirCodigo(false)
       setVenta(null)
       setBusqueda('')
       setMotivo('')
+      cargarHistorial()
     } catch (err) {
       await alertArriba({
         icon: 'error',
@@ -310,6 +343,73 @@ const Devoluciones = () => {
           </div>
         </div>
       )}
+
+      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">Historial de reembolsos</h2>
+        <p className="text-sm text-gray-500 mb-4">Quién lo registró y quién lo autorizó</p>
+        {cargandoHistorial ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="w-5 h-5 animate-spin text-marca-600" />
+          </div>
+        ) : historial.length === 0 ? (
+          <p className="py-6 text-center text-sm text-gray-500">Aún no hay reembolsos registrados</p>
+        ) : (
+          <ul className="divide-y divide-gray-100">
+            {historial.map((item) => (
+              <li key={item.id_devolucion} className="py-3 first:pt-0 last:pb-0">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-900">
+                      #{item.id_devolucion}
+                      <span className="font-normal text-gray-500"> · venta #{item.id_venta}</span>
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {fechaCorta(item.fecha_devolucion)}
+                      {item.nombre_cliente ? ` · ${item.nombre_cliente}` : ''}
+                      {` · ${METODOS[item.metodo_reembolso] || item.metodo_reembolso}`}
+                    </p>
+                  </div>
+                  <p className="shrink-0 font-semibold tabular-nums text-gray-900">
+                    ${Number(item.monto_total || 0).toFixed(2)}
+                  </p>
+                </div>
+                {(item.items || []).length > 0 && (
+                  <p className="mt-1 text-sm text-gray-700">
+                    {item.items.map((linea) => `${linea.nombre} × ${cantidadCorta(linea.cantidad)}`).join(', ')}
+                  </p>
+                )}
+                <p className="mt-1 text-xs text-gray-500">
+                  Registró {item.usuario_nombre}
+                  {' · '}
+                  Autorizó {item.autorizo_nombre || 'sin registro'}
+                  {' · '}
+                  {item.reingresar_stock ? 'Regresó a stock' : 'Solo dinero'}
+                </p>
+                {item.motivo && (
+                  <p className="mt-0.5 text-xs text-gray-400">{item.motivo}</p>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <ModalAutorizacion
+        abierto={pedirCodigo}
+        titulo={reingresarStock ? 'Autorizar devolución' : 'Autorizar reembolso'}
+        mensaje={
+          reingresarStock
+            ? `Se reembolsarán $${montoEstimado().toFixed(2)} en ${METODOS[metodo] || metodo} y el producto regresa al stock. Un administrador debe autorizarlo con su código.`
+            : `Se reembolsarán $${montoEstimado().toFixed(2)} en ${METODOS[metodo] || metodo}, sin regresar nada al inventario. Un administrador debe autorizarlo con su código.`
+        }
+        textoConfirmar={reingresarStock ? 'Devolver' : 'Reembolsar'}
+        requiereCodigo
+        procesando={procesando}
+        onConfirmar={registrar}
+        onCancelar={() => {
+          if (!procesando) setPedirCodigo(false)
+        }}
+      />
     </div>
   )
 }

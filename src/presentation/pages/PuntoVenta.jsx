@@ -2336,9 +2336,15 @@ const PuntoVenta = () => {
       : []
   const piezasOrden = cart.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)
   const totalBarraOrden = resumenOrden().totalFinal
-  const mesasAbiertas = (modoRestaurante && puedeCobrar(usuario?.rol))
-    ? comandasTerminadasSinPagar.length
-    : 0
+  const nombreDeMesa = (
+    (mesaOrden?.numero != null && String(mesaOrden.numero) !== '' && `Mesa ${mesaOrden.numero}`)
+    || comandaEnEdicion?.venta_nombre_cliente
+    || comandaEnEdicion?.pedido?.nombre_cliente
+    || comandaTerminadaSeleccionada?.venta_nombre_cliente
+    || nombreCliente
+    || ''
+  ).trim()
+  const mesaAtendiendo = /^mesa\b/i.test(nombreDeMesa) ? nombreDeMesa : ''
 
   return (
     <div className="relative h-full min-h-0 pt-3 px-2 pb-2 flex flex-col landscape:flex-row gap-2 overflow-hidden">
@@ -2499,9 +2505,9 @@ const PuntoVenta = () => {
                   ? 'Ver orden'
                   : `${piezasOrden} ${piezasOrden === 1 ? 'producto' : 'productos'}`}
               </span>
-              {mesasAbiertas > 0 && (
-                <span className="block text-xs text-white/70">
-                  {mesasAbiertas} {mesasAbiertas === 1 ? 'mesa abierta' : 'mesas abiertas'}
+              {mesaAtendiendo && (
+                <span className="block truncate text-xs text-white/70">
+                  {mesaAtendiendo}
                 </span>
               )}
             </span>

@@ -15,4 +15,9 @@ export const devolucionesService = {
     const response = await api.post('/api/devoluciones/devolver', payload)
     return response.data
   },
+
+  historial: async () => {
+    const response = await api.get('/api/devoluciones/historial')
+    return response.data
+  },
 }

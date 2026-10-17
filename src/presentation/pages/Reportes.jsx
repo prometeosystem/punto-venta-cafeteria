@@ -35,6 +35,9 @@ import {
   Area,
   BarChart,
   Bar,
+  PieChart,
+  Pie,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -44,6 +47,17 @@ import {
 } from 'recharts'
 
 const RechartsAvailable = true
+
+const COLORES_CATEGORIA = [
+  'rgb(var(--marca-500))',
+  '#78716c',
+  '#a8a29e',
+  '#44403c',
+  '#d6d3d1',
+  '#57534e',
+  '#e7e5e4',
+  '#292524',
+]
 
 const labelMetodoPago = (metodo) => {
   if (!metodo) return '—'
@@ -194,6 +208,27 @@ const Reportes = () => {
       }))
       .sort((a, b) => a.cantidad_vendida - b.cantidad_vendida || a.nombre.localeCompare(b.nombre, 'es'))
       .slice(0, 8)
+  }, [ventas, productos, modoTienda])
+
+  const ventasPorCategoria = useMemo(() => {
+    const porId = new Map(productos.map((producto) => [Number(producto.id_producto), producto]))
+    const totales = new Map()
+    ventas.forEach((venta) => {
+      ;(venta.detalles || []).forEach((detalle) => {
+        const id = Number(detalle.id_producto)
+        const producto = Number.isFinite(id) ? porId.get(id) : null
+        if (producto && !productoDelModo(producto, modoTienda)) return
+        const categoria = producto?.categoria?.trim() || (producto ? 'Sin categoría' : 'Personalizado')
+        const monto = detalle.subtotal != null && detalle.subtotal !== ''
+          ? parseFloat(detalle.subtotal)
+          : (Number(detalle.cantidad) || 0) * parseFloat(detalle.precio_unitario || 0)
+        if (!Number.isFinite(monto) || monto <= 0) return
+        totales.set(categoria, (totales.get(categoria) || 0) + monto)
+      })
+    })
+    return [...totales.entries()]
+      .map(([nombre, total]) => ({ nombre, total }))
+      .sort((a, b) => b.total - a.total)
   }, [ventas, productos, modoTienda])
 
   const conteoPorMetodo = useMemo(() => {
@@ -722,44 +757,40 @@ const Reportes = () => {
         </div>
         )}
 
-        {ver('grafico_metodos') && (
+        {ver('grafico_categorias') && (
         <div className="card min-w-0 overflow-hidden !p-4 sm:p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Ventas por método de pago
+            Ventas por categoría
           </h2>
           {loadingGraficos ? (
             <div className="flex h-64 items-center justify-center">
               <Loader2 className="w-6 h-6 animate-spin text-marca-600" />
             </div>
-          ) : conteoPorMetodo.every((metodo) => metodo.cantidad === 0) ? (
+          ) : ventasPorCategoria.length === 0 ? (
             <div className="flex h-64 items-center justify-center text-gray-400">
               <p>No hay datos para mostrar</p>
             </div>
           ) : RechartsAvailable ? (
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart
-                data={conteoPorMetodo
-                  .filter((metodo) => metodo.cantidad > 0)
-                  .map((metodo) => ({
-                    nombre: metodo.id === 'transferencia' ? 'Transferencia' : metodo.label,
-                    cantidad: metodo.cantidad,
-                  }))}
-                layout="vertical"
-                margin={{ left: 8, right: 16 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis type="number" allowDecimals={false} stroke="#6b7280" />
-                <YAxis type="category" dataKey="nombre" width={110} stroke="#6b7280" />
+              <PieChart>
+                <Pie
+                  data={ventasPorCategoria}
+                  dataKey="total"
+                  nameKey="nombre"
+                  innerRadius={58}
+                  outerRadius={92}
+                  paddingAngle={2}
+                >
+                  {ventasPorCategoria.map((entrada, indice) => (
+                    <Cell key={entrada.nombre} fill={COLORES_CATEGORIA[indice % COLORES_CATEGORIA.length]} />
+                  ))}
+                </Pie>
                 <Tooltip
+                  formatter={(value) => `$${formatPrecio(value)}`}
                   contentStyle={{ backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px' }}
                 />
-                <Bar
-                  dataKey="cantidad"
-                  fill="rgb(var(--marca-500))"
-                  name="Ventas"
-                  radius={[0, 6, 6, 0]}
-                />
-              </BarChart>
+                <Legend />
+              </PieChart>
             </ResponsiveContainer>
           ) : (
             <div className="flex h-64 flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 text-gray-400">
