@@ -25,8 +25,6 @@ const formularioVacio = () => ({
 const Empleados = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [mostrarModalCrear, setMostrarModalCrear] = useState(false)
-  const [mostrarModalDetalles, setMostrarModalDetalles] = useState(false)
-  const [empleadoSeleccionado, setEmpleadoSeleccionado] = useState(null)
   const [empleadoEditando, setEmpleadoEditando] = useState(null)
   const [guardando, setGuardando] = useState(false)
   const [formData, setFormData] = useState(formularioVacio)
@@ -225,22 +223,11 @@ const Empleados = () => {
     setMostrarModalCrear(true)
   }
 
-  // Abrir modal de detalles
-  const abrirModalDetalles = (empleado) => {
-    setEmpleadoSeleccionado(empleado)
-    setMostrarModalDetalles(true)
-  }
-
   // Cerrar modales
   const cerrarModalCrear = () => {
     setMostrarModalCrear(false)
     setEmpleadoEditando(null)
     setFormData(formularioVacio())
-  }
-
-  const cerrarModalDetalles = () => {
-    setMostrarModalDetalles(false)
-    setEmpleadoSeleccionado(null)
   }
 
   // Guardar empleado (crear o editar)
@@ -559,12 +546,7 @@ const Empleados = () => {
               filteredEmployees.map((employee) => {
                 const initials = `${employee.nombre?.charAt(0) || ''}${employee.apellido_paterno?.charAt(0) || ''}`.toUpperCase() || 'U'
                 return (
-                  <li key={employee.id_usuario}>
-                    <button
-                      type="button"
-                      onClick={() => abrirModalDetalles(employee)}
-                      className="flex w-full items-center gap-2.5 py-2 text-left"
-                    >
+                  <li key={employee.id_usuario} className="flex items-center gap-2.5 py-2">
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-marca-500 text-sm font-semibold text-white">
                         {initials}
                       </span>
@@ -574,7 +556,6 @@ const Empleados = () => {
                           {getRolLabel(employee.rol)}
                         </span>
                       </span>
-                    </button>
                   </li>
                 )
               })
@@ -613,14 +594,9 @@ const Empleados = () => {
                           <div className="w-9 h-9 shrink-0 bg-marca-500 rounded-full flex items-center justify-center">
                             <span className="text-white font-semibold text-sm">{initials}</span>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => abrirModalDetalles(employee)}
-                            className="font-medium text-gray-900 hover:text-marca-700 truncate text-left"
-                            title="Ver detalles"
-                          >
+                          <p className="font-medium text-gray-900 truncate">
                             {getFullName(employee)}
-                          </button>
+                          </p>
                         </div>
                       </td>
                       <td className="py-3 px-4">
@@ -661,13 +637,6 @@ const Empleados = () => {
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => abrirModalDetalles(employee)}
-                            className="px-2.5 py-1.5 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors"
-                            title="Ver detalles"
-                          >
-                            Detalles
-                          </button>
                           <button
                             onClick={() => abrirModalEditar(employee)}
                             className="p-2 rounded-lg hover:bg-gray-100 transition-colors border border-gray-300"
@@ -936,91 +905,6 @@ const Empleados = () => {
         </div>
       )}
 
-      {/* Modal Ver Detalles */}
-      {mostrarModalDetalles && empleadoSeleccionado && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-              <h2 className="text-lg font-bold text-gray-900">Detalles del empleado</h2>
-              <button
-                onClick={cerrarModalDetalles}
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                aria-label="Cerrar"
-              >
-                <X className="w-5 h-5 text-gray-600" />
-              </button>
-            </div>
-
-            <div className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-marca-500">
-                  <span className="text-lg font-semibold text-white">
-                    {`${empleadoSeleccionado.nombre?.charAt(0) || ''}${empleadoSeleccionado.apellido_paterno?.charAt(0) || ''}`.toUpperCase() || 'U'}
-                  </span>
-                </div>
-                <div className="min-w-0">
-                  <h3 className="truncate text-lg font-bold text-gray-900">
-                    {getFullName(empleadoSeleccionado)}
-                  </h3>
-                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${getRolColor(empleadoSeleccionado.rol)}`}>
-                      {getRolLabel(empleadoSeleccionado.rol)}
-                    </span>
-                    <span
-                      className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                        empleadoSeleccionado.activo === 1
-                          ? 'bg-marca-100 text-marca-700'
-                          : 'bg-gray-100 text-gray-600'
-                      }`}
-                    >
-                      {empleadoSeleccionado.activo === 1 ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {(empleadoSeleccionado.correo || empleadoSeleccionado.celular) && (
-                <div className="mt-4 space-y-2 text-sm text-gray-700">
-                  {empleadoSeleccionado.correo && (
-                    <p className="flex items-center gap-2 min-w-0">
-                      <Mail className="h-4 w-4 shrink-0 text-gray-400" />
-                      <span className="truncate">{empleadoSeleccionado.correo}</span>
-                    </p>
-                  )}
-                  {empleadoSeleccionado.celular && (
-                    <p className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 shrink-0 text-gray-400" />
-                      {empleadoSeleccionado.celular}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              <div className="mt-4 flex justify-end gap-2 border-t border-gray-100 pt-4">
-                {puedeDesactivar(empleadoSeleccionado) && (
-                  <button
-                    onClick={() => handleEliminar(empleadoSeleccionado)}
-                    className="btn-outline text-red-600 border-red-300 hover:bg-red-50"
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Desactivar
-                  </button>
-                )}
-                <button
-                  onClick={() => {
-                    cerrarModalDetalles()
-                    abrirModalEditar(empleadoSeleccionado)
-                  }}
-                  className="btn-primary"
-                >
-                  <Edit className="w-4 h-4 mr-2" />
-                  Editar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
