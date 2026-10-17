@@ -21,7 +21,7 @@ import { useAuth } from '../context/AuthContext'
 import { usePreferencias } from '../context/PreferenciasContext'
 import { formatPrecio, formatMedida } from '../utils/numberFormatter'
 import { METODOS_PAGO_DISPONIBLES } from '../utils/metodosPagoConfig'
-import { metricaVisible } from '../utils/preferenciasUi'
+import { metricaVisible, productoDelModo } from '../utils/preferenciasUi'
 import ModalEditarMetricas from '../components/ModalEditarMetricas'
 import { inventarioService } from '../../application/services/inventarioService'
 import { contabilidadService } from '../../application/services/contabilidadService'
@@ -35,6 +35,7 @@ import {
   Area,
   BarChart,
   Bar,
+  LabelList,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -174,6 +175,25 @@ const Reportes = () => {
   const pctPrev = ventasPreviasTotales > 0
     ? (deltaPrev / ventasPreviasTotales) * 100
     : (ventasTotales > 0 ? 100 : 0)
+
+  const productosMenosVendidos = useMemo(() => {
+    const conteo = new Map()
+    ventas.forEach((venta) => {
+      ;(venta.detalles || []).forEach((detalle) => {
+        const id = Number(detalle.id_producto)
+        if (!Number.isFinite(id)) return
+        conteo.set(id, (conteo.get(id) || 0) + (Number(detalle.cantidad) || 0))
+      })
+    })
+    return productos
+      .filter((producto) => productoDelModo(producto, modoTienda) && (producto.activo === 1 || producto.activo === true))
+      .map((producto) => ({
+        nombre: producto.nombre,
+        cantidad_vendida: conteo.get(Number(producto.id_producto)) || 0,
+      }))
+      .sort((a, b) => a.cantidad_vendida - b.cantidad_vendida || a.nombre.localeCompare(b.nombre, 'es'))
+      .slice(0, 8)
+  }, [ventas, productos, modoTienda])
 
   const conteoPorMetodo = useMemo(() => {
     const counts = {}
@@ -697,6 +717,51 @@ const Reportes = () => {
               <AlertCircle className="w-8 h-8 mb-2" />
               <p className="text-sm">Recharts no está instalado</p>
             </div>
+          )}
+        </div>
+        )}
+
+        {ver('grafico_menos_vendidos') && (
+        <div className="card min-w-0 overflow-hidden !p-4 sm:p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">
+            Productos menos vendidos
+          </h2>
+          <p className="mb-4 text-sm text-gray-500">
+            Del catálogo actual, en este periodo. Incluye los que no se vendieron.
+          </p>
+          {loadingGraficos ? (
+            <div className="h-64 flex items-center justify-center">
+              <Loader2 className="w-6 h-6 animate-spin text-marca-600" />
+            </div>
+          ) : productosMenosVendidos.length === 0 ? (
+            <div className="h-64 flex items-center justify-center text-gray-400">
+              <p>No hay datos para mostrar</p>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={320}>
+              <BarChart
+                data={productosMenosVendidos}
+                layout="vertical"
+                margin={{ top: 4, right: 28, left: 4, bottom: 4 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
+                <XAxis type="number" allowDecimals={false} stroke="#6b7280" />
+                <YAxis
+                  type="category"
+                  dataKey="nombre"
+                  width={128}
+                  stroke="#6b7280"
+                  tickFormatter={(nombre) => (String(nombre).length > 18 ? `${String(nombre).slice(0, 16)}…` : nombre)}
+                />
+                <Tooltip
+                  formatter={(value) => [`${value} pzas`, 'Vendidas']}
+                  contentStyle={{ backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                />
+                <Bar dataKey="cantidad_vendida" fill="#d97706" name="Cantidad" radius={[0, 4, 4, 0]} barSize={18}>
+                  <LabelList dataKey="cantidad_vendida" position="right" className="fill-gray-600 text-xs" />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           )}
         </div>
         )}

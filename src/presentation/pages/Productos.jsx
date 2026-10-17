@@ -191,8 +191,8 @@ const Productos = () => {
             )
           })}
         </div>
-        <div className="flex gap-2 items-center">
-          <div className="flex-1 relative min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-0 flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
@@ -205,35 +205,35 @@ const Productos = () => {
           <button
             type="button"
             onClick={() => navigate('/productos/nuevo')}
-            className="btn-primary shrink-0 flex h-[42px] w-[42px] items-center justify-center p-0"
+            className="btn-primary order-2 flex h-[42px] w-[42px] shrink-0 items-center justify-center p-0 md:order-3"
             aria-label="Nuevo producto"
             title="Nuevo producto"
           >
             <Plus className="w-5 h-5" />
           </button>
+          {!modoTienda && (
+            <div className="order-3 flex w-full gap-1.5 md:order-2 md:w-auto md:shrink-0">
+              {filtrosArea.map((item) => {
+                const activo = filtroArea === item.id
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    aria-pressed={activo}
+                    onClick={() => setFiltroArea(item.id)}
+                    className={`h-[42px] rounded-lg border px-3 text-sm font-medium transition-colors ${
+                      activo
+                        ? 'border-marca-500 bg-marca-50 text-marca-700'
+                        : 'border-gray-200 bg-white text-gray-600 hover:border-marca-300'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
-        {!modoTienda && (
-          <div className="flex flex-wrap gap-1.5">
-            {filtrosArea.map((item) => {
-              const activo = filtroArea === item.id
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  aria-pressed={activo}
-                  onClick={() => setFiltroArea(item.id)}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                    activo
-                      ? 'border-marca-500 bg-marca-50 text-marca-700'
-                      : 'border-gray-200 bg-white text-gray-600 hover:border-marca-300'
-                  }`}
-                >
-                  {item.label}
-                </button>
-              )
-            })}
-          </div>
-        )}
         <div className="grid grid-cols-2 gap-2">
           <select
             className="input"
