@@ -35,9 +35,6 @@ import {
   Area,
   BarChart,
   Bar,
-  PieChart,
-  Pie,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -47,17 +44,6 @@ import {
 } from 'recharts'
 
 const RechartsAvailable = true
-
-const COLORES_CATEGORIA = [
-  'rgb(var(--marca-500))',
-  '#78716c',
-  '#a8a29e',
-  '#44403c',
-  '#d6d3d1',
-  '#57534e',
-  '#e7e5e4',
-  '#292524',
-]
 
 const labelMetodoPago = (metodo) => {
   if (!metodo) return '—'
@@ -226,9 +212,14 @@ const Reportes = () => {
         totales.set(categoria, (totales.get(categoria) || 0) + monto)
       })
     })
-    return [...totales.entries()]
+    const filas = [...totales.entries()]
       .map(([nombre, total]) => ({ nombre, total }))
       .sort((a, b) => b.total - a.total)
+    const suma = filas.reduce((acum, fila) => acum + fila.total, 0)
+    return filas.map((fila) => ({
+      ...fila,
+      pct: suma > 0 ? (fila.total / suma) * 100 : 0,
+    }))
   }, [ventas, productos, modoTienda])
 
   const conteoPorMetodo = useMemo(() => {
@@ -767,35 +758,27 @@ const Reportes = () => {
               <Loader2 className="w-6 h-6 animate-spin text-marca-600" />
             </div>
           ) : ventasPorCategoria.length === 0 ? (
-            <div className="flex h-64 items-center justify-center text-gray-400">
+            <div className="flex h-40 items-center justify-center text-gray-400">
               <p>No hay datos para mostrar</p>
             </div>
-          ) : RechartsAvailable ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={ventasPorCategoria}
-                  dataKey="total"
-                  nameKey="nombre"
-                  innerRadius={58}
-                  outerRadius={92}
-                  paddingAngle={2}
-                >
-                  {ventasPorCategoria.map((entrada, indice) => (
-                    <Cell key={entrada.nombre} fill={COLORES_CATEGORIA[indice % COLORES_CATEGORIA.length]} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(value) => `$${formatPrecio(value)}`}
-                  contentStyle={{ backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
           ) : (
-            <div className="flex h-64 flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 text-gray-400">
-              <AlertCircle className="mb-2 h-8 w-8" />
-              <p className="text-sm">Recharts no está instalado</p>
+            <div className="space-y-4">
+              {ventasPorCategoria.map((categoria) => (
+                <div key={categoria.nombre}>
+                  <div className="mb-1.5 flex items-baseline justify-between gap-3 text-sm">
+                    <span className="min-w-0 truncate font-medium text-gray-800">{categoria.nombre}</span>
+                    <span className="shrink-0 tabular-nums text-gray-500">
+                      ${formatPrecio(categoria.total)} · {categoria.pct.toFixed(0)}%
+                    </span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-gray-200">
+                    <div
+                      className="h-full rounded-full bg-marca-500"
+                      style={{ width: `${Math.min(100, Math.max(categoria.pct, categoria.pct > 0 ? 2 : 0))}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

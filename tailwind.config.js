@@ -24,6 +24,7 @@ export default {
       red: colors.red,
       amber: colors.amber,
       blue: colors.blue,
+      emerald: colors.emerald,
       purple: colors.purple,
       // Solo para el rol de mesero: no choca con el verde de Zona 2 ni con el azul de la demo
       rose: colors.rose,
