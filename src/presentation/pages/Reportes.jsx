@@ -596,7 +596,7 @@ const Reportes = () => {
         </div>
       ) : (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-          {ver('ventas_totales') && <CardMini titulo="Ventas totales" valor={`$${formatPrecio(ventasTotales)}`} />}
+          {ver('ventas_totales') && <CardMini titulo="Ventas totales" valor={`$${formatPrecio(ventasTotales)}`} color="text-emerald-600" />}
           {ver('descuentos') && <CardMini titulo="Descuentos" valor={`$${formatPrecio(totalDescuentos)}`} color="text-amber-600" />}
           {ver('propinas') && <CardMini titulo="Propinas" valor={`$${formatPrecio(totalPropinas)}`} color="text-marca-600" />}
           {ver('ticket_promedio') && <CardMini titulo="Ticket promedio" valor={`$${formatPrecio(ticketPromedio)}`} />}

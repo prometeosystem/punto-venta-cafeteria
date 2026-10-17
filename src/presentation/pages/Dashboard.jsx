@@ -354,7 +354,7 @@ const Dashboard = () => {
       >
         {ver('ventas_totales') && (
           <TarjetaResumen titulo="Ventas Totales" valor={`$${formatPrecio(ventasTotales)}`} detalle="Hoy"
-            Icono={DollarSign} colorFondo="bg-marca-100" colorIcono="text-marca-600" />
+            Icono={DollarSign} colorValor="text-emerald-600" colorFondo="bg-emerald-100" colorIcono="text-emerald-600" />
         )}
         {ver('descuentos') && (
           <TarjetaResumen titulo="Total Descuentos" valor={`$${formatPrecio(totalDescuentos)}`} detalle="Hoy"
