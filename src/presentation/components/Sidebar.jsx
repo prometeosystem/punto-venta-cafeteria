@@ -6,6 +6,7 @@ import { usePreferencias } from '../context/PreferenciasContext'
 import { usePrinterContext } from '../context/PrinterContext'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { hasRouteAccess } from '../utils/rolePermissions'
+import { precargarVista } from '../router/precargarVistas'
 import marca from '@marca'
 import PrinterConnectionButton from './PrinterConnectionButton'
 import NotificationsBell from './NotificationsBell'
@@ -189,6 +190,9 @@ const Sidebar = () => {
                   key={item.path}
                   to={item.path}
                   title={item.label}
+                  onPointerDown={() => precargarVista(item.path)}
+                  onPointerEnter={() => precargarVista(item.path)}
+                  onFocus={() => precargarVista(item.path)}
                   className={({ isActive }) =>
                     `flex rounded-lg transition-colors duration-200 ${
                       sidebarCollapsed

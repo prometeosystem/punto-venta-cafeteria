@@ -31,6 +31,74 @@
     @apply w-full min-w-0 max-w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-marca-500 focus:border-transparent transition-all duration-200;
   }
 
+  .campo-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #8e8e93;
+  }
+
+  .campo {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    height: 40px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    background-color: #f5f5f7;
+    color: #1c1c1e;
+    padding: 0 12px;
+    font-size: 14px;
+    font-weight: 500;
+    outline: none;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+  }
+
+  .campo::placeholder {
+    color: #aeaeb2;
+    font-weight: 400;
+  }
+
+  .campo:focus {
+    background-color: #ffffff;
+    border-color: rgb(var(--marca-500));
+  }
+
+  textarea.campo {
+    height: auto;
+    min-height: 72px;
+    padding: 10px 12px;
+    line-height: 1.4;
+    resize: none;
+  }
+
+  select.campo {
+    appearance: none;
+    padding-right: 32px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 16px;
+  }
+
+  input[type='file'].campo {
+    height: auto;
+    padding: 8px 12px;
+    font-weight: 400;
+  }
+
+  .campo[type='number']::-webkit-outer-spin-button,
+  .campo[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .campo[type='number'] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
   input[type='date'].input,
   input[type='time'].input,
   input[type='datetime-local'].input {

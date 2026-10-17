@@ -67,7 +67,7 @@ const VinculosProveedores = ({
                 type="number"
                 min="0"
                 step="0.01"
-                className="input py-1 w-24 text-sm"
+                className="campo h-9 w-24"
                 placeholder="Costo"
                 value={v.precio_compra ?? ''}
                 onChange={(e) => actualizar(index, { precio_compra: e.target.value })}
@@ -97,7 +97,7 @@ const VinculosProveedores = ({
       {disponibles.length > 0 ? (
         <div className="flex gap-2 items-center">
           <select
-            className="input flex-1 py-1.5 text-sm"
+            className="campo flex-1"
             defaultValue=""
             key={vinculos.length}
             onChange={(e) => {

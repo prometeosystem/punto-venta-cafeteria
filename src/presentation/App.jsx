@@ -13,7 +13,6 @@ function App() {
     <BrowserRouter
       basename={routerBasename === '/' ? undefined : routerBasename}
       future={{
-        v7_startTransition: true,
         v7_relativeSplatPath: true,
       }}
     >

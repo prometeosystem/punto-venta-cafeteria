@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { Component, useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { Menu } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
@@ -8,6 +8,52 @@ import CambiarCodigoObligatorio from '../components/CambiarCodigoObligatorio'
 import ElegirModoAlEntrar from '../components/ElegirModoAlEntrar'
 import { useLayout } from '../context/LayoutContext'
 import { useNotifications } from '../context/NotificationContext'
+import { precargarMenuEnSegundoPlano } from '../router/precargarVistas'
+
+const esFalloDeCarga = (error) =>
+  /dynamically imported module|loading chunk|failed to fetch|importing a module script failed/i.test(
+    String(error?.message || error || '')
+  )
+
+class LimiteErrorVista extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { error: null }
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error }
+  }
+
+  componentDidCatch(error) {
+    if (!esFalloDeCarga(error)) return
+    if (sessionStorage.getItem('recarga-vista')) return
+    sessionStorage.setItem('recarga-vista', '1')
+    window.location.reload()
+  }
+
+  componentDidUpdate(prev) {
+    if (prev.clave !== this.props.clave && this.state.error) {
+      this.setState({ error: null })
+    }
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 min-h-[40vh] text-center px-4">
+        <p className="text-sm text-gray-600">No se pudo mostrar esta vista.</p>
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={() => window.location.reload()}
+        >
+          Recargar
+        </button>
+      </div>
+    )
+  }
+}
 
 const MainLayout = () => {
   const { sidebarOpen, sidebarCollapsed, openSidebar, headerVisible } = useLayout()
@@ -24,10 +70,16 @@ const MainLayout = () => {
   useEffect(() => {
     const ajustar = () => {
       const vista = window.visualViewport
-      const alto = vista?.height ?? window.innerHeight
-      const arriba = vista?.offsetTop ?? 0
-      document.documentElement.style.setProperty('--alto-visible', `${alto}px`)
-      document.documentElement.style.setProperty('--arriba-visible', `${arriba}px`)
+      const alto = vista?.height || window.innerHeight
+      const arriba = vista?.offsetTop || 0
+      const html = document.documentElement
+      if (!alto || alto < 200) {
+        html.style.removeProperty('--alto-visible')
+        html.style.removeProperty('--arriba-visible')
+        return
+      }
+      html.style.setProperty('--alto-visible', `${alto}px`)
+      html.style.setProperty('--arriba-visible', `${arriba}px`)
     }
     const html = document.documentElement
     const previoHtml = html.style.overflow
@@ -39,7 +91,26 @@ const MainLayout = () => {
     vista?.addEventListener('resize', ajustar)
     vista?.addEventListener('scroll', ajustar)
     window.addEventListener('resize', ajustar)
+    const limpiarRecarga = window.setTimeout(() => sessionStorage.removeItem('recarga-vista'), 8000)
+    precargarMenuEnSegundoPlano([
+      '/dashboard',
+      '/punto-venta',
+      '/productos',
+      '/inventario',
+      '/reportes',
+      '/caja',
+      '/empleados',
+      '/proveedores',
+      '/contabilidad',
+      '/bitacora',
+      '/configuracion',
+      '/mesas',
+      '/barista',
+      '/devoluciones',
+      '/movimientos-caja',
+    ])
     return () => {
+      window.clearTimeout(limpiarRecarga)
       html.style.overflow = previoHtml
       document.body.style.overflow = previoBody
       vista?.removeEventListener('resize', ajustar)
@@ -105,7 +176,9 @@ const MainLayout = () => {
               isPuntoVenta ? 'overflow-hidden p-0' : 'overflow-y-auto p-3 lg:p-4'
             }`}
           >
-            <Outlet />
+            <LimiteErrorVista clave={pathname}>
+              <Outlet />
+            </LimiteErrorVista>
           </main>
         </div>
 

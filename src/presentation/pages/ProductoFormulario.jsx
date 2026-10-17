@@ -64,7 +64,7 @@ const ProductoFormulario = () => {
   })
 
   const [usandoCategoriaNueva, setUsandoCategoriaNueva] = useState(
-    () => !!leerBorradorProducto(idProducto)?.usandoCategoriaNueva
+    () => !idProducto && !!leerBorradorProducto(idProducto)?.usandoCategoriaNueva
   )
   const [guardando, setGuardando] = useState(false)
   const [cargando, setCargando] = useState(false)
@@ -197,7 +197,6 @@ const ProductoFormulario = () => {
         }
 
         const categoria = producto.categoria || ''
-        const categoriasExistentes = [...new Set(productos.map((p) => p.categoria))]
 
         if (producto.tipo_imagen) {
           setImagenPreview(`${API_BASE_URL}/api/productos/imagen/${idProducto}`)
@@ -226,8 +225,6 @@ const ProductoFormulario = () => {
           es_reventa: !!producto.es_reventa,
           canal: producto.canal === 'tienda' ? 'tienda' : 'restaurante',
         })
-
-        setUsandoCategoriaNueva(categoria && !categoriasExistentes.includes(categoria))
 
         // Cargar grupos marcados
         try {
@@ -304,7 +301,10 @@ const ProductoFormulario = () => {
     }
   }
 
-  const categoriasUnicas = [...new Set(productos.map((p) => p.categoria))]
+  const categoriasUnicas = [...new Set(productos.map((p) => p.categoria).filter(Boolean))]
+  const opcionesCategoria = formData.categoria && !categoriasUnicas.includes(formData.categoria)
+    ? [formData.categoria, ...categoriasUnicas]
+    : categoriasUnicas
 
   const areaSugerida = (categoria) => {
     const enCategoria = productos.filter((p) => p.categoria === categoria)
@@ -645,7 +645,7 @@ const ProductoFormulario = () => {
         <section className="card">
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="codigo-barras-producto">
+              <label className="campo-label" htmlFor="codigo-barras-producto">
                 Código de barras
               </label>
               <input
@@ -661,13 +661,13 @@ const ProductoFormulario = () => {
                   e.preventDefault()
                   document.getElementById('nombre-producto')?.focus()
                 }}
-                className="input w-full"
+                className="campo w-full"
                 placeholder="Escanea o escribe el código"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="nombre-producto">
+              <label className="campo-label" htmlFor="nombre-producto">
                 Nombre <span className="text-red-500">*</span>
               </label>
               <input
@@ -676,13 +676,13 @@ const ProductoFormulario = () => {
                 required
                 value={formData.nombre}
                 onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                className="input w-full"
+                className="campo w-full"
                 placeholder="Ej: Americano M"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="campo-label">
                 Categoría <span className="text-red-500">*</span>
               </label>
               <div className="flex gap-2">
@@ -705,10 +705,10 @@ const ProductoFormulario = () => {
                         })
                       }
                     }}
-                    className="input flex-1"
+                    className="campo flex-1"
                   >
                     <option value="">Selecciona una categoría</option>
-                    {categoriasUnicas.map((cat) => (
+                    {opcionesCategoria.map((cat) => (
                       <option key={cat} value={cat}>
                         {cat}
                       </option>
@@ -722,7 +722,7 @@ const ProductoFormulario = () => {
                       required
                       value={formData.categoria}
                       onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
-                      className="input flex-1"
+                      className="campo flex-1"
                       placeholder="Escribe el nombre de la nueva categoría"
                     />
                     <button
@@ -743,7 +743,7 @@ const ProductoFormulario = () => {
 
             {!modoTienda && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="campo-label">
                 Área de preparación
               </label>
               <div className="grid grid-cols-2 gap-2 max-w-xs">
@@ -773,11 +773,11 @@ const ProductoFormulario = () => {
 
             <div className={esEdicion ? 'grid grid-cols-2 gap-4' : ''}>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="campo-label">
                   Precio <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8e8e93]">
                     $
                   </span>
                   <input
@@ -787,7 +787,7 @@ const ProductoFormulario = () => {
                     step="0.01"
                     value={formData.precio}
                     onChange={(e) => setFormData({ ...formData, precio: e.target.value })}
-                    className="input w-full pl-8"
+                    className="campo w-full pl-8"
                     placeholder="0.00"
                   />
                 </div>
@@ -795,7 +795,7 @@ const ProductoFormulario = () => {
 
               {esEdicion && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+                <label className="campo-label">Estado</label>
                 <div className="flex gap-3">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -836,38 +836,38 @@ const ProductoFormulario = () => {
             {(modoTienda || formData.es_reventa) && (
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="campo-label">
                     Costo compra
                   </label>
                   <input
                     type="number"
                     min="0"
                     step="0.01"
-                    className="input w-full"
+                    className="campo w-full"
                     value={formData.precio_compra}
                     onChange={(e) => setFormData({ ...formData, precio_compra: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Stock</label>
+                  <label className="campo-label">Stock</label>
                   <input
                     type="number"
                     min="0"
                     step="any"
-                    className="input w-full"
+                    className="campo w-full"
                     value={formData.stock_actual}
                     onChange={(e) => setFormData({ ...formData, stock_actual: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="campo-label">
                     Stock mín.
                   </label>
                   <input
                     type="number"
                     min="0"
                     step="any"
-                    className="input w-full"
+                    className="campo w-full"
                     value={formData.stock_minimo}
                     onChange={(e) => setFormData({ ...formData, stock_minimo: e.target.value })}
                   />
@@ -876,13 +876,13 @@ const ProductoFormulario = () => {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="campo-label">
                 Descripción <span className="text-gray-400">(Opcional)</span>
               </label>
               <textarea
                 value={formData.descripcion}
                 onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                className="input w-full resize-none"
+                className="campo w-full resize-none"
                 rows={3}
                 placeholder="Ej: Pa' empezar el día."
               />
@@ -934,7 +934,7 @@ const ProductoFormulario = () => {
                     reader.readAsDataURL(file)
                   }
                 }}
-                className="input w-full"
+                className="campo w-full"
                 id="imagen-producto-input"
               />
               <button
@@ -1125,7 +1125,7 @@ const ProductoFormulario = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="campo-label">
                   Tipo de Insumo
                 </label>
                 <div className="flex gap-3">
@@ -1154,14 +1154,14 @@ const ProductoFormulario = () => {
 
               {formReceta.tipo === 'existente' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="campo-label">
                     Insumo <span className="text-red-500">*</span>
                   </label>
                   <select
                     required
                     value={formReceta.id_insumo}
                     onChange={(e) => setFormReceta({ ...formReceta, id_insumo: e.target.value })}
-                    className="input w-full"
+                    className="campo w-full"
                   >
                     <option value="">Selecciona un insumo</option>
                     {insumos
@@ -1186,7 +1186,7 @@ const ProductoFormulario = () => {
                     Datos del Nuevo Insumo
                   </h4>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                    <label className="campo-label">
                       Nombre <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -1199,12 +1199,12 @@ const ProductoFormulario = () => {
                           insumo_nuevo: { ...formReceta.insumo_nuevo, nombre: e.target.value },
                         })
                       }
-                      className="input w-full text-sm"
+                      className="campo w-full text-sm"
                       placeholder="Ej: Canela en polvo"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                    <label className="campo-label">
                       Descripción <span className="text-gray-400">(Opcional)</span>
                     </label>
                     <input
@@ -1219,7 +1219,7 @@ const ProductoFormulario = () => {
                           },
                         })
                       }
-                      className="input w-full text-sm"
+                      className="campo w-full text-sm"
                       placeholder="Descripción del insumo"
                     />
                   </div>
@@ -1227,7 +1227,7 @@ const ProductoFormulario = () => {
               )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="campo-label">
                   Cantidad Necesaria <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -1239,13 +1239,13 @@ const ProductoFormulario = () => {
                   onChange={(e) =>
                     setFormReceta({ ...formReceta, cantidad_necesaria: e.target.value })
                   }
-                  className="input w-full"
+                  className="campo w-full"
                   placeholder="0.00"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="campo-label">
                   Unidad de Medida <span className="text-red-500">*</span>
                 </label>
                 <select
@@ -1254,7 +1254,7 @@ const ProductoFormulario = () => {
                   onChange={(e) =>
                     setFormReceta({ ...formReceta, unidad_medida: e.target.value })
                   }
-                  className="input w-full"
+                  className="campo w-full"
                 >
                   <option value="">Selecciona una unidad</option>
                   {unidadesMedida.map((unidad) => (

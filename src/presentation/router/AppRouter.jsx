@@ -1,34 +1,35 @@
-import { lazy, Suspense } from 'react'
+import { Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import MainLayout from '../layouts/MainLayout'
 import Login from '../pages/Login'
 import ProtectedRoute from '../components/ProtectedRoute'
 import RoleProtectedRoute from '../components/RoleProtectedRoute'
 import RoleBasedRedirect from '../components/RoleBasedRedirect'
+import { vistaPerezosa } from './precargarVistas'
 
-const Dashboard = lazy(() => import('../pages/Dashboard'))
-const PuntoVenta = lazy(() => import('../pages/PuntoVenta'))
-const Mesas = lazy(() => import('../pages/Mesas'))
-const Productos = lazy(() => import('../pages/Productos'))
-const ProductoFormulario = lazy(() => import('../pages/ProductoFormulario'))
-const Inventario = lazy(() => import('../pages/Inventario'))
-const Empleados = lazy(() => import('../pages/Empleados'))
-const Reportes = lazy(() => import('../pages/Reportes'))
-const Configuracion = lazy(() => import('../pages/Configuracion'))
-const Barista = lazy(() => import('../pages/Barista'))
-const Bitacora = lazy(() => import('../pages/Bitacora'))
-const Caja = lazy(() => import('../pages/Caja'))
-const HistorialCaja = lazy(() => import('../pages/HistorialCaja'))
-const MovimientosCaja = lazy(() => import('../pages/MovimientosCaja'))
-const CategoriasMovimiento = lazy(() => import('../pages/CategoriasMovimiento'))
-const Contabilidad = lazy(() => import('../pages/Contabilidad'))
-const TestNotificationSounds = lazy(() => import('../pages/TestNotificationSounds'))
-const MiPerfil = lazy(() => import('../pages/MiPerfil'))
-const Devoluciones = lazy(() => import('../pages/Devoluciones'))
-const Proveedores = lazy(() => import('../pages/Proveedores'))
+const Dashboard = vistaPerezosa('/dashboard')
+const PuntoVenta = vistaPerezosa('/punto-venta')
+const Mesas = vistaPerezosa('/mesas')
+const Productos = vistaPerezosa('/productos')
+const ProductoFormulario = vistaPerezosa('/productos/nuevo')
+const Inventario = vistaPerezosa('/inventario')
+const Empleados = vistaPerezosa('/empleados')
+const Reportes = vistaPerezosa('/reportes')
+const Configuracion = vistaPerezosa('/configuracion')
+const Barista = vistaPerezosa('/barista')
+const Bitacora = vistaPerezosa('/bitacora')
+const Caja = vistaPerezosa('/caja')
+const HistorialCaja = vistaPerezosa('/historial-caja')
+const MovimientosCaja = vistaPerezosa('/movimientos-caja')
+const CategoriasMovimiento = vistaPerezosa('/categorias-movimiento')
+const Contabilidad = vistaPerezosa('/contabilidad')
+const TestNotificationSounds = vistaPerezosa('/test-sonidos')
+const MiPerfil = vistaPerezosa('/mi-perfil')
+const Devoluciones = vistaPerezosa('/devoluciones')
+const Proveedores = vistaPerezosa('/proveedores')
 
 const PageLoader = () => (
-  <div className="flex items-center justify-center min-h-[200px]">
+  <div className="flex flex-1 items-center justify-center min-h-[40vh]">
     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-marca-500" />
   </div>
 )

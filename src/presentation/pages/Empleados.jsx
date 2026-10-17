@@ -552,7 +552,7 @@ const Empleados = () => {
           </div>
         ) : (
           <>
-          <ul className="md:hidden divide-y divide-gray-100">
+          <ul className="lg:hidden divide-y divide-gray-100">
             {filteredEmployees.length === 0 ? (
               <li className="py-8 text-center text-sm text-gray-500">No se encontraron empleados</li>
             ) : (
@@ -570,7 +570,9 @@ const Empleados = () => {
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-medium text-gray-900">{getFullName(employee)}</span>
-                        <span className="block truncate text-[11px] text-gray-500">{getRolLabel(employee.rol)}</span>
+                        <span className={`mt-0.5 inline-block max-w-full truncate rounded-full px-2 py-0.5 text-[11px] font-medium ${getRolColor(employee.rol)}`}>
+                          {getRolLabel(employee.rol)}
+                        </span>
                       </span>
                     </button>
                   </li>
@@ -578,7 +580,7 @@ const Empleados = () => {
               })
             )}
           </ul>
-          <div className="hidden md:block overflow-x-auto">
+          <div className="hidden lg:block overflow-x-auto">
           <table className="w-full min-w-[720px]">
             <thead>
               <tr className="border-b border-gray-200">
@@ -937,108 +939,64 @@ const Empleados = () => {
       {/* Modal Ver Detalles */}
       {mostrarModalDetalles && empleadoSeleccionado && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-900">Detalles del Empleado</h2>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    cerrarModalDetalles()
-                    abrirModalEditar(empleadoSeleccionado)
-                  }}
-                  className="p-2 rounded-lg hover:bg-gray-100 transition-colors border border-gray-300"
-                  title="Editar"
-                >
-                  <Edit className="w-4 h-4 text-gray-600" />
-                </button>
-                <button
-                  onClick={cerrarModalDetalles}
-                  className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <X className="w-5 h-5 text-gray-600" />
-                </button>
-              </div>
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+              <h2 className="text-lg font-bold text-gray-900">Detalles del empleado</h2>
+              <button
+                onClick={cerrarModalDetalles}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                aria-label="Cerrar"
+              >
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
             </div>
 
-            {/* Contenido */}
-            <div className="p-6">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-16 h-16 bg-marca-500 rounded-full flex items-center justify-center">
-                  <span className="text-white font-semibold text-2xl">
+            <div className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-marca-500">
+                  <span className="text-lg font-semibold text-white">
                     {`${empleadoSeleccionado.nombre?.charAt(0) || ''}${empleadoSeleccionado.apellido_paterno?.charAt(0) || ''}`.toUpperCase() || 'U'}
                   </span>
                 </div>
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-900">
+                <div className="min-w-0">
+                  <h3 className="truncate text-lg font-bold text-gray-900">
                     {getFullName(empleadoSeleccionado)}
                   </h3>
-                  <p className="text-gray-600">{getRolLabel(empleadoSeleccionado.rol)}</p>
-                  <span
-                    className={`inline-block mt-2 px-3 py-1 rounded-full text-sm font-medium ${getRolColor(
-                      empleadoSeleccionado.rol
-                    )}`}
-                  >
-                    {empleadoSeleccionado.activo === 1 ? 'Activo' : 'Inactivo'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Información Personal */}
-                <div className="space-y-4">
-                  <h4 className="font-semibold text-gray-900 border-b border-gray-200 pb-2">
-                    Información Personal
-                  </h4>
-                  
-                  {empleadoSeleccionado.correo && (
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">Correo</label>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Mail className="w-4 h-4 text-gray-400" />
-                        <p className="text-gray-900">{empleadoSeleccionado.correo}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {empleadoSeleccionado.celular && (
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">Celular</label>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Phone className="w-4 h-4 text-gray-400" />
-                        <p className="text-gray-900">{empleadoSeleccionado.celular}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">ID Usuario</label>
-                    <p className="text-gray-900 mt-1">{empleadoSeleccionado.id_usuario}</p>
-                  </div>
-                </div>
-
-                {/* Información Laboral */}
-                <div className="space-y-4">
-                  <h4 className="font-semibold text-gray-900 border-b border-gray-200 pb-2">
-                    Información Laboral
-                  </h4>
-                  
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Rol</label>
-                    <p className="text-gray-900 mt-1">{getRolLabel(empleadoSeleccionado.rol)}</p>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Estado</label>
-                    <p className="text-gray-900 mt-1">
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${getRolColor(empleadoSeleccionado.rol)}`}>
+                      {getRolLabel(empleadoSeleccionado.rol)}
+                    </span>
+                    <span
+                      className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                        empleadoSeleccionado.activo === 1
+                          ? 'bg-marca-100 text-marca-700'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}
+                    >
                       {empleadoSeleccionado.activo === 1 ? 'Activo' : 'Inactivo'}
-                    </p>
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* Botones de acción */}
-              <div className="flex justify-end gap-4 mt-6 pt-6 border-t border-gray-200">
+              {(empleadoSeleccionado.correo || empleadoSeleccionado.celular) && (
+                <div className="mt-4 space-y-2 text-sm text-gray-700">
+                  {empleadoSeleccionado.correo && (
+                    <p className="flex items-center gap-2 min-w-0">
+                      <Mail className="h-4 w-4 shrink-0 text-gray-400" />
+                      <span className="truncate">{empleadoSeleccionado.correo}</span>
+                    </p>
+                  )}
+                  {empleadoSeleccionado.celular && (
+                    <p className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 shrink-0 text-gray-400" />
+                      {empleadoSeleccionado.celular}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div className="mt-4 flex justify-end gap-2 border-t border-gray-100 pt-4">
                 {puedeDesactivar(empleadoSeleccionado) && (
                   <button
                     onClick={() => handleEliminar(empleadoSeleccionado)}

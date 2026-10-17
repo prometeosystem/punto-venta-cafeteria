@@ -296,9 +296,9 @@ const Productos = () => {
                         <span className="block truncate text-sm font-medium text-gray-900">
                           {product.nombre}
                         </span>
-                        {tieneStock && (
-                          <span className="block text-[11px] text-gray-400 tabular-nums">
-                            {Number(stock)}
+                        {modoTienda && (
+                          <span className="block text-[11px] text-gray-500 tabular-nums">
+                            Stock {tieneStock ? Number(stock) : 0}
                           </span>
                         )}
                       </span>
@@ -323,6 +323,11 @@ const Productos = () => {
                 <th className="text-left py-3 px-4 font-semibold text-gray-900">
                   Precio
                 </th>
+                {modoTienda && (
+                  <th className="text-right py-3 px-4 font-semibold text-gray-900">
+                    Stock
+                  </th>
+                )}
                 <th className="text-left py-3 px-4 font-semibold text-gray-900">
                   Estado
                 </th>
@@ -334,7 +339,7 @@ const Productos = () => {
             <tbody>
               {filteredProducts.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="py-8 text-center text-gray-500">
+                  <td colSpan={modoTienda ? 6 : 5} className="py-8 text-center text-gray-500">
                     No se encontraron productos
                   </td>
                 </tr>
@@ -368,6 +373,13 @@ const Productos = () => {
                         ${parseFloat(product.precio).toFixed(2)}
                       </span>
                     </td>
+                    {modoTienda && (
+                      <td className="py-3 px-4 text-right tabular-nums text-gray-900">
+                        {product.stock_actual !== null && product.stock_actual !== undefined && product.stock_actual !== ''
+                          ? Number(product.stock_actual)
+                          : 0}
+                      </td>
+                    )}
                     <td className="py-3 px-4">
                       <span
                         className={`px-2 py-1 rounded-full text-xs font-medium ${

@@ -563,7 +563,7 @@ const Inventario = () => {
                 <div className="space-y-3">
                   {/* Nombre */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="campo-label">
                       Nombre <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -571,21 +571,21 @@ const Inventario = () => {
                       required
                       value={formData.nombre}
                       onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                      className="input w-full"
+                      className="campo"
                       placeholder="Ej: Café molido"
                     />
                   </div>
 
                   {/* Unidad de Medida */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="campo-label">
                       Unidad de Medida <span className="text-red-500">*</span>
                     </label>
                     <select
                       required
                       value={formData.unidad_medida}
                       onChange={(e) => setFormData({ ...formData, unidad_medida: e.target.value })}
-                      className="input w-full"
+                      className="campo"
                     >
                       <option value="">Selecciona una unidad</option>
                       {unidadesMedida.map(unidad => (
@@ -598,7 +598,7 @@ const Inventario = () => {
 
                   {/* Cantidad Actual */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="campo-label">
                       Cantidad Actual <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -608,14 +608,14 @@ const Inventario = () => {
                       step="0.0001"
                       value={formData.cantidad_actual}
                       onChange={(e) => setFormData({ ...formData, cantidad_actual: e.target.value })}
-                      className="input w-full"
+                      className="campo"
                       placeholder="0.0000"
                     />
                   </div>
 
                   {/* Cantidad Mínima */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="campo-label">
                       Cantidad Mínima <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -625,7 +625,7 @@ const Inventario = () => {
                       step="0.0001"
                       value={formData.cantidad_minima}
                       onChange={(e) => setFormData({ ...formData, cantidad_minima: e.target.value })}
-                      className="input w-full"
+                      className="campo"
                       placeholder="0.0000"
                     />
                   </div>
@@ -635,13 +635,13 @@ const Inventario = () => {
                 <div className="space-y-3">
                   {/* Descripción */}
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                      Descripción <span className="text-gray-400 font-normal">opcional</span>
+                    <label className="campo-label">
+                      Descripción <span className="font-normal">opcional</span>
                     </label>
                     <textarea
                       value={formData.descripcion}
                       onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                      className="input w-full resize-none"
+                      className="campo"
                       rows={3}
                       placeholder="Descripción del insumo"
                     />
@@ -649,11 +649,11 @@ const Inventario = () => {
 
                   {/* Precio de Compra */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="campo-label">
                       Precio de Compra <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8e8e93] text-sm">$</span>
                       <input
                         type="number"
                         required
@@ -661,7 +661,7 @@ const Inventario = () => {
                         step="0.01"
                         value={formData.precio_compra}
                         onChange={(e) => setFormData({ ...formData, precio_compra: e.target.value })}
-                        className="input w-full pl-8"
+                        className="campo pl-8"
                         placeholder="0.00"
                       />
                     </div>
@@ -670,14 +670,14 @@ const Inventario = () => {
                   {/* Referencia del precio: "Este precio corresponde a..." */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="campo-label">
                         Unidad <span className="text-red-500">*</span>
                       </label>
                       <select
                         required
                         value={formData.unidad_compra_referencia}
                         onChange={(e) => setFormData({ ...formData, unidad_compra_referencia: e.target.value })}
-                        className="input w-full"
+                        className="campo"
                       >
                         <option value="">Selecciona unidad del precio</option>
                         {unidadesMedida.map(unidad => (
@@ -688,7 +688,7 @@ const Inventario = () => {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="campo-label">
                         Cantidad <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -698,7 +698,7 @@ const Inventario = () => {
                         step="0.0001"
                         value={formData.cantidad_compra_referencia}
                         onChange={(e) => setFormData({ ...formData, cantidad_compra_referencia: e.target.value })}
-                        className="input w-full"
+                        className="campo"
                         placeholder="1"
                       />
                     </div>
@@ -706,7 +706,7 @@ const Inventario = () => {
 
                   {/* Estado */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="campo-label">
                       Estado
                     </label>
                     <div className="flex gap-3">
@@ -736,7 +736,7 @@ const Inventario = () => {
               </div>
 
               <div className="pt-3 mt-3 border-t border-gray-200">
-                <label className="block text-xs font-medium text-gray-600 mb-2">
+                <label className="campo-label">
                   Proveedores que lo surten
                 </label>
                 <VinculosProveedores
