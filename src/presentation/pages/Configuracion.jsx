@@ -20,6 +20,8 @@ import {
   MODO_TIENDA,
 } from '../utils/preferenciasUi'
 import { usePreferencias } from '../context/PreferenciasContext'
+import { useAuth } from '../context/AuthContext'
+import marca from '@marca'
 import OpcionesProductoConfig from '../components/OpcionesProductoConfig'
 import CategoriasMovimiento from './CategoriasMovimiento'
 import Swal from 'sweetalert2'
@@ -75,6 +77,8 @@ const ChecksMetricas = ({ titulo, catalogo, valores, onToggle, modoTienda }) => 
 
 const Configuracion = () => {
   const { preferencias, guardar, modoTienda } = usePreferencias()
+  const { usuario } = useAuth()
+  const puedeElegirNegocio = marca.id !== 'zona2' || usuario?.rol === 'superadministrador'
   const [posConFotos, setPosConFotos] = useState(() => obtenerPosConFotos())
   const [guardando, setGuardando] = useState(false)
   const [metricasAbiertas, setMetricasAbiertas] = useState(false)
@@ -125,7 +129,7 @@ const Configuracion = () => {
 
   return (
     <div className="space-y-6">
-      <div className="card">
+      {puedeElegirNegocio && <div className="card">
         <div className="flex items-center gap-3 mb-2">
           <Store className="w-5 h-5 text-marca-600" />
           <h2 className="text-lg font-semibold text-gray-900">Tipo de negocio</h2>
@@ -172,7 +176,7 @@ const Configuracion = () => {
             </div>
           </button>
         </div>
-      </div>
+      </div>}
 
       <CategoriasMovimiento />
 
