@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { configuracionService } from '../../application/services/configuracionService'
 import { authService } from '../../application/services/authService'
 import marca from '@marca'
 import logoProthec from '../../assets/logo-prothec.png'
@@ -97,13 +98,38 @@ const Login = () => {
   const [entrando, setEntrando] = useState(false)
   const [segundosBloqueo, setSegundosBloqueo] = useState(0)
   const [mostrarOcultos, setMostrarOcultos] = useState(false)
-  const [mensaje] = useState(
-    () => marca.mensajesLogin[Math.floor(Math.random() * marca.mensajesLogin.length)]
-  )
+  const elegirFrase = (lista) => lista[Math.floor(Math.random() * lista.length)]
+  const [mensaje, setMensaje] = useState(() => elegirFrase(marca.mensajesLogin))
+  const [cintillas, setCintillas] = useState({
+    principal: marca.cintillaPrincipal,
+    contorno: marca.cintillaContorno,
+  })
   const toquesRef = useRef(0)
 
   const { loginConCodigo } = useAuth()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    let vigente = true
+    configuracionService
+      .obtenerModoNegocio()
+      .then((modo) => {
+        if (!vigente || modo !== 'tienda') return
+        if (marca.mensajesLoginTienda?.length) setMensaje(elegirFrase(marca.mensajesLoginTienda))
+        if (marca.cintillaPrincipalTienda?.length) {
+          setCintillas({
+            principal: marca.cintillaPrincipalTienda,
+            contorno: marca.cintillaContornoTienda?.length
+              ? marca.cintillaContornoTienda
+              : marca.cintillaContorno,
+          })
+        }
+      })
+      .catch(() => {})
+    return () => {
+      vigente = false
+    }
+  }, [])
 
   useEffect(() => {
     let vigente = true
@@ -195,10 +221,10 @@ const Login = () => {
   return (
     <div className="relative min-h-screen overflow-hidden bg-oscuro-800">
       <div className="pointer-events-none absolute inset-x-0 top-6 z-20 opacity-90 sm:top-8">
-        <Cintilla frases={marca.cintillaPrincipal} />
+        <Cintilla frases={cintillas.principal} />
       </div>
       <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 opacity-80 sm:bottom-8">
-        <Cintilla frases={marca.cintillaContorno} contorno lenta />
+        <Cintilla frases={cintillas.contorno} contorno lenta />
       </div>
 
       <div className="min-h-screen lg:grid lg:grid-cols-2">

@@ -13,6 +13,11 @@ export const configuracionService = {
     return response.data
   },
 
+  obtenerModoNegocio: async () => {
+    const response = await api.get('/api/configuracion/modo_negocio')
+    return response.data?.modo
+  },
+
   obtenerPreferenciasUi: async () => {
     const response = await api.get('/api/configuracion/preferencias_ui')
     return response.data
