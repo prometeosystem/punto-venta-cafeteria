@@ -24,17 +24,14 @@ import {
 } from 'lucide-react'
 import { useVentas } from '../hooks/useVentas'
 import { servicioDe } from '../utils/tipoServicio'
-import { useComandas } from '../hooks/useComandas'
-import { useReportes } from '../hooks/useReportes'
 import { useProductos } from '../hooks/useProductos'
+import { reportesService } from '../../application/services/reportesService'
 import { usePreferencias } from '../context/PreferenciasContext'
 import { useLayout } from '../context/LayoutContext'
 import { formatPrecio } from '../utils/numberFormatter'
 import { METODOS_PAGO_DISPONIBLES } from '../utils/metodosPagoConfig'
 import { metricaVisible } from '../utils/preferenciasUi'
 import ModalEditarMetricas from '../components/ModalEditarMetricas'
-import { inventarioService } from '../../application/services/inventarioService'
-import { contabilidadService } from '../../application/services/contabilidadService'
 import Swal from 'sweetalert2'
 import {
   AreaChart,
@@ -100,20 +97,15 @@ const labelMetodoPago = (metodo) => {
   return found?.label || String(metodo).replace(/-/g, ' ')
 }
 
-const fechaCDMX = (date = new Date()) =>
-  date.toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' })
-
 const Dashboard = () => {
   const [refResumen, columnas] = useColumnasResumen()
-  const { obtenerVentas, obtenerVenta } = useVentas()
-  const { obtenerComandas } = useComandas()
-  const { obtenerVentasPorDia, obtenerProductosMasVendidos, obtenerPropinasPorFecha, obtenerDescuentosPorFecha } = useReportes()
+  const { obtenerVenta } = useVentas()
   const { productos } = useProductos()
   const { preferencias, guardar, modoTienda } = usePreferencias()
   const { setHeaderAction } = useLayout()
   const [ventas, setVentas] = useState([])
   const [ventasAyer, setVentasAyer] = useState([])
-  const [comandas, setComandas] = useState([])
+  const [ordenesActivas, setOrdenesActivas] = useState(0)
   const [cancelaciones, setCancelaciones] = useState(0)
   const [stockCritico, setStockCritico] = useState(0)
   const [margenHoy, setMargenHoy] = useState(null)
@@ -151,66 +143,22 @@ const Dashboard = () => {
         setLoading(true)
         setLoadingGrafico(true)
 
-        const hoy = fechaCDMX()
-        const ayerDate = new Date()
-        ayerDate.setDate(ayerDate.getDate() - 1)
-        const ayer = fechaCDMX(ayerDate)
-
-        const fechaFin = new Date()
-        const fechaInicio = new Date()
-        fechaInicio.setDate(fechaInicio.getDate() - 7)
-        const [
-          ventasHoy,
-          propinasData,
-          descuentosData,
-          ventasAyerData,
-          comandasActivas,
-          comandasEnPreparacion,
-          comandasCanceladas,
-          ventasSemanaData,
-          productos30,
-          productosHoy,
-          bajoStock,
-          estadoRes,
-        ] = await Promise.all([
-          obtenerVentas(hoy, hoy).catch(() => []),
-          obtenerPropinasPorFecha(hoy, hoy).catch(() => ({ total_propinas: 0 })),
-          obtenerDescuentosPorFecha(hoy, hoy).catch(() => ({ total_descuentos: 0 })),
-          obtenerVentas(ayer, ayer).catch(() => []),
-          obtenerComandas('pendiente').catch(() => []),
-          obtenerComandas('en_preparacion').catch(() => []),
-          obtenerComandas('cancelada').catch(() => []),
-          obtenerVentasPorDia(
-            fechaInicio.toISOString().split('T')[0],
-            fechaFin.toISOString().split('T')[0]
-          ).catch(() => []),
-          obtenerProductosMasVendidos(
-            fechaCDMX(new Date(Date.now() - 30 * 86400000)),
-            hoy,
-            5
-          ).catch(() => []),
-          obtenerProductosMasVendidos(hoy, hoy, 5).catch(() => []),
-          inventarioService.obtenerInsumosBajoStock().catch(() => []),
-          contabilidadService.estadoResultados(hoy, hoy).catch(() => null),
-        ])
-        setVentas(ventasHoy || [])
-        setTotalPropinas(propinasData?.total_propinas ?? 0)
-        setTotalDescuentos(descuentosData?.total_descuentos ?? 0)
-        setVentasAyer(ventasAyerData || [])
-        setComandas([...(comandasActivas || []), ...(comandasEnPreparacion || [])])
-        const cancelHoy = (comandasCanceladas || []).filter((c) => {
-          const f = String(c.fecha_creacion || c.fecha_actualizacion || '').slice(0, 10)
-          return f === hoy
-        })
-        setCancelaciones(cancelHoy.length)
-        setVentasSemana(ventasSemanaData || [])
-        setProductosMasVendidos(productos30 || [])
-        setTopHoy(productosHoy || [])
-        setStockCritico(Array.isArray(bajoStock) ? bajoStock.length : (bajoStock?.length || 0))
-        setMargenHoy(estadoRes)
+        const data = await reportesService.obtenerResumenDashboard()
+        if (data?.error) throw new Error(data.error)
+        setVentas(data.ventas || [])
+        setTotalPropinas(data.total_propinas ?? 0)
+        setTotalDescuentos(data.total_descuentos ?? 0)
+        setVentasAyer([{ total: data.total_ayer ?? 0 }])
+        setOrdenesActivas(data.ordenes_activas ?? 0)
+        setCancelaciones(data.cancelaciones ?? 0)
+        setVentasSemana(data.ventas_semana || [])
+        setProductosMasVendidos(data.mas_vendidos || [])
+        setTopHoy(data.top_hoy || [])
+        setStockCritico(data.stock_critico ?? 0)
+        setMargenHoy(data.estado_resultados || null)
       } catch {
         setVentas([])
-        setComandas([])
+        setOrdenesActivas(0)
       } finally {
         setLoading(false)
         setLoadingGrafico(false)
@@ -227,7 +175,6 @@ const Dashboard = () => {
   const productosVendidos = ventas.reduce((sum, v) => {
     return sum + (v.detalles?.reduce((dSum, d) => dSum + (d.cantidad || 0), 0) || 0)
   }, 0)
-  const ordenesActivas = comandas.length
   const deltaVsAyer = ventasTotales - ventasTotalesAyer
   const pctVsAyer = ventasTotalesAyer > 0
     ? (deltaVsAyer / ventasTotalesAyer) * 100
@@ -249,7 +196,7 @@ const Dashboard = () => {
   const ventasPorHora = useMemo(() => {
     const buckets = Array.from({ length: 24 }, (_, h) => ({ hora: h, total: 0, ventas: 0 }))
     ventas.forEach((v) => {
-      const raw = v.fecha || v.fecha_creacion || v.created_at
+      const raw = v.fecha_venta || v.fecha || v.fecha_creacion || v.created_at
       if (!raw) return
       const d = new Date(raw)
       if (Number.isNaN(d.getTime())) return
