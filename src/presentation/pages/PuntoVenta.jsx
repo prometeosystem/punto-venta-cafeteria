@@ -371,13 +371,20 @@ const PuntoVenta = () => {
   }, [])
 
   useEffect(() => {
+    let vivo = true
+    const canal = modoTienda ? 'tienda' : 'restaurante'
     reportesService
-      .obtenerMasVendidosPos(8)
+      .obtenerMasVendidosPos(8, canal)
       .then((data) => {
-        if (Array.isArray(data)) setIdsMasVendidos(data.map((p) => p.id_producto))
+        if (vivo && Array.isArray(data)) setIdsMasVendidos(data.map((p) => p.id_producto))
       })
-      .catch(() => setIdsMasVendidos([]))
-  }, [])
+      .catch(() => {
+        if (vivo) setIdsMasVendidos([])
+      })
+    return () => {
+      vivo = false
+    }
+  }, [modoTienda])
 
   /** Carga una comanda en el panel de orden para agregarle productos. */
   const abrirComandaParaEditar = async (idComanda) => {

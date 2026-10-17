@@ -25,9 +25,9 @@ export const reportesService = {
   },
 
   // Atajos del POS: más vendidos de los últimos 30 días (cualquier rol)
-  obtenerMasVendidosPos: async (limite = 8) => {
+  obtenerMasVendidosPos: async (limite = 8, canal = 'restaurante') => {
     const response = await api.get('/api/reportes/mas_vendidos_pos', {
-      params: { limite }
+      params: { limite, canal }
     })
     return response.data
   },
