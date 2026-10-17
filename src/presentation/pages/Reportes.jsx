@@ -913,7 +913,9 @@ const Reportes = () => {
                 <th className="text-center py-3 px-4 font-semibold text-gray-900">Productos</th>
                 <th className="text-left py-3 px-4 font-semibold text-gray-900">Método de pago</th>
                 <th className="text-center py-3 px-4 font-semibold text-gray-900" title="Descuento">Dto.</th>
-                <th className="text-center py-3 px-4 font-semibold text-gray-900" title="Propina">Prop.</th>                
+                {!modoTienda && (
+                  <th className="text-center py-3 px-4 font-semibold text-gray-900" title="Propina">Prop.</th>
+                )}
                 <th className="text-right py-3 px-4 font-semibold text-gray-900">Total</th>
                 <th className="text-right py-3 px-4 font-semibold text-gray-900">Detalle</th>
               </tr>
@@ -921,19 +923,19 @@ const Reportes = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="9" className="py-8 text-center text-gray-500">
+                  <td colSpan={modoTienda ? 8 : 9} className="py-8 text-center text-gray-500">
                     <Loader2 className="w-6 h-6 animate-spin text-marca-600 mx-auto" />
                   </td>
                 </tr>
               ) : ventas.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="py-8 text-center text-gray-500">
+                  <td colSpan={modoTienda ? 8 : 9} className="py-8 text-center text-gray-500">
                     No hay ventas en el período seleccionado
                   </td>
                 </tr>
               ) : ventasFiltradas.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="py-8 text-center text-gray-500">
+                  <td colSpan={modoTienda ? 8 : 9} className="py-8 text-center text-gray-500">
                     No hay ventas que coincidan con la búsqueda o filtros
                   </td>
                 </tr>
@@ -970,6 +972,7 @@ const Reportes = () => {
                         <span className="text-gray-300">—</span>
                       )}
                     </td>
+                    {!modoTienda && (
                     <td className="py-3 px-4 text-center">
                       {tienePropina(venta) ? (
                         <span
@@ -982,6 +985,7 @@ const Reportes = () => {
                         <span className="text-gray-300">—</span>
                       )}
                     </td>
+                    )}
                     <td className="py-3 px-4 text-right font-semibold text-marca-600 whitespace-nowrap">
                       ${formatPrecio(venta.total)}
                     </td>
@@ -1285,7 +1289,7 @@ const Reportes = () => {
                         </p>
                       </div>
                     )}
-                    {(ventaDetalle.monto_propina != null && parseFloat(ventaDetalle.monto_propina) > 0) && (
+                    {!modoTienda && (ventaDetalle.monto_propina != null && parseFloat(ventaDetalle.monto_propina) > 0) && (
                       <div>
                         <p className="text-sm text-gray-600 mb-1">Propina</p>
                         <p className="font-medium text-marca-700">

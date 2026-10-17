@@ -736,7 +736,7 @@ const Empleados = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Nombre */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="campo-label">
                     Nombre <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -744,49 +744,49 @@ const Empleados = () => {
                     required
                     value={formData.nombre}
                     onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                    className="input w-full"
+                    className="campo"
                     placeholder="Ej: Juan"
                   />
                 </div>
 
                 {/* Apellido Paterno */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="campo-label">
                     Apellido Paterno
                   </label>
                   <input
                     type="text"
                     value={formData.apellido_paterno}
                     onChange={(e) => setFormData({ ...formData, apellido_paterno: e.target.value })}
-                    className="input w-full"
+                    className="campo"
                     placeholder="Ej: Pérez"
                   />
                 </div>
 
                 {/* Apellido Materno */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="campo-label">
                     Apellido Materno
                   </label>
                   <input
                     type="text"
                     value={formData.apellido_materno}
                     onChange={(e) => setFormData({ ...formData, apellido_materno: e.target.value })}
-                    className="input w-full"
+                    className="campo"
                     placeholder="Ej: García"
                   />
                 </div>
 
                 {/* Correo */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="campo-label">
                     Correo
                   </label>
                   <input
                     type="email"
                     value={formData.correo}
                     onChange={(e) => setFormData({ ...formData, correo: e.target.value })}
-                    className="input w-full"
+                    className="campo"
                     placeholder="ejemplo@cafeteria.com"
                   />
                 </div>
@@ -795,7 +795,7 @@ const Empleados = () => {
                     el botón de la llave, para no tener dos formas de hacerlo. */}
                 {!empleadoEditando && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="campo-label">
                       Código de acceso
                     </label>
                     <input
@@ -806,7 +806,7 @@ const Empleados = () => {
                       onChange={(e) =>
                         setFormData({ ...formData, codigo: e.target.value.replace(/\D/g, '') })
                       }
-                      className="input w-full tracking-widest"
+                      className="campo tracking-widest"
                       placeholder={`Vacío = ${CODIGO_DEFAULT}`}
                       autoComplete="off"
                     />
@@ -818,27 +818,27 @@ const Empleados = () => {
 
                 {/* Celular */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="campo-label">
                     Celular
                   </label>
                   <input
                     type="tel"
                     value={formData.celular}
                     onChange={(e) => setFormData({ ...formData, celular: e.target.value })}
-                    className="input w-full"
+                    className="campo"
                     placeholder="1234567890"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="campo-label">
                     Día y mes
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     <select
                       value={formData.dia}
                       onChange={(e) => setFormData({ ...formData, dia: e.target.value })}
-                      className="input w-full min-w-0"
+                      className="campo min-w-0"
                     >
                       <option value="">Día</option>
                       {Array.from({ length: formData.mes ? DIAS_POR_MES[Number(formData.mes) - 1] : 31 }, (_, i) => i + 1).map((dia) => (
@@ -853,7 +853,7 @@ const Empleados = () => {
                         const dia = formData.dia && Number(formData.dia) > maximo ? '' : formData.dia
                         setFormData({ ...formData, mes, dia })
                       }}
-                      className="input w-full min-w-0"
+                      className="campo min-w-0"
                     >
                       <option value="">Mes</option>
                       {MESES.map((nombre, indice) => (
@@ -865,14 +865,14 @@ const Empleados = () => {
 
                 {/* Rol */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="campo-label">
                     Rol <span className="text-red-500">*</span>
                   </label>
                   <select
                     required
                     value={formData.rol}
                     onChange={(e) => setFormData({ ...formData, rol: e.target.value })}
-                    className="input w-full"
+                    className="campo"
                   >
                     <option value="vendedor">Vendedor</option>
                     {modoRestaurante && <option value="cocina">Cocina</option>}
@@ -888,7 +888,7 @@ const Empleados = () => {
                 {/* Estado: solo al editar, para reactivar a alguien. Al crear siempre es activo. */}
                 {empleadoEditando && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="campo-label">
                       Estado
                     </label>
                     <div className="flex items-center gap-4 mt-2">

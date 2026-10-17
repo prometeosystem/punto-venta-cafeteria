@@ -371,11 +371,11 @@ const MovimientosCaja = () => {
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="min-w-0">
-                  <label className="mb-1 block text-xs font-medium text-gray-600">Categoría</label>
+                  <label className="campo-label">Categoría</label>
                   <select
                     value={form.id_categoria_movimiento}
                     onChange={(e) => setForm({ ...form, id_categoria_movimiento: e.target.value })}
-                    className="input text-sm"
+                    className="campo"
                   >
                     <option value="">Seleccionar</option>
                     {catsFiltradas.map((c) => (
@@ -386,7 +386,7 @@ const MovimientosCaja = () => {
                   </select>
                 </div>
                 <div className="min-w-0">
-                  <label className="mb-1 block text-xs font-medium text-gray-600">Monto</label>
+                  <label className="campo-label">Monto</label>
                   <div className="relative">
                     <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">$</span>
                     <input
@@ -395,29 +395,29 @@ const MovimientosCaja = () => {
                       inputMode="decimal"
                       value={conSeparadorMiles(form.monto)}
                       onChange={(e) => setForm({ ...form, monto: sanitizeMonto(e.target.value) })}
-                      className="input pl-7 text-left text-sm tabular-nums"
+                      className="campo pl-7 text-left tabular-nums"
                     />
                   </div>
                 </div>
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Concepto</label>
+                <label className="campo-label">Concepto</label>
                 <input
                   placeholder="Descripción del movimiento"
                   value={form.concepto}
                   onChange={(e) => setForm({ ...form, concepto: e.target.value })}
-                  className="input text-sm"
+                  className="campo"
                 />
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Proveedor</label>
+                <label className="campo-label">Proveedor</label>
                 <input
                   placeholder="Opcional"
                   value={form.proveedor}
                   onChange={(e) => setForm({ ...form, proveedor: e.target.value })}
-                  className="input text-sm"
+                  className="campo"
                 />
               </div>
 
@@ -443,21 +443,21 @@ const MovimientosCaja = () => {
                           placeholder="Descripción"
                           value={d.descripcion}
                           onChange={(e) => actualizarDetalle(i, 'descripcion', e.target.value)}
-                          className="input min-w-0 px-2 py-1.5 text-sm"
+                          className="campo min-w-0"
                         />
                         <input
                           placeholder="Cant."
                           type="number"
                           value={d.cantidad}
                           onChange={(e) => actualizarDetalle(i, 'cantidad', e.target.value)}
-                          className="input min-w-0 px-2 py-1.5 text-sm"
+                          className="campo min-w-0"
                         />
                         <input
                           placeholder="P. unit."
                           type="number"
                           value={d.precio_unitario}
                           onChange={(e) => actualizarDetalle(i, 'precio_unitario', e.target.value)}
-                          className="input min-w-0 px-2 py-1.5 text-sm"
+                          className="campo min-w-0"
                         />
                         <button
                           type="button"

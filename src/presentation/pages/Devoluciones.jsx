@@ -234,7 +234,7 @@ const Devoluciones = () => {
                         min="0"
                         max={d.cantidad_disponible}
                         step="1"
-                        className="input w-20 py-1"
+                        className="campo w-20"
                         disabled={d.cantidad_disponible <= 0}
                         value={cantidades[d.id_detalle_venta] ?? 0}
                         onChange={(e) => {
@@ -279,18 +279,18 @@ const Devoluciones = () => {
           </div>
 
           <div className="grid sm:grid-cols-2 gap-3">
-            <label className="block text-sm">
-              <span className="text-gray-600">Método de reembolso</span>
-              <select className="input mt-1 w-full" value={metodo} onChange={(e) => setMetodo(e.target.value)}>
+            <label className="block">
+              <span className="campo-label">Método de reembolso</span>
+              <select className="campo" value={metodo} onChange={(e) => setMetodo(e.target.value)}>
                 <option value="efectivo">Efectivo (sale de caja)</option>
                 <option value="tarjeta">Tarjeta</option>
                 <option value="transferencia">Transferencia</option>
                 <option value="nota_credito">Nota de crédito</option>
               </select>
             </label>
-            <label className="block text-sm">
-              <span className="text-gray-600">Motivo (opcional)</span>
-              <input className="input mt-1 w-full" value={motivo} onChange={(e) => setMotivo(e.target.value)} />
+            <label className="block">
+              <span className="campo-label">Motivo (opcional)</span>
+              <input className="campo" value={motivo} onChange={(e) => setMotivo(e.target.value)} />
             </label>
           </div>
 

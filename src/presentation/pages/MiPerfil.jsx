@@ -91,7 +91,7 @@ const MiPerfil = () => {
 
   const campoCodigo = (clave, etiqueta) => (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{etiqueta}</label>
+      <label className="campo-label">{etiqueta}</label>
       <input
         type="password"
         inputMode="numeric"
@@ -99,7 +99,7 @@ const MiPerfil = () => {
         maxLength={6}
         value={codigo[clave]}
         onChange={(e) => setCodigo({ ...codigo, [clave]: soloDigitos(e.target.value) })}
-        className="input tracking-[0.4em] placeholder:tracking-normal"
+        className="campo tracking-[0.4em] placeholder:tracking-normal"
       />
     </div>
   )
@@ -121,29 +121,29 @@ const MiPerfil = () => {
 
         <form onSubmit={guardarDatos} className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="campo-label">
               Nombre <span className="text-red-500">*</span>
             </label>
-            <input className="input" {...campo('nombre')} />
+            <input className="campo" {...campo('nombre')} />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Apellido paterno</label>
-              <input className="input" {...campo('apellido_paterno')} />
+              <label className="campo-label">Apellido paterno</label>
+              <input className="campo" {...campo('apellido_paterno')} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Apellido materno</label>
-              <input className="input" {...campo('apellido_materno')} />
+              <label className="campo-label">Apellido materno</label>
+              <input className="campo" {...campo('apellido_materno')} />
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Correo</label>
-              <input type="email" className="input" {...campo('correo')} />
+              <label className="campo-label">Correo</label>
+              <input type="email" className="campo" {...campo('correo')} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Celular</label>
-              <input type="tel" inputMode="tel" className="input" {...campo('celular')} />
+              <label className="campo-label">Celular</label>
+              <input type="tel" inputMode="tel" className="campo" {...campo('celular')} />
             </div>
           </div>
           <div className="flex justify-end pt-1">

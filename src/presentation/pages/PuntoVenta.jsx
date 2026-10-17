@@ -271,6 +271,10 @@ const PuntoVenta = () => {
     }
   }, [cajaLoading, estadoCaja, navigate])
 
+  useEffect(() => {
+    if (modoTienda && metodoPago === 'delivery') setMetodoPago(null)
+  }, [modoTienda, metodoPago])
+
   // Escuchar cambios de métodos de pago desde Configuración
   useEffect(() => {
     const sync = () => {
@@ -2896,7 +2900,7 @@ const PuntoVenta = () => {
                   {puedeCobrarOrden && (
                     <>
                   <div className="flex gap-2">
-                    {metodosPagoActivos.map((metodo) => {
+                    {metodosPagoActivos.filter((metodo) => !modoTienda || metodo.id !== 'delivery').map((metodo) => {
                       const Icono = ICONOS_METODO_PAGO[metodo.icono] || Banknote
                       return (
                         <button
@@ -3031,7 +3035,7 @@ const PuntoVenta = () => {
               }}
             >
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="campo-label">
                   Nombre del producto
                 </label>
                 <input
@@ -3040,30 +3044,30 @@ const PuntoVenta = () => {
                   value={nombreProductoPersonalizado}
                   onChange={(e) => setNombreProductoPersonalizado(e.target.value)}
                   placeholder="Ej: Extra shot, postre del día"
-                  className="input w-full"
+                  className="campo"
                   maxLength={100}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="campo-label">
                   Precio
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8e8e93]">$</span>
                   <input
                     type="number"
                     inputMode="decimal"
                     value={precioProductoPersonalizado}
                     onChange={(e) => setPrecioProductoPersonalizado(e.target.value)}
                     placeholder="0.00"
-                    className="input w-full pl-7"
+                    className="campo pl-7"
                     min="0"
                     step="0.01"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="campo-label">
                   ¿Dónde se prepara?
                 </label>
                 <div className="grid grid-cols-2 gap-2">
@@ -3223,7 +3227,7 @@ const PuntoVenta = () => {
 
               {modalEsComida && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="campo-label">
                     Nota para cocina
                   </label>
                   <textarea
@@ -3239,7 +3243,7 @@ const PuntoVenta = () => {
                     }
                     rows={2}
                     placeholder="Sin cebolla, poco picante, etc."
-                    className="input w-full resize-none text-base"
+                    className="campo resize-none text-base"
                   />
                 </div>
               )}
@@ -3284,7 +3288,7 @@ const PuntoVenta = () => {
               }}
             >
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="campo-label">
                   Nombre del cliente
                 </label>
                 <input
@@ -3293,7 +3297,7 @@ const PuntoVenta = () => {
                   value={nombreClienteTemp}
                   onChange={(e) => setNombreClienteTemp(e.target.value)}
                   placeholder="Con qué nombre identificamos la mesa"
-                  className="input"
+                  className="campo"
                 />
               </div>
               {modoRestaurante && (
@@ -3392,15 +3396,15 @@ const PuntoVenta = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 md:items-end gap-5 md:gap-4 empty:hidden">
               {!comandaEnEdicion && !comandaTerminadaSeleccionada && (
               <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nombre del cliente <span className="text-gray-400">(Opcional)</span>
+                  <label className="campo-label">
+                    Nombre del cliente <span className="text-[#8e8e93]">(Opcional)</span>
                 </label>
                   <input
                     type="text"
                     value={nombreCliente}
                     onChange={(e) => setNombreCliente(e.target.value)}
                     placeholder="Para identificar la comanda"
-                    className="input w-full"
+                    className="campo"
                 />
               </div>
               )}
@@ -3490,7 +3494,7 @@ const PuntoVenta = () => {
                     <p className="text-sm font-medium text-gray-700">Dividir el pago</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="min-w-0">
-                        <label className="block text-xs text-gray-500 mb-1">Efectivo</label>
+                        <label className="campo-label">Efectivo</label>
                         <input
                           type="number"
                           inputMode="decimal"
@@ -3498,12 +3502,12 @@ const PuntoVenta = () => {
                           step="0.01"
                           value={montoEfectivoPago}
                           onChange={(e) => asignarPartePago('efectivo', e.target.value, totalACobrar)}
-                          className="input w-full min-w-0"
+                          className="campo min-w-0"
                           placeholder="0.00"
                         />
                       </div>
                       <div className="min-w-0">
-                        <label className="block text-xs text-gray-500 mb-1">Tarjeta</label>
+                        <label className="campo-label">Tarjeta</label>
                         <input
                           type="number"
                           inputMode="decimal"
@@ -3511,7 +3515,7 @@ const PuntoVenta = () => {
                           step="0.01"
                           value={montoTarjetaPago}
                           onChange={(e) => asignarPartePago('tarjeta', e.target.value, totalACobrar)}
-                          className="input w-full min-w-0"
+                          className="campo min-w-0"
                           placeholder="0.00"
                         />
                       </div>
@@ -3538,9 +3542,9 @@ const PuntoVenta = () => {
                 const cambio = Number.isFinite(recibido) ? recibido - totalACobrar : null
                 return (
                   <div className="border-t border-gray-200 pt-4 space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="campo-label">
                       {metodoPago === 'mixto' ? 'Paga en efectivo' : 'Paga con'}{' '}
-                      <span className="text-gray-400">(Opcional)</span>
+                      <span className="text-[#8e8e93]">(Opcional)</span>
                     </label>
                     <BilletesEfectivo
                       total={totalACobrar}
@@ -3555,7 +3559,7 @@ const PuntoVenta = () => {
                       placeholder={`Ej: ${Math.ceil(totalACobrar / 50) * 50}`}
                       value={montoRecibido}
                       onChange={(e) => setMontoRecibido(e.target.value)}
-                  className="input w-full"
+                  className="campo"
                     />
                     {cambio != null && (
                       <div
@@ -3702,7 +3706,7 @@ const PuntoVenta = () => {
                         value={propinaPersonalizada}
                         onChange={(e) => setPropinaPersonalizada(e.target.value)}
                         placeholder={tipoPropinaPersonalizada === 'porcentaje' ? 'Ej: 12' : 'Ej: 25.00'}
-                        className="input w-full pr-12"
+                        className="campo pr-12"
                         min="0"
                         step={tipoPropinaPersonalizada === 'porcentaje' ? '1' : '0.01'}
                         max={tipoPropinaPersonalizada === 'porcentaje' ? '100' : undefined}
@@ -3827,7 +3831,7 @@ const PuntoVenta = () => {
                       value={descuentoPersonalizado}
                       onChange={(e) => setDescuentoPersonalizado(e.target.value)}
                       placeholder={tipoDescuentoPersonalizado === 'porcentaje' ? 'Ej: 12' : 'Ej: 50.00'}
-                      className="input w-full pr-12"
+                      className="campo pr-12"
                       min="0"
                       step={tipoDescuentoPersonalizado === 'porcentaje' ? '1' : '0.01'}
                       max={tipoDescuentoPersonalizado === 'porcentaje' ? '100' : undefined}

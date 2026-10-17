@@ -97,12 +97,12 @@ const CategoriasMovimiento = ({ desplegado = false }) => {
               placeholder="Nombre"
               value={nueva.nombre}
               onChange={(e) => setNueva({ ...nueva, nombre: e.target.value })}
-              className="input min-w-0 sm:flex-1"
+              className="campo min-w-0 sm:flex-1"
             />
             <select
               value={nueva.aplica_a}
               onChange={(e) => setNueva({ ...nueva, aplica_a: e.target.value })}
-              className="input sm:w-40"
+              className="campo sm:w-40"
             >
               <option value="ambos">Ambos</option>
               <option value="entrada">Entrada</option>

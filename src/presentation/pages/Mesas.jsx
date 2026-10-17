@@ -523,7 +523,7 @@ const Mesas = () => {
                 {formMesa.id_mesa ? `Mesa ${formMesa.numero}` : 'Nueva mesa'}
               </h2>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Número</label>
+                <label className="campo-label">Número</label>
                 <input
                   type="number"
                   inputMode="numeric"
@@ -531,11 +531,11 @@ const Mesas = () => {
                   max="999"
                   value={formMesa.numero}
                   onChange={(e) => setFormMesa((f) => ({ ...f, numero: e.target.value }))}
-                  className="input"
+                  className="campo"
                 />
               </div>
               <div>
-                <p className="block text-sm font-medium text-gray-700 mb-1">Tipo de mesa</p>
+                <p className="campo-label">Tipo de mesa</p>
                 <div className="grid grid-cols-3 gap-2">
                   {CAPACIDADES.map((c) => {
                     const activa = formMesa.capacidad === c

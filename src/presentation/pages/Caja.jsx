@@ -164,27 +164,27 @@ const Caja = () => {
           <p className="text-gray-600 mb-6">No hay caja abierta. Declare el fondo de cambio para iniciar el turno.</p>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Monto inicial</label>
+              <label className="campo-label">Monto inicial</label>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8e8e93] pointer-events-none">$</span>
                 <input
                   type="text"
                   inputMode="decimal"
                   value={conSeparadorMiles(montoInicial)}
                   onChange={(e) => setMontoInicial(sanitizeMonto(e.target.value))}
-                  className="w-full border rounded-lg pl-8 pr-4 py-2 text-right tabular-nums"
+                  className="campo pl-8 text-right tabular-nums"
                   placeholder="0.00"
                 />
               </div>
             </div>
             {parseFloat(montoInicial) !== 300 && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Motivo del monto distinto</label>
+                <label className="campo-label">Motivo del monto distinto</label>
                 <input
                   type="text"
                   value={motivoMonto}
                   onChange={(e) => setMotivoMonto(e.target.value)}
-                  className="w-full border rounded-lg px-4 py-2"
+                  className="campo"
                   placeholder="Obligatorio si difiere de $300"
                 />
               </div>
@@ -328,15 +328,15 @@ const Caja = () => {
               </div>
             )}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Efectivo contado</label>
+              <label className="campo-label">Efectivo contado</label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#8e8e93] pointer-events-none">$</span>
                 <input
                   type="text"
                   inputMode="decimal"
                   value={conSeparadorMiles(montoContado)}
                   onChange={(e) => setMontoContado(sanitizeMonto(e.target.value))}
-                  className="w-full border rounded-lg pl-7 pr-3 py-1.5 text-sm text-right tabular-nums"
+                  className="campo pl-7 text-right tabular-nums"
                   placeholder="0.00"
                 />
               </div>
@@ -350,7 +350,7 @@ const Caja = () => {
                   type="text"
                   value={justificacion}
                   onChange={(e) => setJustificacion(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-1.5 text-sm mt-1.5"
+                  className="campo mt-1.5"
                   placeholder="Justificación obligatoria"
                 />
               </div>

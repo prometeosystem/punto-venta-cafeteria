@@ -288,7 +288,7 @@ const OpcionesProductoConfig = () => {
                       onChange={(e) =>
                         setEdicionGrupo((prev) => ({ ...prev, [grupo.id_grupo]: e.target.value }))
                       }
-                      className={`input py-1 text-sm font-semibold flex-1 min-w-0 ${
+                      className={`campo font-semibold flex-1 min-w-0 ${
                         grupo.activo ? '' : 'text-gray-400'
                       }`}
                       title="Nombre que ve el mesero"
@@ -316,7 +316,7 @@ const OpcionesProductoConfig = () => {
                       value={grupo.seleccion}
                       disabled={ocupado}
                       onChange={(e) => guardarGrupo(grupo, { seleccion: e.target.value })}
-                      className="input py-1 text-xs w-auto shrink-0"
+                      className="campo w-auto shrink-0 text-xs"
                       title="Cómo se eligen las opciones de este grupo"
                     >
                       <option value="multiple">Varias</option>
@@ -382,7 +382,7 @@ const OpcionesProductoConfig = () => {
                             step="1"
                             value={valorEditado(opcion, 'precio')}
                             onChange={(e) => editar(opcion, 'precio', e.target.value)}
-                            className="input py-1 text-sm w-20"
+                            className="campo w-20"
                           />
                         </div>
 
@@ -444,7 +444,7 @@ const OpcionesProductoConfig = () => {
                             [grupo.id_grupo]: { ...prev[grupo.id_grupo], nombre: e.target.value },
                           }))
                         }
-                        className="input py-1 text-sm flex-1 min-w-0 max-w-[240px]"
+                        className="campo flex-1 min-w-0 max-w-[240px]"
                       />
                       <div className="flex items-center gap-0.5 shrink-0 ml-auto">
                         <span className="text-gray-400 text-sm">$</span>
@@ -460,7 +460,7 @@ const OpcionesProductoConfig = () => {
                               [grupo.id_grupo]: { ...prev[grupo.id_grupo], precio: e.target.value },
                           }))
                         }
-                        className="input py-1 text-sm w-20"
+                        className="campo w-20"
                       />
                       </div>
                       <button
@@ -492,12 +492,12 @@ const OpcionesProductoConfig = () => {
               placeholder="Nuevo grupo. Ej: Salsas"
               value={nuevoGrupo.nombre}
               onChange={(e) => setNuevoGrupo((prev) => ({ ...prev, nombre: e.target.value }))}
-              className="input py-1 text-sm flex-1 min-w-[160px]"
+              className="campo flex-1 min-w-[160px]"
             />
             <select
               value={nuevoGrupo.seleccion}
               onChange={(e) => setNuevoGrupo((prev) => ({ ...prev, seleccion: e.target.value }))}
-              className="input py-1 text-sm w-auto"
+              className="campo w-auto"
             >
               <option value="multiple">Varias a la vez</option>
               <option value="unica">Solo una</option>

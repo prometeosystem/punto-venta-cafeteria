@@ -425,7 +425,7 @@ const Proveedores = () => {
                       <div className="flex gap-2 items-center text-sm">
                         <input
                           type="number"
-                          className="input w-24 py-1"
+                          className="campo w-24"
                           min="0.001"
                           step="any"
                           value={sel.cantidad}
@@ -439,7 +439,7 @@ const Proveedores = () => {
                         <span>×</span>
                         <input
                           type="number"
-                          className="input w-24 py-1"
+                          className="campo w-24"
                           min="0"
                           step="any"
                           value={sel.precio_unitario}
@@ -527,10 +527,10 @@ const Proveedores = () => {
             </ul>
 
             <div className="grid sm:grid-cols-4 gap-2 items-end">
-              <label className="text-sm">
+              <label className="campo-label">
                 Tipo
                 <select
-                  className="input mt-1 w-full"
+                  className="campo"
                   value={itemNuevo.tipo_item}
                   onChange={(e) => setItemNuevo({ ...itemNuevo, tipo_item: e.target.value, id_item: '' })}
                 >
@@ -538,10 +538,10 @@ const Proveedores = () => {
                   <option value="producto">Producto</option>
                 </select>
               </label>
-              <label className="text-sm sm:col-span-2">
+              <label className="campo-label sm:col-span-2">
                 Ítem
                 <select
-                  className="input mt-1 w-full"
+                  className="campo"
                   value={itemNuevo.id_item}
                   onChange={(e) => setItemNuevo({ ...itemNuevo, id_item: e.target.value })}
                 >
@@ -556,11 +556,11 @@ const Proveedores = () => {
                   ))}
                 </select>
               </label>
-              <label className="text-sm">
+              <label className="campo-label">
                 Precio compra
                 <input
                   type="number"
-                  className="input mt-1 w-full"
+                  className="campo"
                   value={itemNuevo.precio_compra}
                   onChange={(e) => setItemNuevo({ ...itemNuevo, precio_compra: e.target.value })}
                 />
@@ -622,10 +622,10 @@ const Proveedores = () => {
                 ['whatsapp', 'WhatsApp'],
                 ['correo', 'Correo'],
               ].map(([key, label]) => (
-                <label key={key} className="block text-xs font-medium text-gray-600">
+                <label key={key} className="campo-label">
                   {label}
                   <input
-                    className="input mt-1 w-full text-sm"
+                    className="campo"
                     type="text"
                     value={form[key]}
                     onChange={(e) => setForm({ ...form, [key]: e.target.value })}
@@ -633,10 +633,10 @@ const Proveedores = () => {
                 </label>
               ))}
 
-              <label className="block text-xs font-medium text-gray-600">
+              <label className="campo-label">
                 Frecuencia de visita
                 <select
-                  className="input mt-1 w-full text-sm"
+                  className="campo"
                   value={form.frecuenciaVisita}
                   onChange={(e) =>
                     setForm({
@@ -657,7 +657,7 @@ const Proveedores = () => {
 
               {form.frecuenciaVisita === 'dias_fijos' && (
                 <div>
-                  <p className="text-xs font-medium text-gray-600 mb-1.5">Días de la semana</p>
+                  <p className="campo-label">Días de la semana</p>
                   <div className="flex flex-wrap gap-1.5">
                     {DIAS_SEMANA.map((d) => {
                       const on = (form.diasSemana || []).includes(d.id)
@@ -686,10 +686,10 @@ const Proveedores = () => {
                 </div>
               )}
 
-              <label className="block text-xs font-medium text-gray-600">
+              <label className="campo-label">
                 Tiempo de entrega
                 <select
-                  className="input mt-1 w-full text-sm"
+                  className="campo"
                   value={form.tiempo_entrega_dias}
                   onChange={(e) => setForm({ ...form, tiempo_entrega_dias: e.target.value })}
                 >
@@ -705,10 +705,10 @@ const Proveedores = () => {
                 </span>
               </label>
 
-              <label className="block text-xs font-medium text-gray-600">
+              <label className="campo-label">
                 Notas
                 <textarea
-                  className="input mt-1 w-full text-sm min-h-[4rem]"
+                  className="campo"
                   value={form.notas}
                   onChange={(e) => setForm({ ...form, notas: e.target.value })}
                 />

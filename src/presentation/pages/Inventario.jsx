@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { AlertTriangle, CheckCircle, Package, Plus, Loader2, Edit, Trash2, Search, X } from 'lucide-react'
+import { AlertTriangle, CheckCircle, Plus, Loader2, Edit, Trash2, Search, X } from 'lucide-react'
 import { useInventario } from '../hooks/useInventario'
 import VinculosProveedores from '../components/VinculosProveedores'
 import { proveedoresService } from '../../application/services/proveedoresService'
@@ -10,6 +10,7 @@ const Inventario = () => {
   const { insumos, loading, crearInsumo, editarInsumo, obtenerInsumos, obtenerInsumosBajoStock } = useInventario()
   const [searchParams, setSearchParams] = useSearchParams()
   const [searchTerm, setSearchTerm] = useState('')
+  const [filtroEstado, setFiltroEstado] = useState('total')
   
   // Leer parámetro de búsqueda de la URL al montar el componente
   useEffect(() => {
@@ -53,13 +54,6 @@ const Inventario = () => {
     'onzas_fluidas',
   ]
 
-  // Filtrar insumos
-  const filteredInsumos = insumos.filter((insumo) => {
-    const matchesSearch = insumo.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         insumo.descripcion?.toLowerCase().includes(searchTerm.toLowerCase())
-    return matchesSearch
-  })
-
   const getStatus = (insumo) => {
     const cantidadActual = parseFloat(insumo.cantidad_actual || 0)
     const cantidadMinima = parseFloat(insumo.cantidad_minima || 0)
@@ -68,6 +62,17 @@ const Inventario = () => {
     if (cantidadActual < cantidadMinima) return 'low'
     return 'ok'
   }
+
+  const filteredInsumos = insumos.filter((insumo) => {
+    const texto = searchTerm.toLowerCase()
+    const matchesSearch = insumo.nombre.toLowerCase().includes(texto) ||
+      insumo.descripcion?.toLowerCase().includes(texto)
+    const estado = getStatus(insumo)
+    const matchesEstado = filtroEstado === 'total'
+      || (filtroEstado === 'bajo' && estado === 'low')
+      || (filtroEstado === 'critico' && estado === 'critical')
+    return matchesSearch && matchesEstado
+  })
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -327,51 +332,38 @@ const Inventario = () => {
     }
   }
 
-  return (
-    <div className="space-y-6">
-      {/* Resumen */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-4">
-        <div className="rounded-xl border border-gray-200 bg-white px-2.5 py-2 sm:p-4">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="shrink-0 rounded-lg bg-marca-100 p-1.5 sm:p-2.5">
-              <Package className="w-4 h-4 sm:w-5 sm:h-5 text-marca-600" />
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-[11px] leading-tight text-gray-500 sm:text-sm">Total</p>
-              <p className="text-lg font-bold leading-tight text-gray-900 sm:text-2xl">{insumos.length}</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border border-gray-200 bg-white px-2.5 py-2 sm:p-4">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="shrink-0 rounded-lg bg-amber-100 p-1.5 sm:p-2.5">
-              <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600" />
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-[11px] leading-tight text-gray-500 sm:text-sm">Stock bajo</p>
-              <p className="text-lg font-bold leading-tight text-amber-600 sm:text-2xl">
-                {insumos.filter(i => getStatus(i) === 'low').length}
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border border-gray-200 bg-white px-2.5 py-2 sm:p-4">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="shrink-0 rounded-lg bg-red-100 p-1.5 sm:p-2.5">
-              <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-[11px] leading-tight text-gray-500 sm:text-sm">Crítico</p>
-              <p className="text-lg font-bold leading-tight text-red-600 sm:text-2xl">
-                {insumos.filter(i => getStatus(i) === 'critical').length}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+  const resumenInsumos = [
+    { id: 'total', label: 'Total', valor: insumos.length, color: 'text-gray-900' },
+    { id: 'bajo', label: 'Stock bajo', valor: insumos.filter((i) => getStatus(i) === 'low').length, color: 'text-amber-600' },
+    { id: 'critico', label: 'Crítico', valor: insumos.filter((i) => getStatus(i) === 'critical').length, color: 'text-red-600' },
+  ]
 
-      {/* Búsqueda y acciones */}
-      <div className="card">
+  return (
+    <div className="space-y-4">
+      <div className="card space-y-3 p-3 sm:p-4">
+        <div className="grid grid-cols-3 gap-1">
+          {resumenInsumos.map((item) => {
+            const activo = filtroEstado === item.id
+            return (
+              <button
+                key={item.id}
+                type="button"
+                aria-pressed={activo}
+                onClick={() => setFiltroEstado(item.id === 'total' || activo ? 'total' : item.id)}
+                className={`rounded-md border px-1 py-1 text-center transition-colors ${
+                  activo
+                    ? 'border-marca-500 bg-marca-50'
+                    : 'border-gray-200 bg-white hover:border-marca-300'
+                }`}
+              >
+                <span className={`block text-sm font-semibold tabular-nums leading-none ${item.color}`}>
+                  {item.valor}
+                </span>
+                <span className="mt-0.5 block text-[10px] leading-tight text-gray-500">{item.label}</span>
+              </button>
+            )
+          })}
+        </div>
         <div className="flex gap-2 items-center">
           <div className="relative min-w-0 flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -397,11 +389,6 @@ const Inventario = () => {
 
       {/* Lista de inventario */}
       <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">
-            Items de Inventario
-          </h2>
-        </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
@@ -412,7 +399,7 @@ const Inventario = () => {
           <ul className="md:hidden divide-y divide-gray-100">
             {filteredInsumos.length === 0 ? (
               <li className="py-8 text-center text-sm text-gray-500">
-                {searchTerm ? 'No se encontraron insumos' : 'No hay insumos registrados'}
+                {searchTerm || filtroEstado !== 'total' ? 'No se encontraron insumos' : 'No hay insumos registrados'}
               </li>
             ) : (
               filteredInsumos.map((item) => {
@@ -462,7 +449,7 @@ const Inventario = () => {
                 {filteredInsumos.length === 0 ? (
                   <tr>
                     <td colSpan="7" className="py-8 text-center text-gray-500">
-                      {searchTerm ? 'No se encontraron insumos' : 'No hay insumos registrados'}
+                      {searchTerm || filtroEstado !== 'total' ? 'No se encontraron insumos' : 'No hay insumos registrados'}
                     </td>
                   </tr>
                 ) : (

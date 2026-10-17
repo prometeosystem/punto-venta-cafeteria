@@ -98,7 +98,7 @@ const ModalAutorizacion = ({
 
           {requiereCodigo && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="campo-label">
                 Código de autorización
               </label>
               <input
@@ -111,7 +111,7 @@ const ModalAutorizacion = ({
                   setError('')
                 }}
                 onKeyDown={(e) => e.key === 'Enter' && confirmar()}
-                className="input-field w-full text-lg"
+                className="campo text-lg"
                 disabled={ocupado}
               />
             </div>

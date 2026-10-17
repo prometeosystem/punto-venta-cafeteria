@@ -680,7 +680,9 @@ const Dashboard = () => {
                 <th className="text-left py-3 px-4 font-semibold text-gray-900">Cliente</th>
                 <th className="text-center py-3 px-4 font-semibold text-gray-900">Productos</th>
                 <th className="text-center py-3 px-4 font-semibold text-gray-900" title="Descuento">Dto.</th>
-                <th className="text-center py-3 px-4 font-semibold text-gray-900" title="Propina">Prop.</th>
+                {!modoTienda && (
+                  <th className="text-center py-3 px-4 font-semibold text-gray-900" title="Propina">Prop.</th>
+                )}
                 <th className="text-left py-3 px-4 font-semibold text-gray-900">Método de pago</th>
                 <th className="text-right py-3 px-4 font-semibold text-gray-900">Total</th>
                 <th className="text-right py-3 px-4 font-semibold text-gray-900">Detalle</th>
@@ -689,13 +691,13 @@ const Dashboard = () => {
             <tbody>
               {ventas.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="py-8 text-center text-gray-500">
+                  <td colSpan={modoTienda ? 8 : 9} className="py-8 text-center text-gray-500">
                     No hay ventas hoy
                   </td>
                 </tr>
               ) : ventasFiltradas.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="py-8 text-center text-gray-500">
+                  <td colSpan={modoTienda ? 8 : 9} className="py-8 text-center text-gray-500">
                     No hay ventas que coincidan con la búsqueda o filtros
                   </td>
                 </tr>
@@ -729,6 +731,7 @@ const Dashboard = () => {
                         <span className="text-gray-300">—</span>
                       )}
                     </td>
+                    {!modoTienda && (
                     <td className="py-3 px-4 text-center">
                       {tienePropina(venta) ? (
                         <span
@@ -741,6 +744,7 @@ const Dashboard = () => {
                         <span className="text-gray-300">—</span>
                       )}
                     </td>
+                    )}
                     <td className="py-3 px-4 text-gray-700 capitalize">
                       {labelMetodoPago(venta.metodo_pago)}
                     </td>
@@ -871,7 +875,7 @@ const Dashboard = () => {
                         </p>
                       </div>
                     )}
-                    {(ventaDetalle.monto_propina != null && parseFloat(ventaDetalle.monto_propina) > 0) && (
+                    {!modoTienda && (ventaDetalle.monto_propina != null && parseFloat(ventaDetalle.monto_propina) > 0) && (
                       <div>
                         <p className="text-sm text-gray-600 mb-1">Propina</p>
                         <p className="font-medium text-marca-700">

@@ -43,7 +43,7 @@ const menuItems = [
   { path: '/mesas', icon: Armchair, label: 'Mesas', corto: 'Mesas' },
   { path: '/barista', icon: Coffee, label: 'Comandas', corto: 'Cocina' },
   { path: '/productos', icon: Package, label: 'Productos', corto: 'Prods.' },
-  { path: '/inventario', icon: Warehouse, label: 'Insumos', corto: 'Insumos' },
+  { path: '/inventario', icon: Warehouse, label: 'Inventario', corto: 'Invent.' },
   { path: '/proveedores', icon: Truck, label: 'Proveedores', corto: 'Provs.' },
   { path: '/devoluciones', icon: RotateCcw, label: 'Devoluciones', corto: 'Devs.' },
   { path: '/empleados', icon: UserIcon, label: 'Empleados', corto: 'Staff' },
