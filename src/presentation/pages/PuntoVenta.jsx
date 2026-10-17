@@ -2103,7 +2103,7 @@ const PuntoVenta = () => {
   }
 
   const productosMasVendidos = idsMasVendidos
-    .map((id) => catalogo.find((p) => p.id_producto === id && p.activo))
+    .map((id) => catalogo.find((p) => Number(p.id_producto) === Number(id) && (p.activo === 1 || p.activo === true)))
     .filter(Boolean)
 
   // Función para seleccionar producto desde búsqueda
@@ -2398,6 +2398,17 @@ const PuntoVenta = () => {
                   </div>
             )
           ) : verTodos ? (
+            <div className="space-y-3">
+              {productosMasVendidos.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5 px-0.5">
+                    Más vendidos
+                  </p>
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2">
+                    {productosMasVendidos.map((product) => renderProductTile(product))}
+                  </div>
+                </div>
+              )}
             <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2">
               <button
                 type="button"
@@ -2409,6 +2420,7 @@ const PuntoVenta = () => {
                 </span>
               </button>
               {catalogo.filter((p) => p.activo).map((product) => renderProductTile(product))}
+            </div>
             </div>
           ) : (
             <div className="space-y-3">

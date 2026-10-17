@@ -108,9 +108,6 @@ const Reportes = () => {
     setLoading(true)
     setLoadingGraficos(true)
     try {
-      const dataVentas = await obtenerVentas(fechaInicio, fechaFin)
-      setVentas(dataVentas || [])
-
       const inicio = new Date(`${fechaInicio}T12:00:00`)
       const fin = new Date(`${fechaFin}T12:00:00`)
       const dias = Math.max(1, Math.round((fin - inicio) / 86400000) + 1)
@@ -121,21 +118,24 @@ const Reportes = () => {
       const prevIniStr = prevInicio.toISOString().split('T')[0]
       const prevFinStr = prevFin.toISOString().split('T')[0]
 
-      const [ventasDia, productosData, propinasData, descuentosData, prevVentas, bajoStock, estadoRes, canceladas] = await Promise.all([
+      const [dataVentas, ventasDia, productosData, propinasData, descuentosData, prevDias, bajoStock, estadoRes, canceladas] = await Promise.all([
+        obtenerVentas(fechaInicio, fechaFin),
         obtenerVentasPorDia(fechaInicio, fechaFin),
         obtenerProductosMasVendidos(fechaInicio, fechaFin, 10),
         obtenerPropinasPorFecha(fechaInicio, fechaFin),
         obtenerDescuentosPorFecha(fechaInicio, fechaFin),
-        obtenerVentas(prevIniStr, prevFinStr).catch(() => []),
+        obtenerVentasPorDia(prevIniStr, prevFinStr).catch(() => []),
         inventarioService.obtenerInsumosBajoStock().catch(() => []),
         contabilidadService.estadoResultados(fechaInicio, fechaFin).catch(() => null),
         comandasService.obtenerComandas('cancelada').catch(() => []),
       ])
+      setVentas(dataVentas || [])
       setVentasPorDia(ventasDia || [])
       setProductosMasVendidos(productosData || [])
       setTotalPropinas(propinasData?.total_propinas ?? 0)
       setTotalDescuentos(descuentosData?.total_descuentos ?? 0)
-      setVentasPrevias(prevVentas || [])
+      const totalPrevio = (prevDias || []).reduce((sum, dia) => sum + parseFloat(dia.total_ventas || 0), 0)
+      setVentasPrevias([{ total: totalPrevio }])
       setStockCritico(Array.isArray(bajoStock) ? bajoStock.length : 0)
       setMargenPeriodo(estadoRes)
       const cancelEnPeriodo = (canceladas || []).filter((c) => {

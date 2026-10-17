@@ -139,7 +139,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     setHeaderAction({
-      label: 'Editar métricas',
+      label: 'Editar',
       onClick: () => setMostrarEditarMetricas(true),
     })
     return () => setHeaderAction(null)
@@ -156,40 +156,34 @@ const Dashboard = () => {
         ayerDate.setDate(ayerDate.getDate() - 1)
         const ayer = fechaCDMX(ayerDate)
 
-        const ventasHoy = await obtenerVentas(hoy, hoy).catch(() => [])
-        setVentas(ventasHoy || [])
-
-        const [propinasData, descuentosData, ventasAyerData] = await Promise.all([
-          obtenerPropinasPorFecha(hoy, hoy).catch(() => ({ total_propinas: 0 })),
-          obtenerDescuentosPorFecha(hoy, hoy).catch(() => ({ total_descuentos: 0 })),
-          obtenerVentas(ayer, ayer).catch(() => []),
-        ])
-        setTotalPropinas(propinasData?.total_propinas ?? 0)
-        setTotalDescuentos(descuentosData?.total_descuentos ?? 0)
-        setVentasAyer(ventasAyerData || [])
-
-        const [comandasActivas, comandasEnPreparacion, comandasCanceladas] = await Promise.all([
-          obtenerComandas('pendiente').catch(() => []),
-          obtenerComandas('en_preparacion').catch(() => []),
-          obtenerComandas('cancelada').catch(() => []),
-        ])
-        setComandas([...(comandasActivas || []), ...(comandasEnPreparacion || [])])
-        const cancelHoy = (comandasCanceladas || []).filter((c) => {
-          const f = String(c.fecha_creacion || c.fecha_actualizacion || '').slice(0, 10)
-          return f === hoy
-        })
-        setCancelaciones(cancelHoy.length)
-
         const fechaFin = new Date()
         const fechaInicio = new Date()
         fechaInicio.setDate(fechaInicio.getDate() - 7)
-        const ventasSemanaData = await obtenerVentasPorDia(
-          fechaInicio.toISOString().split('T')[0],
-          fechaFin.toISOString().split('T')[0]
-        )
-        setVentasSemana(ventasSemanaData || [])
-
-        const [productos30, productosHoy, bajoStock, estadoRes] = await Promise.all([
+        const [
+          ventasHoy,
+          propinasData,
+          descuentosData,
+          ventasAyerData,
+          comandasActivas,
+          comandasEnPreparacion,
+          comandasCanceladas,
+          ventasSemanaData,
+          productos30,
+          productosHoy,
+          bajoStock,
+          estadoRes,
+        ] = await Promise.all([
+          obtenerVentas(hoy, hoy).catch(() => []),
+          obtenerPropinasPorFecha(hoy, hoy).catch(() => ({ total_propinas: 0 })),
+          obtenerDescuentosPorFecha(hoy, hoy).catch(() => ({ total_descuentos: 0 })),
+          obtenerVentas(ayer, ayer).catch(() => []),
+          obtenerComandas('pendiente').catch(() => []),
+          obtenerComandas('en_preparacion').catch(() => []),
+          obtenerComandas('cancelada').catch(() => []),
+          obtenerVentasPorDia(
+            fechaInicio.toISOString().split('T')[0],
+            fechaFin.toISOString().split('T')[0]
+          ).catch(() => []),
           obtenerProductosMasVendidos(
             fechaCDMX(new Date(Date.now() - 30 * 86400000)),
             hoy,
@@ -199,6 +193,17 @@ const Dashboard = () => {
           inventarioService.obtenerInsumosBajoStock().catch(() => []),
           contabilidadService.estadoResultados(hoy, hoy).catch(() => null),
         ])
+        setVentas(ventasHoy || [])
+        setTotalPropinas(propinasData?.total_propinas ?? 0)
+        setTotalDescuentos(descuentosData?.total_descuentos ?? 0)
+        setVentasAyer(ventasAyerData || [])
+        setComandas([...(comandasActivas || []), ...(comandasEnPreparacion || [])])
+        const cancelHoy = (comandasCanceladas || []).filter((c) => {
+          const f = String(c.fecha_creacion || c.fecha_actualizacion || '').slice(0, 10)
+          return f === hoy
+        })
+        setCancelaciones(cancelHoy.length)
+        setVentasSemana(ventasSemanaData || [])
         setProductosMasVendidos(productos30 || [])
         setTopHoy(productosHoy || [])
         setStockCritico(Array.isArray(bajoStock) ? bajoStock.length : (bajoStock?.length || 0))
