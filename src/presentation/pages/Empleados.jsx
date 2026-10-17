@@ -50,6 +50,8 @@ const Empleados = () => {
     return empleado.activo === 1 || empleado.activo === true
   }
 
+  const puedeGestionar = (empleado) => !esSuperadmin(empleado) || esSuperadmin(usuarioActual)
+
   /**
    * Si el empleado olvidó su código, vuelve a 123456 y al entrar se le pide
    * elegir otro. Sin código no aparece en el login, así que esto también lo devuelve.
@@ -483,6 +485,47 @@ const Empleados = () => {
     }
   }
 
+  const botonesAccion = (employee) => (
+    <>
+      <button
+        type="button"
+        onClick={() => abrirModalEditar(employee)}
+        className="p-2 rounded-lg hover:bg-gray-100 transition-colors border border-gray-300"
+        title="Editar"
+      >
+        <Edit className="w-4 h-4 text-gray-600" />
+      </button>
+      <button
+        type="button"
+        onClick={() => handleCodigo(employee)}
+        className={`p-2 rounded-lg transition-colors border ${
+          employee.tiene_codigo
+            ? 'border-gray-300 hover:bg-gray-100 text-gray-600'
+            : 'border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-700'
+        }`}
+        title={
+          !employee.tiene_codigo
+            ? `Sin código. Restablecer a ${CODIGO_DEFAULT} para que vuelva al inicio`
+            : employee.debe_cambiar_codigo
+              ? `Tiene el código por defecto (${CODIGO_DEFAULT}) pendiente de cambiar`
+              : 'Restablecer código si lo olvidó'
+        }
+      >
+        <KeyRound className="w-4 h-4" />
+      </button>
+      {puedeDesactivar(employee) && (
+        <button
+          type="button"
+          onClick={() => handleEliminar(employee)}
+          className="p-2 rounded-lg hover:bg-red-100 transition-colors border border-gray-300"
+          title="Desactivar"
+        >
+          <Trash2 className="w-4 h-4 text-red-600" />
+        </button>
+      )}
+    </>
+  )
+
   return (
     <div className="space-y-6">
       {/* Estadísticas */}
@@ -522,11 +565,12 @@ const Empleados = () => {
           <button
             type="button"
             onClick={abrirModalCrear}
-            className="btn-primary shrink-0 flex h-[42px] w-[42px] items-center justify-center p-0"
-            aria-label="Nuevo empleado"
-            title="Nuevo empleado"
+            className="btn-primary flex h-[42px] w-[42px] shrink-0 items-center justify-center p-0 md:w-auto md:gap-2 md:px-4"
+            aria-label="Agregar empleado"
+            title="Agregar empleado"
           >
             <Plus className="w-5 h-5" />
+            <span className="hidden md:inline">Agregar</span>
           </button>
         </div>
       </div>
@@ -556,6 +600,11 @@ const Empleados = () => {
                           {getRolLabel(employee.rol)}
                         </span>
                       </span>
+                      {puedeGestionar(employee) && (
+                        <span className="flex shrink-0 items-center gap-1">
+                          {botonesAccion(employee)}
+                        </span>
+                      )}
                   </li>
                 )
               })
@@ -636,41 +685,11 @@ const Empleados = () => {
                         )}
                       </td>
                       <td className="py-3 px-4">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => abrirModalEditar(employee)}
-                            className="p-2 rounded-lg hover:bg-gray-100 transition-colors border border-gray-300"
-                            title="Editar"
-                          >
-                            <Edit className="w-4 h-4 text-gray-600" />
-                          </button>
-                          <button
-                            onClick={() => handleCodigo(employee)}
-                            className={`p-2 rounded-lg transition-colors border ${
-                              employee.tiene_codigo
-                                ? 'border-gray-300 hover:bg-gray-100 text-gray-600'
-                                : 'border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-700'
-                            }`}
-                            title={
-                              !employee.tiene_codigo
-                                ? `Sin código. Restablecer a ${CODIGO_DEFAULT} para que vuelva al inicio`
-                                : employee.debe_cambiar_codigo
-                                  ? `Tiene el código por defecto (${CODIGO_DEFAULT}) pendiente de cambiar`
-                                  : 'Restablecer código si lo olvidó'
-                            }
-                          >
-                            <KeyRound className="w-4 h-4" />
-                          </button>
-                          {puedeDesactivar(employee) && (
-                            <button
-                              onClick={() => handleEliminar(employee)}
-                              className="p-2 rounded-lg hover:bg-red-100 transition-colors border border-gray-300"
-                              title="Desactivar"
-                            >
-                              <Trash2 className="w-4 h-4 text-red-600" />
-                            </button>
-                          )}
-                        </div>
+                        {puedeGestionar(employee) && (
+                          <div className="flex items-center justify-end gap-1.5">
+                            {botonesAccion(employee)}
+                          </div>
+                        )}
                       </td>
                     </tr>
                   )
