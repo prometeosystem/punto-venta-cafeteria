@@ -207,12 +207,6 @@ const MovimientosCaja = () => {
 
   return (
     <div className="min-w-0 max-w-full space-y-4 lg:p-2 sm:space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <button onClick={abrirModal} className="btn-primary flex shrink-0 items-center justify-center gap-2">
-          <Plus className="h-4 w-4" /> Nuevo movimiento
-        </button>
-      </div>
-
       <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-3">
         <TarjetaResumen
           icono={ArrowDownLeft}
@@ -241,15 +235,20 @@ const MovimientosCaja = () => {
       </div>
 
       <div className="card min-w-0 !p-3 sm:!p-4">
-        <div className="mb-3 grid grid-cols-2 gap-2 sm:max-w-md">
-          <div className="min-w-0">
-            <label className="mb-1 block text-sm font-medium text-gray-700">Fecha inicio</label>
-            <input type="date" className="input" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} />
+        <div className="mb-3 flex flex-wrap items-end gap-2">
+          <div className="grid min-w-0 flex-1 basis-64 grid-cols-2 gap-2 sm:max-w-md">
+            <div className="min-w-0">
+              <label className="mb-1 block text-sm font-medium text-gray-700">Fecha inicio</label>
+              <input type="date" className="input" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} />
+            </div>
+            <div className="min-w-0">
+              <label className="mb-1 block text-sm font-medium text-gray-700">Fecha fin</label>
+              <input type="date" className="input" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} />
+            </div>
           </div>
-          <div className="min-w-0">
-            <label className="mb-1 block text-sm font-medium text-gray-700">Fecha fin</label>
-            <input type="date" className="input" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} />
-          </div>
+          <button type="button" onClick={abrirModal} className="btn-primary flex shrink-0 items-center justify-center gap-2">
+            <Plus className="h-4 w-4" /> Nuevo movimiento
+          </button>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="grid grid-cols-3 gap-1 rounded-lg bg-gray-100 p-1 sm:inline-grid">
