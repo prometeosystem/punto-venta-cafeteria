@@ -94,6 +94,8 @@ const Mesas = () => {
 
   const planoRef = useRef(null)
   const arrastre = useRef(null)
+  // Mesas creadas en esta edición. Cancelar las quita; Guardar las deja.
+  const mesasNuevas = useRef([])
 
   const elegirSeccion = (id) => {
     const valor = String(id || '')
@@ -180,11 +182,40 @@ const Mesas = () => {
   // ---- Modo Editar plano ----
 
   const entrarEdicion = () => {
+    mesasNuevas.current = []
     setBorrador(deLaSeccion(mesas).map((m) => ({ ...m })))
     setEditando(true)
   }
 
-  const cancelarEdicion = () => {
+  const cancelarEdicion = async () => {
+    const pendientes = [...mesasNuevas.current]
+    setFormMesa(null)
+    setGuardando(true)
+    const quitadas = []
+    let aviso = ''
+    for (const id of pendientes) {
+      try {
+        await mesaService.borrar(id)
+        quitadas.push(id)
+      } catch (error) {
+        aviso = extraerError(error, 'No se quitó una mesa nueva')
+        break
+      }
+    }
+    mesasNuevas.current = mesasNuevas.current.filter((id) => !quitadas.includes(id))
+    setBorrador((lista) => lista.filter((m) => !quitadas.includes(m.id_mesa)))
+    setGuardando(false)
+    if (aviso) {
+      Swal.fire({
+        position: 'top',
+        heightAuto: false,
+        icon: 'error',
+        title: 'No se canceló la edición',
+        text: aviso,
+        confirmButtonColor: 'rgb(var(--marca-500))',
+      })
+      return
+    }
     setEditando(false)
     setBorrador([])
     cargar()
@@ -201,6 +232,7 @@ const Mesas = () => {
     setGuardando(true)
     try {
       if (movidas.length) await mesaService.guardarPlano(movidas)
+      mesasNuevas.current = []
       setEditando(false)
       setBorrador([])
       await cargar()
@@ -295,9 +327,15 @@ const Mesas = () => {
     return { x: 50, y: 50 }
   }
 
+  const siguienteNumero = () => {
+    const numeros = new Map()
+    mesas.forEach((m) => numeros.set(m.id_mesa, Number(m.numero) || 0))
+    borrador.forEach((m) => numeros.set(m.id_mesa, Number(m.numero) || 0))
+    return Math.max(0, ...numeros.values()) + 1
+  }
+
   const nuevaMesa = () => {
-    const siguiente = mesas.reduce((max, m) => Math.max(max, m.numero), 0) + 1
-    setFormMesa({ numero: String(siguiente), capacidad: 4 })
+    setFormMesa({ numero: String(siguienteNumero()), capacidad: null })
   }
 
   const pedirNombreSeccion = (titulo, valor, confirmar) => Swal.fire({
@@ -358,6 +396,7 @@ const Mesas = () => {
     evento.preventDefault()
     const numero = parseInt(formMesa.numero, 10)
     if (!numero || numero < 1) return
+    if (!formMesa.id_mesa && !formMesa.capacidad) return
     setGuardando(true)
     try {
       if (formMesa.id_mesa) {
@@ -383,6 +422,7 @@ const Mesas = () => {
           id_seccion: Number(seccionId) || null,
         })
         setBorrador((lista) => [...lista, creada])
+        mesasNuevas.current.push(creada.id_mesa)
       }
       setFormMesa(null)
     } catch (error) {
@@ -411,6 +451,7 @@ const Mesas = () => {
     setGuardando(true)
     try {
       await mesaService.borrar(formMesa.id_mesa)
+      mesasNuevas.current = mesasNuevas.current.filter((id) => id !== formMesa.id_mesa)
       setBorrador((lista) => lista.filter((b) => b.id_mesa !== formMesa.id_mesa))
       setFormMesa(null)
     } catch (error) {
@@ -712,7 +753,7 @@ const Mesas = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={guardando || !parseInt(formMesa.numero, 10)}
+                  disabled={guardando || !parseInt(formMesa.numero, 10) || (!formMesa.id_mesa && !formMesa.capacidad)}
                   className="btn-primary w-full py-2.5 border-2 border-transparent disabled:opacity-50"
                 >
                   {guardando ? 'Guardando…' : 'Guardar'}
