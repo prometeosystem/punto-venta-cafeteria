@@ -261,7 +261,7 @@ const Login = () => {
             <div className="space-y-6">
               <div>
                 <h2 className="mt-2 text-3xl font-semibold tracking-tight text-white">
-                  Inicia sesión
+                  Inicia sesión - codigo: 123456
                 </h2>
                 <p className="mt-2 text-sm text-white/80">
                   Elige tu usuario e ingresa tu código.
