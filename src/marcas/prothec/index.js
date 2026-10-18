@@ -12,6 +12,7 @@ export default {
   logoTicket: null,
   logoTicketAncho: 0.5,
   avisoLogin: null,
+  tituloLogin: 'Inicia sesión - codigo: 123456',
   posConFotosPorDefecto: true,
 
   // Con otro prefijo la demo no pisa la sesión de otro sistema en el mismo dominio.
