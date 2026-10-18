@@ -40,11 +40,12 @@ const Empleados = () => {
   const visibles = usuarios.filter((user) => !esSuperadmin(user) || soyYo(user))
 
   /**
-   * Solo el superadministrador puede desactivar (el backend lo exige igual), y
-   * nadie puede desactivarse a sí mismo ni dejar al sistema sin superadmin.
+   * Administrador y superadministrador cambian el estado. Nadie se desactiva
+   * a sí mismo, y la cuenta de superadministrador no se apaga desde aquí.
    */
   const puedeCambiarEstado = (empleado) => {
-    if (!esSuperadmin(usuarioActual)) return false
+    const rol = usuarioActual?.rol
+    if (rol !== 'administrador' && rol !== 'superadministrador') return false
     if (soyYo(empleado)) return false
     if (esSuperadmin(empleado)) return false
     return true

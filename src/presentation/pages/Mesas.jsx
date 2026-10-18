@@ -410,23 +410,6 @@ const Mesas = () => {
 
   return (
     <div className="min-w-0 max-w-full space-y-3 lg:p-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <select
-          className="input h-9 w-auto min-w-[9rem] py-1"
-          value={seccionId}
-          disabled={editando}
-          onChange={(e) => elegirSeccion(e.target.value)}
-        >
-          {secciones.map((s) => (
-            <option key={s.id_seccion} value={s.id_seccion}>{s.nombre}</option>
-          ))}
-        </select>
-        {esAdmin && !editando && (
-          <button type="button" onClick={agregarSeccion} className="btn-outline flex items-center gap-2 !py-1.5">
-            <Plus className="h-4 w-4" /> Sección
-          </button>
-        )}
-      </div>
       <div className="flex flex-wrap items-center justify-between gap-2">
         {editando ? (
           <p className="text-sm text-gray-500">Arrastra las mesas. Toca una para cambiar su número o tipo.</p>
@@ -442,6 +425,22 @@ const Mesas = () => {
           </div>
         )}
 
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            className="input h-9 w-auto min-w-[9rem] py-1"
+            value={seccionId}
+            disabled={editando}
+            onChange={(e) => elegirSeccion(e.target.value)}
+          >
+            {secciones.map((s) => (
+              <option key={s.id_seccion} value={s.id_seccion}>{s.nombre}</option>
+            ))}
+          </select>
+          {esAdmin && !editando && (
+            <button type="button" onClick={agregarSeccion} className="btn-outline flex items-center gap-2 !py-1.5">
+              <Plus className="h-4 w-4" /> Sección
+            </button>
+          )}
         {esAdmin && (
           <div className="flex items-center gap-2">
             {editando ? (
@@ -468,6 +467,7 @@ const Mesas = () => {
             )}
           </div>
         )}
+        </div>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
