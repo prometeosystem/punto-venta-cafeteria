@@ -18,6 +18,11 @@ export const mesaService = {
     return response.data
   },
 
+  editarSeccion: async (idSeccion, nombre) => {
+    const response = await api.put(`/api/mesas/secciones/${idSeccion}`, { nombre })
+    return response.data
+  },
+
   crear: async (mesa) => {
     const response = await api.post('/api/mesas/', mesa)
     return response.data

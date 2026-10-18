@@ -300,17 +300,22 @@ const Mesas = () => {
     setFormMesa({ numero: String(siguiente), capacidad: 4 })
   }
 
+  const pedirNombreSeccion = (titulo, valor, confirmar) => Swal.fire({
+    position: 'top',
+    heightAuto: false,
+    title: titulo,
+    input: 'text',
+    inputValue: valor,
+    inputPlaceholder: 'Terraza, piso 2, jardín…',
+    showCancelButton: true,
+    confirmButtonText: confirmar,
+    cancelButtonText: 'Cancelar',
+    confirmButtonColor: 'rgb(var(--marca-500))',
+    inputValidator: (texto) => (texto?.trim() ? undefined : 'Escribe un nombre'),
+  })
+
   const agregarSeccion = async () => {
-    const { value, isConfirmed } = await Swal.fire({
-      title: 'Nueva sección',
-      input: 'text',
-      inputPlaceholder: 'Terraza, piso 2, jardín…',
-      showCancelButton: true,
-      confirmButtonText: 'Agregar',
-      cancelButtonText: 'Cancelar',
-      confirmButtonColor: 'rgb(var(--marca-500))',
-      inputValidator: (texto) => (texto?.trim() ? undefined : 'Escribe un nombre'),
-    })
+    const { value, isConfirmed } = await pedirNombreSeccion('Nueva sección', '', 'Agregar')
     if (!isConfirmed || !value?.trim()) return
     try {
       const creada = await mesaService.crearSeccion(value.trim())
@@ -318,8 +323,31 @@ const Mesas = () => {
       await cargar()
     } catch (error) {
       Swal.fire({
+        position: 'top',
+        heightAuto: false,
         icon: 'error',
         title: 'No se agregó la sección',
+        text: extraerError(error, 'Intenta de nuevo'),
+        confirmButtonColor: 'rgb(var(--marca-500))',
+      })
+    }
+  }
+
+  const renombrarSeccion = async () => {
+    const actual = secciones.find((s) => String(s.id_seccion) === String(seccionId))
+    if (!actual) return
+    const { value, isConfirmed } = await pedirNombreSeccion('Nombre de la sección', actual.nombre, 'Guardar')
+    const nombre = value?.trim()
+    if (!isConfirmed || !nombre || nombre === actual.nombre) return
+    try {
+      await mesaService.editarSeccion(actual.id_seccion, nombre)
+      await cargar()
+    } catch (error) {
+      Swal.fire({
+        position: 'top',
+        heightAuto: false,
+        icon: 'error',
+        title: 'No se cambió el nombre',
         text: extraerError(error, 'Intenta de nuevo'),
         confirmButtonColor: 'rgb(var(--marca-500))',
       })
@@ -437,9 +465,19 @@ const Mesas = () => {
             ))}
           </select>
           {esAdmin && !editando && (
-            <button type="button" onClick={agregarSeccion} className="btn-outline flex items-center gap-2 !py-1.5">
-              <Plus className="h-4 w-4" /> Sección
-            </button>
+            <>
+              <button type="button" onClick={agregarSeccion} className="btn-outline flex items-center gap-2 !py-1.5">
+                <Plus className="h-4 w-4" /> Sección
+              </button>
+              <button
+                type="button"
+                onClick={renombrarSeccion}
+                disabled={!seccionId}
+                className="btn-outline flex items-center gap-2 !py-1.5 disabled:opacity-50"
+              >
+                <Pencil className="h-4 w-4" /> Nombre
+              </button>
+            </>
           )}
         {esAdmin && (
           <div className="flex items-center gap-2">
