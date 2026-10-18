@@ -4,6 +4,7 @@ import { Pencil, Plus, Save, X, Loader2, Trash2, Clock, Receipt, UtensilsCrossed
 import Swal from 'sweetalert2'
 import { mesaService } from '../../application/services/mesaService'
 import { comandasService } from '../../application/services/comandasService'
+import { claveBase } from '../utils/almacenLocal'
 import { useAuth } from '../context/AuthContext'
 import { isAdmin, puedeCobrar } from '../utils/rolePermissions'
 import DibujoMesa from '../components/DibujoMesa'
@@ -52,6 +53,15 @@ const textoTiempo = (min) => {
   return `${Math.floor(min / 60)} h ${min % 60} min`
 }
 
+// Verde hasta 10 min, ámbar hasta 20 y rojo después: es la espera de la comida, no la de la mesa.
+const colorEsperaComida = (min) => {
+  if (min >= 20) return 'bg-red-100 text-red-700'
+  if (min >= 10) return 'bg-amber-100 text-amber-800'
+  return 'bg-emerald-100 text-emerald-700'
+}
+
+const CLAVE_SECCION = claveBase('mesas-seccion')
+
 // Medio ancho y medio alto de la mesa en % del plano, para que no se salga al arrastrar
 const mitades = (capacidad) => {
   const { w, h } = formaMesa(capacidad)
@@ -70,6 +80,8 @@ const Mesas = () => {
   const cobra = puedeCobrar(usuario?.rol)
 
   const [mesas, setMesas] = useState([])
+  const [secciones, setSecciones] = useState([])
+  const [seccionId, setSeccionId] = useState(() => localStorage.getItem(CLAVE_SECCION) || '')
   const [cargando, setCargando] = useState(true)
   const [editando, setEditando] = useState(false)
   const [borrador, setBorrador] = useState([])
@@ -83,9 +95,27 @@ const Mesas = () => {
   const planoRef = useRef(null)
   const arrastre = useRef(null)
 
+  const elegirSeccion = (id) => {
+    const valor = String(id || '')
+    if (valor) localStorage.setItem(CLAVE_SECCION, valor)
+    setSeccionId(valor)
+  }
+
   const cargar = useCallback(async () => {
     try {
-      const data = await mesaService.listar()
+      const [data, zonas] = await Promise.all([
+        mesaService.listar(),
+        mesaService.listarSecciones(),
+      ])
+      const listaZonas = Array.isArray(zonas) ? zonas : []
+      setSecciones(listaZonas)
+      setSeccionId((actual) => {
+        const guardada = actual || localStorage.getItem(CLAVE_SECCION) || ''
+        const existe = listaZonas.some((z) => String(z.id_seccion) === String(guardada))
+        const siguiente = existe ? String(guardada) : String(listaZonas[0]?.id_seccion || '')
+        if (siguiente) localStorage.setItem(CLAVE_SECCION, siguiente)
+        return siguiente
+      })
       setMesas(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('Error al cargar mesas:', error)
@@ -116,9 +146,10 @@ const Mesas = () => {
     return () => clearInterval(id)
   }, [])
 
-  const visibles = editando ? borrador : mesas
+  const deLaSeccion = (lista) => lista.filter((m) => !seccionId || String(m.id_seccion) === String(seccionId))
+  const visibles = deLaSeccion(editando ? borrador : mesas)
   const conteo = ESTADOS.reduce((acc, e) => ({ ...acc, [e.id]: 0 }), {})
-  mesas.forEach((m) => { conteo[estadoDeMesa(m)] += 1 })
+  visibles.forEach((m) => { conteo[estadoDeMesa(m)] += 1 })
 
   // ---- Servicio: abrir o continuar la cuenta de una mesa ----
 
@@ -149,7 +180,7 @@ const Mesas = () => {
   // ---- Modo Editar plano ----
 
   const entrarEdicion = () => {
-    setBorrador(mesas.map((m) => ({ ...m })))
+    setBorrador(deLaSeccion(mesas).map((m) => ({ ...m })))
     setEditando(true)
   }
 
@@ -265,8 +296,34 @@ const Mesas = () => {
   }
 
   const nuevaMesa = () => {
-    const siguiente = borrador.reduce((max, m) => Math.max(max, m.numero), 0) + 1
+    const siguiente = mesas.reduce((max, m) => Math.max(max, m.numero), 0) + 1
     setFormMesa({ numero: String(siguiente), capacidad: 4 })
+  }
+
+  const agregarSeccion = async () => {
+    const { value, isConfirmed } = await Swal.fire({
+      title: 'Nueva sección',
+      input: 'text',
+      inputPlaceholder: 'Terraza, piso 2, jardín…',
+      showCancelButton: true,
+      confirmButtonText: 'Agregar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: 'rgb(var(--marca-500))',
+      inputValidator: (texto) => (texto?.trim() ? undefined : 'Escribe un nombre'),
+    })
+    if (!isConfirmed || !value?.trim()) return
+    try {
+      const creada = await mesaService.crearSeccion(value.trim())
+      elegirSeccion(creada.id_seccion)
+      await cargar()
+    } catch (error) {
+      Swal.fire({
+        icon: 'error',
+        title: 'No se agregó la sección',
+        text: extraerError(error, 'Intenta de nuevo'),
+        confirmButtonColor: 'rgb(var(--marca-500))',
+      })
+    }
   }
 
   const guardarFormMesa = async (evento) => {
@@ -290,7 +347,13 @@ const Mesas = () => {
           : b)))
       } else {
         const lugar = lugarLibre(formMesa.capacidad)
-        const creada = await mesaService.crear({ numero, capacidad: formMesa.capacidad, pos_x: lugar.x, pos_y: lugar.y })
+        const creada = await mesaService.crear({
+          numero,
+          capacidad: formMesa.capacidad,
+          pos_x: lugar.x,
+          pos_y: lugar.y,
+          id_seccion: Number(seccionId) || null,
+        })
         setBorrador((lista) => [...lista, creada])
       }
       setFormMesa(null)
@@ -347,6 +410,23 @@ const Mesas = () => {
 
   return (
     <div className="min-w-0 max-w-full space-y-3 lg:p-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          className="input h-9 w-auto min-w-[9rem] py-1"
+          value={seccionId}
+          disabled={editando}
+          onChange={(e) => elegirSeccion(e.target.value)}
+        >
+          {secciones.map((s) => (
+            <option key={s.id_seccion} value={s.id_seccion}>{s.nombre}</option>
+          ))}
+        </select>
+        {esAdmin && !editando && (
+          <button type="button" onClick={agregarSeccion} className="btn-outline flex items-center gap-2 !py-1.5">
+            <Plus className="h-4 w-4" /> Sección
+          </button>
+        )}
+      </div>
       <div className="flex flex-wrap items-center justify-between gap-2">
         {editando ? (
           <p className="text-sm text-gray-500">Arrastra las mesas. Toca una para cambiar su número o tipo.</p>
@@ -407,7 +487,7 @@ const Mesas = () => {
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-gray-400">
               <UtensilsCrossed className="h-8 w-8" />
               <p className="text-sm">
-                {esAdmin ? 'Aún no hay mesas. Entra a Editar plano para agregarlas.' : 'Aún no hay mesas en el plano.'}
+                {esAdmin ? 'Aún no hay mesas en esta sección. Entra a Editar plano para agregarlas.' : 'Aún no hay mesas en esta sección.'}
               </p>
             </div>
           )}
@@ -416,6 +496,7 @@ const Mesas = () => {
             const forma = formaMesa(mesa.capacidad)
             const estado = estadoDeMesa(mesa)
             const min = minutosDesde(mesa.cuenta?.abierta_desde)
+            const esperaComida = minutosDesde(mesa.cuenta?.comida_desde)
             return (
               <button
                 key={mesa.id_mesa}
@@ -437,10 +518,15 @@ const Mesas = () => {
               >
                 <DibujoMesa capacidad={mesa.capacidad} numero={mesa.numero} estado={estado} />
                 {!editando && mesa.cuenta && (
-                  <span
-                    className={`absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${ETIQUETA_ESTADO[estado]}`}
-                  >
-                    {dinero(mesa.cuenta.total)}{min != null ? ` · ${textoTiempo(min)}` : ''}
+                  <span className="absolute left-1/2 top-full mt-1 flex -translate-x-1/2 flex-col items-center gap-0.5">
+                    <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${ETIQUETA_ESTADO[estado]}`}>
+                      {dinero(mesa.cuenta.total)}{min != null ? ` · ${textoTiempo(min)}` : ''}
+                    </span>
+                    {esperaComida != null && (
+                      <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${colorEsperaComida(esperaComida)}`}>
+                        Comida {textoTiempo(esperaComida)}
+                      </span>
+                    )}
                   </span>
                 )}
               </button>
@@ -472,6 +558,12 @@ const Mesas = () => {
                 <Clock className="h-4 w-4" />
                 Abierta hace {textoTiempo(minutosDesde(cuentaDetalle.abierta_desde)) || '—'}
               </p>
+              {cuentaDetalle.comida_desde && (
+                <p className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-sm font-medium ${colorEsperaComida(minutosDesde(cuentaDetalle.comida_desde))}`}>
+                  <UtensilsCrossed className="h-4 w-4" />
+                  Esperando comida {textoTiempo(minutosDesde(cuentaDetalle.comida_desde))}
+                </p>
+              )}
 
               <div className="rounded-lg border border-gray-200 divide-y divide-gray-100">
                 {detalleComanda?.detalles?.length ? (

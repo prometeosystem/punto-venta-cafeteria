@@ -23,6 +23,12 @@ const conSeparadorMiles = (valor) => {
 
 const formInicial = { tipo: 'salida', id_categoria_movimiento: '', monto: '', concepto: '', proveedor: '' }
 
+const fechaISO = (fecha) => {
+  const mes = String(fecha.getMonth() + 1).padStart(2, '0')
+  const dia = String(fecha.getDate()).padStart(2, '0')
+  return `${fecha.getFullYear()}-${mes}-${dia}`
+}
+
 const FILTROS_TIPO = [
   { id: 'todos', label: 'Todos' },
   { id: 'entrada', label: 'Entradas' },
@@ -79,12 +85,14 @@ const MovimientosCaja = () => {
   const [totales, setTotales] = useState({ entradas: 0, salidas: 0, neto: 0 })
   const [filtroTipo, setFiltroTipo] = useState('todos')
   const [busqueda, setBusqueda] = useState('')
+  const [fechaInicio, setFechaInicio] = useState(() => fechaISO(new Date(new Date().getFullYear(), new Date().getMonth(), 1)))
+  const [fechaFin, setFechaFin] = useState(() => fechaISO(new Date()))
 
   const cargar = async () => {
     setLoading(true)
     try {
       const [movData, catData] = await Promise.all([
-        movimientoCajaService.listarMovimientos(),
+        movimientoCajaService.listarMovimientos({ fecha_desde: fechaInicio, fecha_hasta: fechaFin }),
         movimientoCajaService.listarCategorias(),
       ])
       setMovimientos(movData.movimientos || [])
@@ -97,7 +105,7 @@ const MovimientosCaja = () => {
     }
   }
 
-  useEffect(() => { cargar() }, [])
+  useEffect(() => { cargar() }, [fechaInicio, fechaFin])
 
   const conteo = useMemo(() => ({
     entrada: movimientos.filter((m) => m.tipo === 'entrada').length,
@@ -233,6 +241,16 @@ const MovimientosCaja = () => {
       </div>
 
       <div className="card min-w-0 !p-3 sm:!p-4">
+        <div className="mb-3 grid grid-cols-2 gap-2 sm:max-w-md">
+          <div className="min-w-0">
+            <label className="mb-1 block text-sm font-medium text-gray-700">Fecha inicio</label>
+            <input type="date" className="input" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} />
+          </div>
+          <div className="min-w-0">
+            <label className="mb-1 block text-sm font-medium text-gray-700">Fecha fin</label>
+            <input type="date" className="input" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} />
+          </div>
+        </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="grid grid-cols-3 gap-1 rounded-lg bg-gray-100 p-1 sm:inline-grid">
             {FILTROS_TIPO.map((f) => (

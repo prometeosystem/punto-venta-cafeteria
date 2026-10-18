@@ -8,6 +8,16 @@ export const mesaService = {
     return response.data
   },
 
+  listarSecciones: async () => {
+    const response = await api.get('/api/mesas/secciones')
+    return response.data
+  },
+
+  crearSeccion: async (nombre) => {
+    const response = await api.post('/api/mesas/secciones', { nombre })
+    return response.data
+  },
+
   crear: async (mesa) => {
     const response = await api.post('/api/mesas/', mesa)
     return response.data

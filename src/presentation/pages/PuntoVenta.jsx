@@ -5,6 +5,7 @@ import { useProductos } from '../hooks/useProductos'
 import { useVentas } from '../hooks/useVentas'
 import { useComandas } from '../hooks/useComandas'
 import { useAuth } from '../context/AuthContext'
+import { useNotifications } from '../context/NotificationContext'
 import { usePreferencias } from '../context/PreferenciasContext'
 import { productoDelModo } from '../utils/preferenciasUi'
 import { useCaja } from '../hooks/useCaja'
@@ -134,6 +135,8 @@ const mesasAbiertasGuardadas = () => {
 const PuntoVenta = () => {
   const navigate = useNavigate()
   const location = useLocation()
+  const { sonarAviso } = useNotifications()
+  const mesasPorCobrarVistas = useRef(null)
   const printer = usePrinterContext()
   const panelOrdenRef = useRef(null)
   const searchInputRef = useRef(null)
@@ -340,6 +343,12 @@ const PuntoVenta = () => {
     try {
       const data = await obtenerComandasTerminadasSinPagar()
       const lista = Array.isArray(data) ? data : []
+      const ids = new Set(lista.map((c) => c.id_comanda))
+      if (mesasPorCobrarVistas.current) {
+        const hayNueva = [...ids].some((id) => !mesasPorCobrarVistas.current.has(id))
+        if (hayNueva) sonarAviso()
+      }
+      mesasPorCobrarVistas.current = ids
       // Solo se pinta de nuevo si cambió una mesa. Si no, el catálogo no parpadea.
       setComandasTerminadasSinPagar((prev) =>
         firmaMesasAbiertas(prev) === firmaMesasAbiertas(lista) ? prev : lista

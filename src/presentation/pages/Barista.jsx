@@ -77,7 +77,7 @@ const Barista = () => {
     localStorage.setItem(CLAVE_AREA, id)
     setAreaElegida(id)
   }
-  const { addNotification } = useNotifications()
+  const { sonarAviso } = useNotifications()
   // El sondeo vive en un intervalo creado una sola vez: lee el área por ref
   const areaFiltroRef = useRef(areaFiltro)
   // null = todavía no hay referencia; la primera carga (o un cambio de área) no suena
@@ -100,18 +100,7 @@ const Barista = () => {
 
     const ids = comandasConNovedades(anteriores, actuales)
     if (ids.size === 0) return
-    const nuevas = lista.filter((c) => ids.has(c.id_comanda))
-    const unica = nuevas.length === 1 ? nuevas[0] : null
-    const nombre = unica?.pedido?.nombre_cliente || unica?.venta_nombre_cliente
-    addNotification({
-      tipo: 'comanda',
-      titulo: unica ? 'Nueva comanda' : `${nuevas.length} comandas nuevas`,
-      mensaje: unica
-        ? `Pedido #${unica.numero_dia ?? unica.id_comanda}${nombre ? ` · ${nombre}` : ''}`
-        : nuevas.map((c) => `#${c.numero_dia ?? c.id_comanda}`).join(', '),
-      accion: { tipo: 'navegar', ruta: '/barista' },
-      icono: 'package',
-    })
+    sonarAviso()
   }
   const [comandas, setComandas] = useState([])
   const [historial, setHistorial] = useState([])

@@ -11,7 +11,7 @@ export default {
   heroImagen: null,
   logoTicket: null,
   logoTicketAncho: 0.5,
-  avisoLogin: 'Demo abierta: todos los usuarios entran con el código 123456',
+  avisoLogin: null,
   posConFotosPorDefecto: true,
 
   // Con otro prefijo la demo no pisa la sesión de otro sistema en el mismo dominio.

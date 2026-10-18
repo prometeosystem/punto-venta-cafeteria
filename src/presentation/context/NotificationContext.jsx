@@ -372,86 +372,10 @@ export const NotificationProvider = ({ children }) => {
     }
   }, [playErrorSound, usuario, modoTienda])
 
-  // Escuchar eventos de creación de comandas
+  // Al terminar una comanda el inventario puede haber bajado. El aviso en pantalla no:
+  // el punto de venta y la cocina avisan con sonido cuando les aparece algo nuevo.
   useEffect(() => {
-    const handleComandaCreada = (event) => {
-      const { id_comanda, id_venta, ticket_id, numero_pedido_dia } = event.detail || {}
-      
-      if (id_comanda) {
-        const mensaje = numero_pedido_dia != null && numero_pedido_dia !== ''
-          ? `Venta #${id_venta} · Pedido del día #${numero_pedido_dia}`
-          : `Venta #${id_venta}`
-        addNotification({
-          tipo: 'comanda',
-          titulo: 'Nueva Comanda',
-          mensaje,
-          accion: {
-            tipo: 'navegar',
-            ruta: '/barista',
-            params: { id_comanda }
-          },
-          icono: 'package'
-        })
-      }
-    }
-
-    // Escuchar eventos personalizados
-    window.addEventListener('comanda-creada', handleComandaCreada)
-
-    return () => {
-      window.removeEventListener('comanda-creada', handleComandaCreada)
-    }
-  }, [addNotification])
-
-  // Escuchar cuando una comanda sin pagar se termina → notificar al Punto de Venta para cobrar
-  useEffect(() => {
-    const handleComandaListaParaCobrar = (event) => {
-      const { id_comanda, id_venta, numero_dia, nombre_cliente } = event.detail || {}
-      if (id_comanda != null || id_venta != null) {
-        const mensaje = numero_dia != null && numero_dia !== ''
-          ? `Pedido del día #${numero_dia}${nombre_cliente ? ` · ${nombre_cliente}` : ''} listo para cobrar`
-          : nombre_cliente
-            ? `${nombre_cliente} — listo para cobrar`
-            : 'Comanda lista para cobrar en Punto de Venta'
-        addNotification({
-          tipo: 'comanda-lista-cobrar',
-          titulo: 'Lista para cobrar',
-          mensaje,
-          accion: {
-            tipo: 'navegar',
-            ruta: '/punto-venta'
-          },
-          icono: 'dollar-sign'
-        })
-      }
-    }
-    window.addEventListener('comanda-lista-para-cobrar', handleComandaListaParaCobrar)
-    return () => {
-      window.removeEventListener('comanda-lista-para-cobrar', handleComandaListaParaCobrar)
-    }
-  }, [addNotification])
-
-  // Escuchar eventos de comanda terminada: toast (si ya está pagada) + verificar stock
-  useEffect(() => {
-    const handleComandaTerminada = (event) => {
-      const { numero_dia, nombre_cliente, venta_sin_pagar } = event.detail || {}
-
-      // Sin pagar ya tiene su propia notificación "Lista para cobrar"
-      if (!venta_sin_pagar) {
-        const mensaje = numero_dia != null && numero_dia !== ''
-          ? `Pedido del día #${numero_dia}${nombre_cliente ? ` · ${nombre_cliente}` : ''} listo para entregar`
-          : nombre_cliente
-            ? `${nombre_cliente} — listo para entregar`
-            : 'La comanda está lista para entregar'
-        addNotification({
-          tipo: 'comanda-terminada',
-          titulo: 'Comanda terminada',
-          mensaje,
-          icono: 'check'
-        })
-      }
-
-      // Esperar un pequeño delay para asegurar que el backend haya actualizado el inventario
+    const handleComandaTerminada = () => {
       setTimeout(() => {
         verificarInsumosStock()
       }, 500)
@@ -462,7 +386,7 @@ export const NotificationProvider = ({ children }) => {
     return () => {
       window.removeEventListener('comanda-terminada', handleComandaTerminada)
     }
-  }, [verificarInsumosStock, addNotification])
+  }, [verificarInsumosStock])
 
   const revisarAvisos = useCallback(async () => {
     if (!usuario) return
@@ -541,6 +465,7 @@ export const NotificationProvider = ({ children }) => {
     toastNotifications,
     unreadCount,
     addNotification,
+    sonarAviso: playNotificationSound,
     markAsRead,
     markAllAsRead,
     removeNotification,

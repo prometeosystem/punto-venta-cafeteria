@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Search, Mail, Phone, Users, Loader2, X, Edit, Trash2, KeyRound } from 'lucide-react'
+import { Plus, Search, Mail, Phone, Users, Loader2, X, Edit, KeyRound } from 'lucide-react'
 import { useUsuarios } from '../hooks/useUsuarios'
 import { useAuth } from '../context/AuthContext'
 import { usePreferencias } from '../context/PreferenciasContext'
@@ -43,11 +43,11 @@ const Empleados = () => {
    * Solo el superadministrador puede desactivar (el backend lo exige igual), y
    * nadie puede desactivarse a sí mismo ni dejar al sistema sin superadmin.
    */
-  const puedeDesactivar = (empleado) => {
+  const puedeCambiarEstado = (empleado) => {
     if (!esSuperadmin(usuarioActual)) return false
     if (soyYo(empleado)) return false
     if (esSuperadmin(empleado)) return false
-    return empleado.activo === 1 || empleado.activo === true
+    return true
   }
 
   const puedeGestionar = (empleado) => !esSuperadmin(empleado) || esSuperadmin(usuarioActual)
@@ -310,8 +310,8 @@ const Empleados = () => {
         dia,
         mes,
         rol: formData.rol,
-        activo: formData.activo,
       }
+      if (!empleadoEditando) empleadoData.activo = true
 
       // El código sólo viaja al crear; al editar se cambia con la llave
       if (!empleadoEditando) {
@@ -403,85 +403,38 @@ const Empleados = () => {
     }
   }
 
-  // Eliminar empleado (desactivar)
-  const handleEliminar = async (empleado) => {
-    const result = await Swal.fire({
-      icon: 'warning',
-      title: '¿Desactivar empleado?',
-      text: `¿Estás seguro de que deseas desactivar a "${getFullName(empleado)}"?`,
-      showCancelButton: true,
-      confirmButtonText: 'Sí, desactivar',
-      cancelButtonText: 'Cancelar',
-      confirmButtonColor: 'rgb(var(--marca-500))',
-      cancelButtonColor: '#6b7280',
-    })
+  const estaActivo = (empleado) => empleado.activo === 1 || empleado.activo === true
 
-    if (result.isConfirmed) {
-      try {
+  const cambiarEstado = async (empleado) => {
+    const activo = estaActivo(empleado)
+    if (activo) {
+      const result = await Swal.fire({
+        icon: 'warning',
+        title: '¿Desactivar empleado?',
+        text: `¿Desactivar a "${getFullName(empleado)}"?`,
+        showCancelButton: true,
+        confirmButtonText: 'Sí, desactivar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: 'rgb(var(--marca-500))',
+        cancelButtonColor: '#6b7280',
+      })
+      if (!result.isConfirmed) return
+    }
+
+    try {
+      if (activo) {
         await eliminarUsuario(empleado.id_usuario)
-        await Swal.fire({
-          icon: 'success',
-          title: '¡Empleado desactivado!',
-          text: 'El empleado se ha desactivado correctamente',
-          confirmButtonColor: 'rgb(var(--marca-500))',
-          timer: 2000,
-        })
-        await obtenerUsuarios()
-      } catch (error) {
-        if (import.meta.env.DEV) {
-          console.error('Error al desactivar empleado:', error)
-        }
-        
-        // Extraer mensaje de error de diferentes formatos posibles
-        let errorMsg = 'Error al desactivar el empleado'
-        
-        // Manejar errores de validación 422 de FastAPI
-        if (error?.response?.data?.detail) {
-          const detail = error.response.data.detail
-          
-          if (Array.isArray(detail)) {
-            const errores = detail.map(err => {
-              const campo = err.loc ? err.loc.slice(1).join('.') : 'campo'
-              return `${campo}: ${err.msg}`
-            }).join('\n')
-            errorMsg = `Error de validación:\n${errores}`
-          } else if (typeof detail === 'string') {
-            errorMsg = detail
-          } else {
-            errorMsg = JSON.stringify(detail)
-          }
-        } else if (error?.detail) {
-          if (Array.isArray(error.detail)) {
-            const errores = error.detail.map(err => {
-              const campo = err.loc ? err.loc.slice(1).join('.') : 'campo'
-              return `${campo}: ${err.msg}`
-            }).join('\n')
-            errorMsg = `Error de validación:\n${errores}`
-          } else if (typeof error.detail === 'string') {
-            errorMsg = error.detail
-          } else {
-            errorMsg = JSON.stringify(error.detail)
-          }
-        } else if (error?.message) {
-          errorMsg = error.message
-        } else if (error?.error) {
-          errorMsg = error.error
-        } else if (typeof error === 'string') {
-          errorMsg = error
-        } else if (error?.response?.data?.error) {
-          errorMsg = error.response.data.error
-        } else if (error?.response?.data?.message) {
-          errorMsg = error.response.data.message
-        }
-        
-        await Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: errorMsg,
-          confirmButtonColor: 'rgb(var(--marca-500))',
-          width: '500px',
-        })
+      } else {
+        await editarUsuario(empleado.id_usuario, { activo: true })
       }
+    } catch (error) {
+      const detail = error?.response?.data?.detail || error?.detail || error?.message
+      await Swal.fire({
+        icon: 'error',
+        title: 'No se pudo cambiar el estado',
+        text: typeof detail === 'string' ? detail : 'Intenta de nuevo',
+        confirmButtonColor: 'rgb(var(--marca-500))',
+      })
     }
   }
 
@@ -513,14 +466,22 @@ const Empleados = () => {
       >
         <KeyRound className="w-4 h-4" />
       </button>
-      {puedeDesactivar(employee) && (
+      {puedeCambiarEstado(employee) && (
         <button
           type="button"
-          onClick={() => handleEliminar(employee)}
-          className="p-2 rounded-lg hover:bg-red-100 transition-colors border border-gray-300"
-          title="Desactivar"
+          role="switch"
+          aria-checked={estaActivo(employee)}
+          title={estaActivo(employee) ? 'Desactivar' : 'Activar'}
+          onClick={() => cambiarEstado(employee)}
+          className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+            estaActivo(employee) ? 'bg-marca-500' : 'bg-gray-300'
+          }`}
         >
-          <Trash2 className="w-4 h-4 text-red-600" />
+          <span
+            className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${
+              estaActivo(employee) ? 'left-5' : 'left-0.5'
+            }`}
+          />
         </button>
       )}
     </>
@@ -873,25 +834,6 @@ const Empleados = () => {
                   </select>
                 </div>
 
-                {/* Estado: solo al editar, para reactivar a alguien. Al crear siempre es activo. */}
-                {empleadoEditando && (
-                  <div>
-                    <label className="campo-label">
-                      Estado
-                    </label>
-                    <div className="flex items-center gap-4 mt-2">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={formData.activo}
-                          onChange={(e) => setFormData({ ...formData, activo: e.target.checked })}
-                          className="w-4 h-4 text-marca-600 rounded focus:ring-marca-500"
-                        />
-                        <span className="text-sm text-gray-700">Activo</span>
-                      </label>
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Botones */}
