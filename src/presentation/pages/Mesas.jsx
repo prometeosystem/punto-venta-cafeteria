@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Pencil, Plus, Save, X, Loader2, Trash2, Clock, Receipt, UtensilsCrossed } from 'lucide-react'
+import { Pencil, Plus, Save, X, Loader2, Trash2, Clock, Receipt, UtensilsCrossed, Printer } from 'lucide-react'
 import Swal from 'sweetalert2'
 import { mesaService } from '../../application/services/mesaService'
 import { comandasService } from '../../application/services/comandasService'
 import { claveBase } from '../utils/almacenLocal'
 import { useAuth } from '../context/AuthContext'
+import { useNotifications } from '../context/NotificationContext'
 import { isAdmin, puedeCobrar } from '../utils/rolePermissions'
 import DibujoMesa from '../components/DibujoMesa'
+import DividirCuentaModal from '../components/DividirCuentaModal'
 import { CAPACIDADES, estadoDeMesa, formaMesa } from '../utils/mesasPlano'
 
 // El plano mide 680 x 425 unidades, las mismas del dibujo de cada mesa, así
@@ -76,6 +78,7 @@ const extraerError = (error, porDefecto) =>
 const Mesas = () => {
   const navigate = useNavigate()
   const { usuario } = useAuth()
+  const { sonarAviso } = useNotifications()
   const esAdmin = isAdmin(usuario?.rol)
   const cobra = puedeCobrar(usuario?.rol)
 
@@ -88,6 +91,7 @@ const Mesas = () => {
   const [guardando, setGuardando] = useState(false)
   const [mesaDetalle, setMesaDetalle] = useState(null)
   const [detalleComanda, setDetalleComanda] = useState(null)
+  const [mostrarDivision, setMostrarDivision] = useState(false)
   // { id_mesa?, numero, capacidad } para el modal de alta/edición del modo plano
   const [formMesa, setFormMesa] = useState(null)
   const [, setReloj] = useState(0)
@@ -96,6 +100,7 @@ const Mesas = () => {
   const arrastre = useRef(null)
   // Mesas creadas en esta edición. Cancelar las quita; Guardar las deja.
   const mesasNuevas = useRef([])
+  const listasVistas = useRef(null)
 
   const elegirSeccion = (id) => {
     const valor = String(id || '')
@@ -118,13 +123,22 @@ const Mesas = () => {
         if (siguiente) localStorage.setItem(CLAVE_SECCION, siguiente)
         return siguiente
       })
-      setMesas(Array.isArray(data) ? data : [])
+      const lista = Array.isArray(data) ? data : []
+      const listas = new Set(
+        lista.filter((m) => estadoDeMesa(m) === 'cobrar').map((m) => m.cuenta.id_comanda)
+      )
+      if (listasVistas.current) {
+        const hayNueva = [...listas].some((id) => !listasVistas.current.has(id))
+        if (hayNueva) sonarAviso()
+      }
+      listasVistas.current = listas
+      setMesas(lista)
     } catch (error) {
       console.error('Error al cargar mesas:', error)
     } finally {
       setCargando(false)
     }
-  }, [])
+  }, [sonarAviso])
 
   useEffect(() => {
     cargar()
@@ -171,11 +185,59 @@ const Mesas = () => {
     }
     setMesaDetalle(mesa)
     setDetalleComanda(null)
+    setMostrarDivision(false)
     if (mesa.cuenta.id_comanda) {
       comandasService
         .obtenerComanda(mesa.cuenta.id_comanda)
         .then((comanda) => setDetalleComanda(comanda && !comanda.error ? comanda : null))
         .catch(() => setDetalleComanda(null))
+    }
+  }
+
+  const avisarEnCaja = async (division = null) => {
+    const id = mesaDetalle?.cuenta?.id_comanda
+    if (!id) return
+    try {
+      await comandasService.solicitarCuenta(id, division)
+      setMostrarDivision(false)
+      await Swal.fire({
+        icon: 'success',
+        title: 'Se avisó en caja',
+        text: 'Cuando llegues, el ticket ya va a estar listo.',
+        position: 'top',
+        heightAuto: false,
+        timer: 2000,
+        showConfirmButton: false,
+      })
+    } catch (error) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'No se pudo avisar',
+        text: extraerError(error, 'Intenta de nuevo'),
+        position: 'top',
+        heightAuto: false,
+        confirmButtonColor: 'rgb(var(--marca-500))',
+      })
+    }
+  }
+
+  const cuentaParaDividir = () => {
+    const detalles = detalleComanda?.detalles
+    if (!detalles?.length) return null
+    const items = detalles.map((d) => ({
+      nombre: d.producto_nombre || d.nombre_producto || 'Producto',
+      quantity: Number(d.cantidad) || 1,
+      precio: parseFloat(d.precio_unitario) || 0,
+      observaciones: d.observaciones || '',
+    }))
+    const subtotal = items.reduce((sum, item) => sum + item.precio * item.quantity, 0)
+    return {
+      items,
+      subtotal,
+      descuento: 0,
+      propina: 0,
+      total: subtotal,
+      precioUnitario: (item) => parseFloat(item.precio) || 0,
     }
   }
 
@@ -616,7 +678,7 @@ const Mesas = () => {
 
       {/* Detalle de una mesa ocupada */}
       {mesaDetalle && cuentaDetalle && (
-        <div className={OVERLAY_MODAL} onClick={() => setMesaDetalle(null)}>
+        <div className={OVERLAY_MODAL} onClick={() => { setMesaDetalle(null); setMostrarDivision(false) }}>
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full mt-4" onClick={(e) => e.stopPropagation()}>
             <div className="p-4 space-y-3">
               <div className="flex items-center gap-2">
@@ -625,7 +687,7 @@ const Mesas = () => {
                   {estadoDetalle === 'cobrar' ? 'Para cobrar' : 'En cocina'}
                 </span>
                 <button
-                  onClick={() => setMesaDetalle(null)}
+                  onClick={() => { setMesaDetalle(null); setMostrarDivision(false) }}
                   className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100"
                   aria-label="Cerrar"
                 >
@@ -663,26 +725,56 @@ const Mesas = () => {
                 </div>
               </div>
 
-              <div className={`grid gap-2 pt-1 ${cobra && estadoDetalle === 'cobrar' ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                <button
-                  onClick={() => navigate('/punto-venta', { state: { editarComandaId: cuentaDetalle.id_comanda } })}
-                  disabled={!cuentaDetalle.id_comanda}
-                  className="btn-outline flex items-center justify-center gap-2 whitespace-nowrap"
-                >
-                  <Plus className="h-4 w-4 shrink-0" /> Agregar productos
-                </button>
-                {cobra && estadoDetalle === 'cobrar' && (
+              <div className="flex flex-col gap-2 pt-1">
+                <div className={`grid gap-2 ${cobra && estadoDetalle === 'cobrar' ? 'grid-cols-2' : 'grid-cols-1'}`}>
                   <button
-                    onClick={() => navigate('/punto-venta', { state: { cobrarComandaId: cuentaDetalle.id_comanda } })}
-                    className="btn-primary flex items-center justify-center gap-2"
+                    onClick={() => navigate('/punto-venta', { state: { editarComandaId: cuentaDetalle.id_comanda } })}
+                    disabled={!cuentaDetalle.id_comanda}
+                    className="btn-primary flex items-center justify-center gap-2 whitespace-nowrap shadow-sm disabled:opacity-50"
                   >
-                    <Receipt className="h-4 w-4" /> Cobrar
+                    <Plus className="h-4 w-4 shrink-0" /> Agregar productos
                   </button>
+                  {cobra && estadoDetalle === 'cobrar' && (
+                    <button
+                      onClick={() => navigate('/punto-venta', { state: { cobrarComandaId: cuentaDetalle.id_comanda } })}
+                      className="btn-primary flex items-center justify-center gap-2 shadow-sm"
+                    >
+                      <Receipt className="h-4 w-4" /> Cobrar
+                    </button>
+                  )}
+                </div>
+                {estadoDetalle === 'cobrar' && cuentaDetalle.id_comanda && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => avisarEnCaja(null)}
+                      className="flex items-center justify-center gap-2 rounded-lg border-2 border-amber-400 bg-amber-50 px-3 py-2.5 text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-100"
+                    >
+                      <Printer className="h-4 w-4 shrink-0" /> Imprimir cuenta
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMostrarDivision(true)}
+                      disabled={!detalleComanda?.detalles?.length}
+                      className="flex items-center justify-center gap-2 rounded-lg border-2 border-gray-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:border-gray-400 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      Dividir cuenta
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
           </div>
         </div>
+      )}
+
+      {mostrarDivision && cuentaParaDividir() && (
+        <DividirCuentaModal
+          cuenta={cuentaParaDividir()}
+          textoAccion="Enviar cuenta"
+          onClose={() => setMostrarDivision(false)}
+          onImprimir={(division) => avisarEnCaja(division)}
+        />
       )}
 
       {/* Alta y edición de una mesa (modo plano) */}
@@ -721,7 +813,7 @@ const Mesas = () => {
                       >
                         <span className="flex h-12 w-full items-center justify-center">
                           <span className="h-full" style={{ aspectRatio: `${formaMesa(c).w} / ${formaMesa(c).h}` }}>
-                            <DibujoMesa capacidad={c} numero="" estado={activa ? 'cocina' : 'libre'} />
+                            <DibujoMesa capacidad={c} numero="" estado="libre" />
                           </span>
                         </span>
                         {NOMBRE_TIPO[c]}

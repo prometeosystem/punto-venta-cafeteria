@@ -146,6 +146,33 @@ export const NotificationProvider = ({ children }) => {
       }
   }, [])
 
+  // Campanada corta, distinta del aviso de una orden nueva.
+  const playTicketSound = useCallback(() => {
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)()
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().catch(() => {})
+      }
+      const ahora = audioContext.currentTime
+      ;[880, 1318.5].forEach((frecuencia, i) => {
+        const osc = audioContext.createOscillator()
+        const ganancia = audioContext.createGain()
+        const inicio = ahora + i * 0.22
+        osc.type = 'triangle'
+        osc.frequency.value = frecuencia
+        ganancia.gain.setValueAtTime(0, inicio)
+        ganancia.gain.linearRampToValueAtTime(0.28, inicio + 0.02)
+        ganancia.gain.exponentialRampToValueAtTime(0.01, inicio + 0.28)
+        osc.connect(ganancia)
+        ganancia.connect(audioContext.destination)
+        osc.start(inicio)
+        osc.stop(inicio + 0.3)
+      })
+    } catch {
+      // El navegador puede bloquear el audio hasta que haya un gesto.
+    }
+  }, [])
+
   // Reproducir sonido de error/alerta (Batería Baja iPhone - Auténtico: tres tonos descendentes)
   const playErrorSound = useCallback(() => {
     try {
@@ -466,6 +493,7 @@ export const NotificationProvider = ({ children }) => {
     unreadCount,
     addNotification,
     sonarAviso: playNotificationSound,
+    sonarTicket: playTicketSound,
     markAsRead,
     markAllAsRead,
     removeNotification,

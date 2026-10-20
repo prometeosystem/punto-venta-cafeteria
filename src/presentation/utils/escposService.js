@@ -270,6 +270,17 @@ export function generateCafeTicketBytes(ticket = {}, options = {}) {
     commands.push(EscPosCommands.BOLD_OFF)
   }
 
+  const partesIguales = ticket.division?.modo === 'iguales' ? ticket.division.partes || [] : []
+  if (partesIguales.length) {
+    commands.push(textToBytes(separator('-', width)))
+    commands.push(EscPosCommands.BOLD_ON)
+    commands.push(textToBytes('Partes iguales\n'))
+    commands.push(EscPosCommands.BOLD_OFF)
+    partesIguales.forEach((parte, i) => {
+      commands.push(textToBytes(linePair(`Parte ${i + 1} de ${partesIguales.length}`, formatMoney(parte.total), width)))
+    })
+  }
+
   if (ticket.comentarios) {
     commands.push(textToBytes(separator('-', width)))
     commands.push(textToBytes(`Notas: ${ticket.comentarios}\n`))

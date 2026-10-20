@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Printer } from 'lucide-react'
+import { Printer, Send } from 'lucide-react'
 import { itemsDesdeCarrito } from '../utils/imprimirTicket'
 import { repartirProporcional } from '../utils/cuentaTicket'
 
@@ -24,7 +24,8 @@ const money = (n) => `$${(Number(n) || 0).toFixed(2)}`
  * `cuenta` trae lo que ya calcula el punto de venta: items del carrito,
  * subtotal, descuento, propina, total y `precioUnitario(item)` con extras.
  */
-const DividirCuentaModal = ({ cuenta, onImprimir, onClose }) => {
+const DividirCuentaModal = ({ cuenta, onImprimir, onClose, textoAccion = 'Imprimir cuenta' }) => {
+  const [forma, setForma] = useState(null)
   const [personas, setPersonas] = useState(2)
   const [otraCantidad, setOtraCantidad] = useState('')
   const [personaActiva, setPersonaActiva] = useState(0)
@@ -112,11 +113,162 @@ const DividirCuentaModal = ({ cuenta, onImprimir, onClose }) => {
     })
   }
 
-  const imprimir = () => onImprimir({ modo: 'productos', cuentas: armarCuentasPorProductos() })
+  const partesIguales = repartirProporcional(
+    cuenta.total,
+    Array.from({ length: personas }, () => 1)
+  )
 
-  const puedeImprimir = sinAsignar === 0 && unidades.length > 0
+  const imprimir = () => {
+    if (forma === 'iguales') {
+      onImprimir({ modo: 'iguales', partes: partesIguales.map((total) => ({ total })) })
+      return
+    }
+    onImprimir({ modo: 'productos', cuentas: armarCuentasPorProductos() })
+  }
+
+  const puedeImprimir = forma === 'iguales' || (sinAsignar === 0 && unidades.length > 0)
   const esOtra = !OPCIONES_PERSONAS.includes(personas)
   const colorActivo = colorDe(personaActiva)
+
+  const selectorPersonas = (
+    <div>
+      <p className="text-sm font-medium text-gray-700 mb-2">¿Entre cuántas personas?</p>
+      <div className="flex flex-wrap gap-2">
+        {OPCIONES_PERSONAS.map((n) => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => {
+              setOtraCantidad('')
+              cambiarPersonas(n)
+            }}
+            className={`w-12 h-12 rounded-lg border-2 text-lg font-semibold transition-colors ${
+              personas === n && !otraCantidad
+                ? 'border-marca-500 bg-marca-50 text-marca-700'
+                : 'border-gray-200 text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            {n}
+          </button>
+        ))}
+        <input
+          type="number"
+          inputMode="numeric"
+          min="2"
+          max={MAX_PERSONAS}
+          placeholder="Otro"
+          value={otraCantidad}
+          onChange={(e) => {
+            setOtraCantidad(e.target.value)
+            const n = parseInt(e.target.value, 10)
+            if (n >= 2 && n <= MAX_PERSONAS) cambiarPersonas(n)
+          }}
+          className={`w-20 h-12 px-2 rounded-lg border-2 text-center text-lg font-semibold focus:outline-none ${
+            esOtra || otraCantidad ? 'border-marca-500 bg-marca-50 text-marca-700' : 'border-gray-200'
+          }`}
+        />
+      </div>
+    </div>
+  )
+
+  const acciones = (
+    <div className="px-5 py-4 border-t border-gray-200 flex gap-3">
+      <button onClick={onClose} className="btn-outline flex-1">
+        Cancelar
+      </button>
+      <button
+        onClick={imprimir}
+        disabled={!puedeImprimir}
+        className="btn-primary flex-1 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {textoAccion === 'Imprimir cuenta' ? <Printer className="w-5 h-5" /> : <Send className="w-5 h-5" />}
+        {textoAccion}
+      </button>
+    </div>
+  )
+
+  if (!forma) {
+    return (
+      <div
+        className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center p-4 overflow-y-auto"
+        onClick={onClose}
+      >
+        <div
+          className="bg-white rounded-lg shadow-xl max-w-md w-full"
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="titulo-dividir"
+        >
+          <div className="px-5 py-4 space-y-3">
+            <h2 id="titulo-dividir" className="text-lg font-semibold text-gray-900">
+              ¿Cómo se divide la cuenta?
+            </h2>
+            <button
+              type="button"
+              onClick={() => setForma('iguales')}
+              className="w-full rounded-lg border-2 border-gray-200 px-4 py-3 text-left transition-colors hover:border-marca-500 hover:bg-marca-50"
+            >
+              <span className="block text-base font-semibold text-gray-900">En partes iguales</span>
+              <span className="block text-sm text-gray-500">El total se reparte entre las personas</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setForma('productos')}
+              className="w-full rounded-lg border-2 border-gray-200 px-4 py-3 text-left transition-colors hover:border-marca-500 hover:bg-marca-50"
+            >
+              <span className="block text-base font-semibold text-gray-900">Por productos</span>
+              <span className="block text-sm text-gray-500">Cada quien paga lo que pidió</span>
+            </button>
+          </div>
+          <div className="px-5 py-4 border-t border-gray-200">
+            <button onClick={onClose} className="btn-outline w-full">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (forma === 'iguales') {
+    return (
+      <div
+        className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center p-4 overflow-y-auto"
+        onClick={onClose}
+      >
+        <div
+          className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90dvh] flex flex-col"
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4">
+            <button
+              type="button"
+              onClick={() => setForma(null)}
+              className="text-sm font-medium text-gray-500 hover:text-gray-800"
+            >
+              Volver
+            </button>
+            {selectorPersonas}
+            <ul className="divide-y divide-gray-100 rounded-lg border border-gray-200">
+              {partesIguales.map((total, i) => (
+                <li key={i} className="flex items-center justify-between px-3 py-2.5 text-sm">
+                  <span className="font-medium text-gray-900">Persona {i + 1}</span>
+                  <span className="tabular-nums font-semibold text-gray-900">{money(total)}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-xs text-gray-500">
+              Si el total no da exacto, los centavos que sobran quedan en las primeras partes.
+            </p>
+          </div>
+          {acciones}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
@@ -130,44 +282,14 @@ const DividirCuentaModal = ({ cuenta, onImprimir, onClose }) => {
         aria-modal="true"
       >
         <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4">
-          <div>
-            <p className="text-sm font-medium text-gray-700 mb-2">¿Entre cuántas personas?</p>
-            <div className="flex flex-wrap gap-2">
-              {OPCIONES_PERSONAS.map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => {
-                    setOtraCantidad('')
-                    cambiarPersonas(n)
-                  }}
-                  className={`w-12 h-12 rounded-lg border-2 text-lg font-semibold transition-colors ${
-                    personas === n && !otraCantidad
-                      ? 'border-marca-500 bg-marca-50 text-marca-700'
-                      : 'border-gray-200 text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  {n}
-                </button>
-              ))}
-              <input
-                type="number"
-                inputMode="numeric"
-                min="2"
-                max={MAX_PERSONAS}
-                placeholder="Otro"
-                value={otraCantidad}
-                onChange={(e) => {
-                  setOtraCantidad(e.target.value)
-                  const n = parseInt(e.target.value, 10)
-                  if (n >= 2 && n <= MAX_PERSONAS) cambiarPersonas(n)
-                }}
-                className={`w-20 h-12 px-2 rounded-lg border-2 text-center text-lg font-semibold focus:outline-none ${
-                  esOtra || otraCantidad ? 'border-marca-500 bg-marca-50 text-marca-700' : 'border-gray-200'
-                }`}
-              />
-            </div>
-          </div>
+          <button
+            type="button"
+            onClick={() => setForma(null)}
+            className="text-sm font-medium text-gray-500 hover:text-gray-800"
+          >
+            Volver
+          </button>
+          {selectorPersonas}
 
           <div>
             <p className="text-xs text-gray-500 mb-2">Elige una persona y toca lo que pidió.</p>
@@ -260,19 +382,7 @@ const DividirCuentaModal = ({ cuenta, onImprimir, onClose }) => {
           </div>
         </div>
 
-        <div className="px-5 py-4 border-t border-gray-200 flex gap-3">
-          <button onClick={onClose} className="btn-outline flex-1">
-            Cancelar
-          </button>
-          <button
-            onClick={imprimir}
-            disabled={!puedeImprimir}
-            className="btn-primary flex-1 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Printer className="w-5 h-5" />
-            Imprimir cuenta
-          </button>
-        </div>
+        {acciones}
       </div>
     </div>
   )

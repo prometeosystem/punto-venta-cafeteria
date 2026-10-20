@@ -73,7 +73,7 @@ const seccionHtml = (seccion, esCuenta) => {
  * @param {number} [ticket.descuento]
  * @param {number} [ticket.propina]
  * @param {number} ticket.total
- * @param {Object} [ticket.division] { modo: 'productos', cuentas }: una sección por persona
+ * @param {Object} [ticket.division] productos: una sección por persona; iguales: el total partido
  */
 export function imprimirTicket(ticket) {
   const esCuenta = ticket.tipo === 'cuenta'
@@ -90,6 +90,15 @@ export function imprimirTicket(ticket) {
       ? `<div class="sep doble"></div>
   <table class="totals">${fila('TOTAL MESA', formatMoney(ticket.total), 'total-row')}</table>`
       : ''
+
+  const partesIguales = division?.modo === 'iguales' ? division.partes || [] : []
+  const cierreIguales = partesIguales.length
+    ? `<div class="sep"></div>
+  <div class="bold">Partes iguales</div>
+  <table class="totals">${partesIguales
+    .map((parte, i) => fila(`Parte ${i + 1} de ${partesIguales.length}`, formatMoney(parte.total)))
+    .join('')}</table>`
+    : ''
 
   const html = `<!DOCTYPE html>
 <html lang="es">
@@ -157,6 +166,7 @@ export function imprimirTicket(ticket) {
   <div class="sep"></div>
   ${cuerpo}
   ${cierreDivision}
+  ${cierreIguales}
   ${
     ticket.comentarios
       ? `<div class="sep"></div><div><span class="bold">Notas:</span> ${escapeHtml(ticket.comentarios)}</div>`

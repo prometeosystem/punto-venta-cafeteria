@@ -13,11 +13,13 @@ import { productosService } from '../../application/services/productosService'
 import { imprimirTicket, itemsDesdeCarrito } from '../utils/imprimirTicket'
 import { obtenerMetodosPagoActivos } from '../utils/metodosPagoConfig'
 import { obtenerImagenCacheada, obtenerPosConFotos, guardarPosConFotos } from '../utils/posVistaConfig'
+import { servicioDe } from '../utils/tipoServicio'
 import { API_BASE_URL } from '../../infrastructure/api'
 import { isAdmin, puedeCobrar } from '../utils/rolePermissions'
 import ModalAutorizacion from '../components/ModalAutorizacion'
 import BilletesEfectivo from '../components/BilletesEfectivo'
 import DividirCuentaModal from '../components/DividirCuentaModal'
+import { comandasService } from '../../application/services/comandasService'
 import { usePrinterContext } from '../context/PrinterContext'
 import {
   PROTEINA_SCOOP_PRECIO,
@@ -80,9 +82,20 @@ const opcionesDelProducto = (product) => {
 const OVERLAY_MODAL =
   'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center p-4 overflow-y-auto'
 
+const solicitudDe = (comanda) => {
+  const raw = comanda?.solicitud_cuenta
+  if (!raw) return null
+  if (typeof raw === 'object') return raw
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
 const firmaMesasAbiertas = (lista) =>
   (lista || [])
-    .map((c) => [c.id_comanda, c.total, c.venta_nombre_cliente, c.numero_dia, c.estado].join(':'))
+    .map((c) => [c.id_comanda, c.total, c.venta_nombre_cliente, c.numero_dia, c.estado, solicitudDe(c)?.en || ''].join(':'))
     .join('|')
 
 /**
@@ -116,6 +129,19 @@ const claseMetodoPago = (id, seleccionado) =>
       : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
   }`
 
+// Los mismos colores que la etiqueta de servicio en comandas: azul y morado.
+const COLORES_TIPO_SERVICIO = {
+  'comer-aqui': 'border-blue-500 bg-blue-50 text-blue-700',
+  'para-llevar': 'border-purple-500 bg-purple-50 text-purple-700',
+}
+
+const claseTipoServicio = (valor, seleccionado) =>
+  `border-2 text-sm transition-all inline-flex items-center justify-center gap-2 ${
+    seleccionado
+      ? `${COLORES_TIPO_SERVICIO[valor] || 'border-marca-500 bg-marca-50 text-marca-700'} font-medium`
+      : 'border-gray-200 text-gray-600 hover:border-gray-300'
+  }`
+
 const CLAVE_MESAS_ABIERTAS = clave('pos_mesas_abiertas')
 const CLAVE_VISTA_CATALOGO = clave('pos_vista')
 
@@ -135,8 +161,9 @@ const mesasAbiertasGuardadas = () => {
 const PuntoVenta = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { sonarAviso } = useNotifications()
+  const { sonarAviso, sonarTicket } = useNotifications()
   const mesasPorCobrarVistas = useRef(null)
+  const solicitudesVistas = useRef(null)
   const printer = usePrinterContext()
   const panelOrdenRef = useRef(null)
   const searchInputRef = useRef(null)
@@ -150,6 +177,7 @@ const PuntoVenta = () => {
   const [metodoPago, setMetodoPago] = useState(null)
   const [montoEfectivoPago, setMontoEfectivoPago] = useState('')
   const [montoTarjetaPago, setMontoTarjetaPago] = useState('')
+  const [referenciaPago, setReferenciaPago] = useState('')
   const [idCliente, setIdCliente] = useState(null)
   const [procesando, setProcesando] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -349,6 +377,19 @@ const PuntoVenta = () => {
         if (hayNueva) sonarAviso()
       }
       mesasPorCobrarVistas.current = ids
+      const avisos = new Map()
+      lista.forEach((c) => {
+        const en = solicitudDe(c)?.en
+        if (en) avisos.set(c.id_comanda, en)
+      })
+      if (solicitudesVistas.current) {
+        const hayPedido = [...avisos].some(([id, en]) => solicitudesVistas.current.get(id) !== en)
+        if (hayPedido) {
+          sonarTicket()
+          setMesasDesplegadas(true)
+        }
+      }
+      solicitudesVistas.current = avisos
       // Solo se pinta de nuevo si cambió una mesa. Si no, el catálogo no parpadea.
       setComandasTerminadasSinPagar((prev) =>
         firmaMesasAbiertas(prev) === firmaMesasAbiertas(lista) ? prev : lista
@@ -953,28 +994,36 @@ const PuntoVenta = () => {
     setMontoRecibido('')
     setMontoEfectivoPago('')
     setMontoTarjetaPago('')
+    setReferenciaPago('')
     setMostrarModalFinalizar(true)
+  }
+
+  const cerrarModalFinalizar = () => {
+    cobroExactoPendienteRef.current = false
+    setMostrarModalFinalizar(false)
+    setMetodoPago(null)
+    setMontoRecibido('')
+    setMontoEfectivoPago('')
+    setMontoTarjetaPago('')
+    setReferenciaPago('')
   }
 
   const alternarMetodoPago = (id) => {
     const combinable = id === 'efectivo' || id === 'tarjeta'
-    if (!combinable) {
-      setMetodoPago(id)
-      if (id === 'delivery' && !comandaTerminadaSeleccionada) setTipoServicio('para-llevar')
-      return
+    let siguiente = id
+    if (combinable) {
+      if (metodoPago === 'mixto') siguiente = id === 'efectivo' ? 'tarjeta' : 'efectivo'
+      else if (
+        (metodoPago === 'efectivo' && id === 'tarjeta') ||
+        (metodoPago === 'tarjeta' && id === 'efectivo')
+      ) siguiente = 'mixto'
     }
-    if (metodoPago === 'mixto') {
-      setMetodoPago(id === 'efectivo' ? 'tarjeta' : 'efectivo')
-      return
-    }
-    if (
-      (metodoPago === 'efectivo' && id === 'tarjeta') ||
-      (metodoPago === 'tarjeta' && id === 'efectivo')
-    ) {
-      setMetodoPago('mixto')
-      return
-    }
-    setMetodoPago(id)
+    const familia = (metodo) => (
+      metodo === 'tarjeta' || metodo === 'mixto' ? 'tarjeta' : metodo === 'delivery' ? 'delivery' : ''
+    )
+    if (familia(siguiente) !== familia(metodoPago)) setReferenciaPago('')
+    setMetodoPago(siguiente)
+    if (siguiente === 'delivery' && !comandaTerminadaSeleccionada) setTipoServicio('para-llevar')
   }
 
   const metodoSeleccionado = (id) =>
@@ -987,6 +1036,13 @@ const PuntoVenta = () => {
     const suma = (Number.isFinite(efectivo) ? efectivo : 0) + (Number.isFinite(tarjeta) ? tarjeta : 0)
     const valido = efectivo > 0 && tarjeta > 0 && Math.abs(suma - totalConPropina) < 0.02
     return { valido, efectivo, tarjeta, faltan: totalConPropina - suma }
+  }
+
+  const referenciaDelPago = () => {
+    const texto = referenciaPago.trim()
+    if (!texto) return null
+    if (metodoPago === 'tarjeta' || metodoPago === 'mixto' || metodoPago === 'delivery') return texto.slice(0, 40)
+    return null
   }
 
   const asignarPartePago = (campo, valor, totalConPropina) => {
@@ -1037,11 +1093,45 @@ const PuntoVenta = () => {
       division,
     }
 
-    await enviarTicketAImpresora(
+    return enviarTicketAImpresora(
       ticket,
       division ? 'Cuentas impresas' : 'Cuenta impresa',
       division ? 'Entrega a cada quien su parte.' : 'Entrégala al cliente.'
     )
+  }
+
+  const atenderSolicitudTicket = async (comanda) => {
+    const solicitud = solicitudDe(comanda)
+    if (!datosCuenta(comanda).items.length) return
+    const impresa = await imprimirCuenta(comanda, solicitud?.division || null)
+    if (!impresa) return
+    setComandasTerminadasSinPagar((prev) =>
+      prev.map((c) => (c.id_comanda === comanda.id_comanda ? { ...c, solicitud_cuenta: null } : c))
+    )
+    try {
+      await comandasService.quitarSolicitudCuenta(comanda.id_comanda)
+    } catch (error) {
+      console.error('Error al quitar la solicitud de cuenta:', error)
+      cargarComandasTerminadasSinPagar()
+    }
+  }
+
+  const divisionEnviada = () => {
+    const id = comandaTerminadaSeleccionada?.id_comanda
+    const fresca = comandasTerminadasSinPagar.find((c) => c.id_comanda === id) || comandaTerminadaSeleccionada
+    const division = solicitudDe(fresca)?.division
+    if (division?.modo === 'productos' && division.cuentas?.length) return division
+    if (division?.modo === 'iguales' && division.partes?.length) return division
+    return null
+  }
+
+  const abrirOImprimirDivision = () => {
+    const division = divisionEnviada()
+    if (division) {
+      imprimirCuenta(comandaTerminadaSeleccionada, division)
+      return
+    }
+    setMostrarDividirCuenta(true)
   }
 
   /** Productos y montos de la cuenta: de una comanda dada o de la orden en pantalla. */
@@ -1093,7 +1183,7 @@ const PuntoVenta = () => {
           timer: 1600,
           showConfirmButton: false,
         })
-        return
+        return true
       } catch (err) {
         console.error('Error impresión térmica:', err)
         const retry = await Swal.fire({
@@ -1105,7 +1195,7 @@ const PuntoVenta = () => {
           cancelButtonText: 'Cerrar',
           confirmButtonColor: 'rgb(var(--marca-500))',
         })
-        if (!retry.isConfirmed) return
+        if (!retry.isConfirmed) return false
       }
     }
 
@@ -1117,7 +1207,9 @@ const PuntoVenta = () => {
           text: printResult.error,
           confirmButtonColor: 'rgb(var(--marca-500))',
         })
+        return false
     }
+    return true
   }
 
   const verificarCajaParaCobro = async () => {
@@ -1184,6 +1276,7 @@ const PuntoVenta = () => {
           metodo_pago: metodoPago,
           monto_efectivo: metodoPago === 'mixto' ? partes.efectivo : undefined,
           monto_tarjeta: metodoPago === 'mixto' ? partes.tarjeta : undefined,
+          referencia_pago: referenciaDelPago() || undefined,
           tipo_servicio: tipoServicio || undefined,
           descuento_tipo: totalDescuento > 0 ? descuentoTipo : undefined,
           descuento_valor: totalDescuento > 0 ? descuentoValor : undefined,
@@ -1247,6 +1340,7 @@ const PuntoVenta = () => {
         metodo_pago: metodoPago,
         monto_efectivo: metodoPago === 'mixto' ? partes.efectivo : null,
         monto_tarjeta: metodoPago === 'mixto' ? partes.tarjeta : null,
+        referencia_pago: referenciaDelPago(),
         propina_monto: propinaACobrar > 0 ? propinaACobrar : null,
         tipo_servicio: tipoServicio,
         tipo_leche: null,
@@ -1529,6 +1623,7 @@ const PuntoVenta = () => {
         metodo_pago: metodoPago,
         monto_efectivo: metodoPago === 'mixto' ? partes.efectivo : undefined,
         monto_tarjeta: metodoPago === 'mixto' ? partes.tarjeta : undefined,
+        referencia_pago: referenciaDelPago() || undefined,
         tipo_servicio: tipoServicio || undefined,
         descuento_tipo: totalDescuento > 0 ? descuentoTipo : undefined,
         descuento_valor: totalDescuento > 0 ? descuentoValor : undefined,
@@ -2166,6 +2261,7 @@ const PuntoVenta = () => {
       setMontoRecibido('')
       setMontoEfectivoPago('')
       setMontoTarjetaPago('')
+      setReferenciaPago('')
       setMostrarModalFinalizar(true)
     }
 
@@ -2179,8 +2275,7 @@ const PuntoVenta = () => {
 
       if (e.key === 'Escape' && mostrarModalFinalizar) {
         e.preventDefault()
-        cobroExactoPendienteRef.current = false
-        setMostrarModalFinalizar(false)
+        cerrarModalFinalizar()
         return
       }
 
@@ -2832,10 +2927,10 @@ const PuntoVenta = () => {
                     Imprimir Cuenta
                   </button>
                   <button
-                    onClick={() => setMostrarDividirCuenta(true)}
+                    onClick={abrirOImprimirDivision}
                     disabled={!cart.length}
                     className="py-3 text-base border-2 border-gray-600 text-gray-700 bg-white hover:bg-gray-100 active:scale-[0.98] transition-all rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Imprime la cuenta dividida entre varias personas"
+                    title={divisionEnviada() ? 'Imprime la división que envió el mesero' : 'Imprime la cuenta dividida entre varias personas'}
                   >
                     Dividir Cuenta
                   </button>
@@ -2975,10 +3070,19 @@ const PuntoVenta = () => {
                           <p className="font-bold text-amber-600">${parseFloat(comanda.total || 0).toFixed(2)}</p>
                         </div>
                       </button>
-                      <div className="mt-2">
+                      <div className="mt-2 flex items-center justify-between gap-2">
                         <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-200 text-amber-800">
                           Sin pagar
                         </span>
+                        {solicitudDe(comanda) && (
+                          <button
+                            type="button"
+                            onClick={() => atenderSolicitudTicket(comanda)}
+                            className="btn-primary shrink-0 !px-3 !py-1.5 text-xs leading-tight"
+                          >
+                            Imprimir cuenta
+                          </button>
+                        )}
                       </div>
                     </div>
                   )
@@ -3281,11 +3385,7 @@ const PuntoVenta = () => {
                     key={valor}
                     type="button"
                     onClick={() => setTipoServicio(valor)}
-                    className={`w-full min-w-0 py-3 px-3 rounded-lg border-2 text-sm transition-all inline-flex items-center justify-center gap-2 ${
-                      tipoServicio === valor
-                        ? 'border-marca-500 bg-marca-50 text-marca-700 font-medium'
-                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                    }`}
+                    className={`w-full min-w-0 py-3 px-3 rounded-lg ${claseTipoServicio(valor, tipoServicio === valor)}`}
                   >
                     <Icono className="w-4 h-4" />
                     {texto}
@@ -3329,7 +3429,7 @@ const PuntoVenta = () => {
       {mostrarModalFinalizar && (
         <div
           className={OVERLAY_MODAL}
-          onClick={() => setMostrarModalFinalizar(false)}
+          onClick={cerrarModalFinalizar}
         >
           <div
             className="bg-white rounded-lg shadow-xl max-w-md md:max-w-2xl w-full max-h-[90vh] overflow-y-auto"
@@ -3338,7 +3438,6 @@ const PuntoVenta = () => {
             {/* Contenido */}
             <div className="p-4 space-y-4">
               <div className="space-y-2">
-                <p className="campo-label">Método de pago</p>
                 <div className="flex flex-wrap gap-2">
                   {metodosPagoActivos.filter((metodo) => !modoTienda || metodo.id !== 'delivery').map((metodo) => {
                     const Icono = ICONOS_METODO_PAGO[metodo.icono] || Banknote
@@ -3362,11 +3461,71 @@ const PuntoVenta = () => {
                 {metodoPago === 'mixto' && (
                   <p className="text-xs text-center text-gray-500">Pago dividido entre efectivo y tarjeta</p>
                 )}
+                {(metodoPago === 'tarjeta' || metodoPago === 'mixto') && (
+                  <div>
+                    <label className="campo-label" htmlFor="autorizacion-tarjeta">Número de autorización</label>
+                    <input
+                      id="autorizacion-tarjeta"
+                      type="text"
+                      value={referenciaPago}
+                      onChange={(e) => setReferenciaPago(e.target.value)}
+                      className="campo"
+                      maxLength={40}
+                      autoComplete="off"
+                      placeholder="El que imprime la terminal en el voucher"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Cuando el cliente paga de una vez, la orden nunca pasó por el
                   modal de comandas y este es el único lugar donde dar el nombre. */}
               <div className="grid grid-cols-1 md:grid-cols-2 md:items-end gap-5 md:gap-4 empty:hidden">
+              {metodoPago === 'delivery' && !comandaEnEdicion && !comandaTerminadaSeleccionada ? (
+              <div className="md:col-span-2 grid grid-cols-2 gap-4 items-end">
+                <div>
+                  <label className="campo-label" htmlFor="confirmacion-delivery">Número de confirmación</label>
+                  <input
+                    id="confirmacion-delivery"
+                    type="text"
+                    value={referenciaPago}
+                    onChange={(e) => setReferenciaPago(e.target.value)}
+                    className="campo"
+                    maxLength={40}
+                    autoComplete="off"
+                    placeholder="El de la orden en DiDi o Uber"
+                  />
+                </div>
+                <div>
+                  <label className="campo-label">
+                    Nombre del cliente <span className="text-[#8e8e93]">(Opcional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={nombreCliente}
+                    onChange={(e) => setNombreCliente(e.target.value)}
+                    placeholder="Para identificar la comanda"
+                    className="campo"
+                  />
+                </div>
+              </div>
+              ) : (
+              <>
+              {metodoPago === 'delivery' && (
+                <div className="md:col-span-2">
+                  <label className="campo-label" htmlFor="confirmacion-delivery">Número de confirmación</label>
+                  <input
+                    id="confirmacion-delivery"
+                    type="text"
+                    value={referenciaPago}
+                    onChange={(e) => setReferenciaPago(e.target.value)}
+                    className="campo"
+                    maxLength={40}
+                    autoComplete="off"
+                    placeholder="El de la orden en DiDi o Uber"
+                  />
+                </div>
+              )}
               {!comandaEnEdicion && !comandaTerminadaSeleccionada && (
               <div>
                   <label className="campo-label">
@@ -3381,17 +3540,21 @@ const PuntoVenta = () => {
                 />
               </div>
               )}
+              </>
+              )}
 
               {/* Una mesa ya enviada a comandas ya tiene tipo: solo se muestra.
                   Los botones quedan para la venta que se cobra sin pasar por cocina. */}
-              {modoRestaurante && comandaTerminadaSeleccionada && (
-                <div>
-                  <p className="campo-label">Servicio</p>
-                  <p className="text-sm font-medium text-gray-800">
-                    {tipoServicio === 'para-llevar' ? 'Para llevar' : 'Comer aquí'}
-                  </p>
-                </div>
-              )}
+              {modoRestaurante && comandaTerminadaSeleccionada && (() => {
+                const servicio = servicioDe(tipoServicio)
+                return (
+                  <div>
+                    <p className={`text-sm font-bold tracking-wide uppercase ${servicio?.color || 'text-gray-800'}`}>
+                      {servicio?.texto || 'Comer aquí'}
+                    </p>
+                  </div>
+                )
+              })()}
               {modoRestaurante && !comandaTerminadaSeleccionada && metodoPago !== 'delivery' && (
                 <div className="grid grid-cols-2 gap-2">
                   {[
@@ -3402,11 +3565,7 @@ const PuntoVenta = () => {
                       key={valor}
                       type="button"
                       onClick={() => setTipoServicio(valor)}
-                      className={`py-2.5 px-3 rounded-lg border-2 text-sm transition-all inline-flex items-center justify-center gap-2 ${
-                        tipoServicio === valor
-                          ? 'border-marca-500 bg-marca-50 text-marca-700 font-medium'
-                          : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                      }`}
+                      className={`py-2.5 px-3 rounded-lg ${claseTipoServicio(valor, tipoServicio === valor)}`}
                     >
                       <Icono className="w-4 h-4" />
                       {texto}
@@ -3473,7 +3632,6 @@ const PuntoVenta = () => {
                 const partes = partesDelPago(totalACobrar)
                 return (
                   <div className="border-t border-gray-200 pt-4 space-y-3">
-                    <p className="text-sm font-medium text-gray-700">Dividir el pago</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="min-w-0">
                         <label className="campo-label">Efectivo</label>
@@ -3524,10 +3682,6 @@ const PuntoVenta = () => {
                 const cambio = Number.isFinite(recibido) ? recibido - totalACobrar : null
                 return (
                   <div className="border-t border-gray-200 pt-4 space-y-2">
-                    <label className="campo-label">
-                      {metodoPago === 'mixto' ? 'Paga en efectivo' : 'Paga con'}{' '}
-                      <span className="text-[#8e8e93]">(Opcional)</span>
-                    </label>
                     <BilletesEfectivo
                       total={totalACobrar}
                       montoRecibido={montoRecibido}
@@ -3561,7 +3715,7 @@ const PuntoVenta = () => {
             {/* Footer */}
             <div className="p-6 border-t border-gray-200 flex gap-3">
               <button
-                onClick={() => setMostrarModalFinalizar(false)}
+                onClick={cerrarModalFinalizar}
                 className="btn-outline flex-1"
               >
                 Cancelar

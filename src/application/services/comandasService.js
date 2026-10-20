@@ -19,6 +19,16 @@ export const comandasService = {
     return response.data
   },
 
+  solicitarCuenta: async (idComanda, division = null) => {
+    const response = await api.post(`/api/comandas/solicitud_cuenta/${idComanda}`, { division })
+    return response.data
+  },
+
+  quitarSolicitudCuenta: async (idComanda) => {
+    const response = await api.delete(`/api/comandas/solicitud_cuenta/${idComanda}`)
+    return response.data
+  },
+
   // Listar comandas
   obtenerComandas: async (estado = null) => {
     const params = estado ? { estado } : {}

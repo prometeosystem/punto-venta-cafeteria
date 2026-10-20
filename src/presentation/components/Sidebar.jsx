@@ -319,7 +319,7 @@ const Sidebar = () => {
               </div>
 
               <div className="text-[11px] text-gray-500 text-center mt-1.5">
-                v6.3.5 · Desarrollado por Prothec
+                v8.5.6 · Desarrollado por Prothec
               </div>
             </>
           )}
