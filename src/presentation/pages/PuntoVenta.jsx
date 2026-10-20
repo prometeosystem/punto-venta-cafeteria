@@ -2035,10 +2035,21 @@ const PuntoVenta = () => {
    * El botón inferior cambia de significado según haya o no una comanda cargada:
    * sin comanda solo limpia el panel, con comanda cancela de verdad. La "X" del
    * encabezado siempre se queda con el comportamiento de solo soltar la mesa.
+   * Si la orden salió del plano, cancelar suelta los productos y deja la mesa.
    */
   const accionCancelarOrden = () => {
     if (comandaCancelable) {
       setMostrarModalCancelarComanda(true)
+      return
+    }
+    if (mesaOrden) {
+      setCart([])
+      setComentarios('')
+      setMetodoPago(null)
+      setMontoRecibido('')
+      removerPropina()
+      removerDescuento()
+      subirPanelOrden()
       return
     }
     limpiarOrden()
