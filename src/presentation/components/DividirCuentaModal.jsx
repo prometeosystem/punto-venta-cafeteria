@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Printer, Send } from 'lucide-react'
+import { ArrowLeft, Printer, Send } from 'lucide-react'
 import { itemsDesdeCarrito } from '../utils/imprimirTicket'
 import { repartirProporcional } from '../utils/cuentaTicket'
 
@@ -129,6 +129,19 @@ const DividirCuentaModal = ({ cuenta, onImprimir, onClose, textoAccion = 'Imprim
   const puedeImprimir = forma === 'iguales' || (sinAsignar === 0 && unidades.length > 0)
   const esOtra = !OPCIONES_PERSONAS.includes(personas)
   const colorActivo = colorDe(personaActiva)
+  const cantidadPorPersona = partesIguales[0] || 0
+  const partesDistintas = partesIguales.some((total) => total !== cantidadPorPersona)
+
+  const volver = (
+    <button
+      type="button"
+      onClick={() => setForma(null)}
+      className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-gray-900"
+    >
+      <ArrowLeft className="w-4 h-4" />
+      Volver
+    </button>
+  )
 
   const selectorPersonas = (
     <div>
@@ -244,25 +257,23 @@ const DividirCuentaModal = ({ cuenta, onImprimir, onClose, textoAccion = 'Imprim
           aria-modal="true"
         >
           <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4">
-            <button
-              type="button"
-              onClick={() => setForma(null)}
-              className="text-sm font-medium text-gray-500 hover:text-gray-800"
-            >
-              Volver
-            </button>
+            {volver}
             {selectorPersonas}
-            <ul className="divide-y divide-gray-100 rounded-lg border border-gray-200">
-              {partesIguales.map((total, i) => (
-                <li key={i} className="flex items-center justify-between px-3 py-2.5 text-sm">
-                  <span className="font-medium text-gray-900">Persona {i + 1}</span>
-                  <span className="tabular-nums font-semibold text-gray-900">{money(total)}</span>
-                </li>
-              ))}
-            </ul>
-            <p className="text-xs text-gray-500">
-              Si el total no da exacto, los centavos que sobran quedan en las primeras partes.
-            </p>
+            <div className="rounded-lg border border-gray-200 px-4 py-3 space-y-2">
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-gray-600">Cantidad por persona</span>
+                <span className="tabular-nums font-semibold text-gray-900">{money(cantidadPorPersona)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3 border-t border-gray-100 pt-2">
+                <span className="font-medium text-gray-900">Total</span>
+                <span className="tabular-nums text-lg font-bold text-gray-900">{money(cuenta.total)}</span>
+              </div>
+              {partesDistintas && (
+                <p className="text-xs text-gray-500">
+                  Los centavos que sobran quedan en las primeras partes.
+                </p>
+              )}
+            </div>
           </div>
           {acciones}
         </div>
@@ -282,13 +293,7 @@ const DividirCuentaModal = ({ cuenta, onImprimir, onClose, textoAccion = 'Imprim
         aria-modal="true"
       >
         <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4">
-          <button
-            type="button"
-            onClick={() => setForma(null)}
-            className="text-sm font-medium text-gray-500 hover:text-gray-800"
-          >
-            Volver
-          </button>
+          {volver}
           {selectorPersonas}
 
           <div>
