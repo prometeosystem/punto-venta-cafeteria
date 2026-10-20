@@ -106,7 +106,8 @@ const UMBRAL_DESCUENTO_AUTORIZACION = 15
 
 /**
  * Métodos de pago en fila de iconos. Cada uno tiene su color al seleccionarlo
- * para distinguirlos de un vistazo; el verde sólido se reserva para Procesar Venta.
+ * para distinguirlos de un vistazo. El efectivo usa el verde de dinero, el
+ * mismo de las ventas en dashboard y reportes.
  */
 const ICONOS_METODO_PAGO = {
   efectivo: Banknote,
@@ -116,7 +117,7 @@ const ICONOS_METODO_PAGO = {
 }
 
 const COLORES_METODO_PAGO = {
-  efectivo: 'border-marca-500 bg-marca-50 text-marca-700',
+  efectivo: 'border-verde-500 bg-verde-50 text-verde-700',
   tarjeta: 'border-blue-500 bg-blue-50 text-blue-700',
   delivery: 'border-purple-500 bg-purple-50 text-purple-700',
   transferencia: 'border-amber-500 bg-amber-50 text-amber-700',

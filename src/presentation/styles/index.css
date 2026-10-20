@@ -3,6 +3,15 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* Verde de dinero y de efectivo. #0e840c. Los fondos son el mismo tono, muy claro. */
+    --verde-50: 236 245 236;
+    --verde-100: 216 235 216;
+    --verde-500: 14 132 12;
+    --verde-600: 14 132 12;
+    --verde-700: 14 132 12;
+  }
+
   body {
     @apply bg-gray-50 text-gray-900 antialiased;
     font-family: 'Inter', system-ui, sans-serif;

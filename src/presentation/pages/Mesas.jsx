@@ -59,7 +59,7 @@ const textoTiempo = (min) => {
 const colorEsperaComida = (min) => {
   if (min >= 20) return 'bg-red-100 text-red-700'
   if (min >= 10) return 'bg-amber-100 text-amber-800'
-  return 'bg-emerald-100 text-emerald-700'
+  return 'bg-verde-100 text-verde-700'
 }
 
 const CLAVE_SECCION = claveBase('mesas-seccion')

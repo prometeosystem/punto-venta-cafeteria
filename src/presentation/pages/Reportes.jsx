@@ -52,6 +52,12 @@ const labelMetodoPago = (metodo) => {
   return found?.label || String(metodo).replace(/-/g, ' ')
 }
 
+const etiquetaReferenciaPago = (metodo) => {
+  if (metodo === 'tarjeta' || metodo === 'mixto') return 'Número de autorización'
+  if (metodo === 'delivery') return 'Número de confirmación'
+  return null
+}
+
 const Reportes = () => {
   const [fechaInicio, setFechaInicio] = useState('')
   const [fechaFin, setFechaFin] = useState('')
@@ -309,6 +315,7 @@ const Reportes = () => {
       const id = String(venta.id_venta || '')
       const productosTxt = resumenProductos(venta).toLowerCase()
       const total = String(venta.total || '')
+      const referencia = String(venta.referencia_pago || '').toLowerCase()
 
       return (
         cliente.includes(q) ||
@@ -316,7 +323,8 @@ const Reportes = () => {
         vendedor.includes(q) ||
         id.includes(q) ||
         productosTxt.includes(q) ||
-        total.includes(q)
+        total.includes(q) ||
+        referencia.includes(q)
       )
     })
   }, [ventas, busquedaVentas, filtroMetodoPago, filtroTipoServicio, productos])
@@ -587,7 +595,7 @@ const Reportes = () => {
         </div>
       ) : (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-          {ver('ventas_totales') && <CardMini titulo="Ventas totales" valor={`$${formatPrecio(ventasTotales)}`} color="text-emerald-600" />}
+          {ver('ventas_totales') && <CardMini titulo="Ventas totales" valor={`$${formatPrecio(ventasTotales)}`} color="text-verde-600" />}
           {ver('descuentos') && <CardMini titulo="Descuentos" valor={`$${formatPrecio(totalDescuentos)}`} color="text-amber-600" />}
           {ver('propinas') && <CardMini titulo="Propinas" valor={`$${formatPrecio(totalPropinas)}`} color="text-marca-600" />}
           {ver('ticket_promedio') && <CardMini titulo="Ticket promedio" valor={`$${formatPrecio(ticketPromedio)}`} />}
@@ -864,7 +872,7 @@ const Reportes = () => {
             <input
               type="text"
               className="input pl-9 pr-9"
-              placeholder="Buscar por cliente, producto, total o ticket..."
+              placeholder="Buscar por cliente, producto, ticket o autorización..."
               value={busquedaVentas}
               onChange={(e) => setBusquedaVentas(e.target.value)}
             />
@@ -946,7 +954,10 @@ const Reportes = () => {
                     <p className="mt-0.5 truncate text-sm text-gray-700">
                       {nombreCliente(venta)} · {cantidadProductos(venta)} {cantidadProductos(venta) === 1 ? 'producto' : 'productos'}
                     </p>
-                    <p className="text-xs capitalize text-gray-500">{labelMetodoPago(venta.metodo_pago)}</p>
+                    <p className="text-xs capitalize text-gray-500">
+                      {labelMetodoPago(venta.metodo_pago)}
+                      {venta.referencia_pago ? ` · ${venta.referencia_pago}` : ''}
+                    </p>
                   </div>
                   <div className="shrink-0 text-right">
                     <p className="font-semibold text-marca-600">${formatPrecio(venta.total)}</p>
@@ -974,6 +985,7 @@ const Reportes = () => {
                 <th className="text-left py-3 px-4 font-semibold text-gray-900">Cliente</th>
                 <th className="text-center py-3 px-4 font-semibold text-gray-900">Productos</th>
                 <th className="text-left py-3 px-4 font-semibold text-gray-900">Método de pago</th>
+                <th className="text-left py-3 px-4 font-semibold text-gray-900">Referencia</th>
                 <th className="text-center py-3 px-4 font-semibold text-gray-900" title="Descuento">Dto.</th>
                 {!modoTienda && (
                   <th className="text-center py-3 px-4 font-semibold text-gray-900" title="Propina">Prop.</th>
@@ -985,19 +997,19 @@ const Reportes = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={modoTienda ? 8 : 9} className="py-8 text-center text-gray-500">
+                  <td colSpan={modoTienda ? 9 : 10} className="py-8 text-center text-gray-500">
                     <Loader2 className="w-6 h-6 animate-spin text-marca-600 mx-auto" />
                   </td>
                 </tr>
               ) : ventas.length === 0 ? (
                 <tr>
-                  <td colSpan={modoTienda ? 8 : 9} className="py-8 text-center text-gray-500">
+                  <td colSpan={modoTienda ? 9 : 10} className="py-8 text-center text-gray-500">
                     No hay ventas en el período seleccionado
                   </td>
                 </tr>
               ) : ventasFiltradas.length === 0 ? (
                 <tr>
-                  <td colSpan={modoTienda ? 8 : 9} className="py-8 text-center text-gray-500">
+                  <td colSpan={modoTienda ? 9 : 10} className="py-8 text-center text-gray-500">
                     No hay ventas que coincidan con la búsqueda o filtros
                   </td>
                 </tr>
@@ -1021,6 +1033,9 @@ const Reportes = () => {
                     </td>
                     <td className="py-3 px-4 text-gray-700 capitalize">
                       {labelMetodoPago(venta.metodo_pago)}
+                    </td>
+                    <td className="py-3 px-4 text-gray-900 tabular-nums">
+                      {venta.referencia_pago || '—'}
                     </td>
                     <td className="py-3 px-4 text-center">
                       {tieneDescuento(venta) ? (
@@ -1327,6 +1342,14 @@ const Reportes = () => {
                         {labelMetodoPago(ventaDetalle.metodo_pago)}
                       </p>
                     </div>
+                    {etiquetaReferenciaPago(ventaDetalle.metodo_pago) && (
+                      <div>
+                        <p className="text-sm text-gray-600 mb-1">{etiquetaReferenciaPago(ventaDetalle.metodo_pago)}</p>
+                        <p className="font-medium text-gray-900 tabular-nums">
+                          {ventaDetalle.referencia_pago || '—'}
+                        </p>
+                      </div>
+                    )}
                     {ventaDetalle.tipo_servicio && (
                       <div>
                         <p className="text-sm text-gray-600 mb-1">Tipo de servicio</p>

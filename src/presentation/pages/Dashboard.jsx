@@ -97,6 +97,12 @@ const labelMetodoPago = (metodo) => {
   return found?.label || String(metodo).replace(/-/g, ' ')
 }
 
+const etiquetaReferenciaPago = (metodo) => {
+  if (metodo === 'tarjeta' || metodo === 'mixto') return 'Número de autorización'
+  if (metodo === 'delivery') return 'Número de confirmación'
+  return null
+}
+
 const Dashboard = () => {
   const [refResumen, columnas] = useColumnasResumen()
   const { obtenerVenta } = useVentas()
@@ -277,6 +283,7 @@ const Dashboard = () => {
       const id = String(venta.id_venta || '')
       const productosTxt = resumenProductos(venta).toLowerCase()
       const total = String(venta.total || '')
+      const referencia = String(venta.referencia_pago || '').toLowerCase()
 
       return (
         cliente.includes(q) ||
@@ -284,7 +291,8 @@ const Dashboard = () => {
         vendedor.includes(q) ||
         id.includes(q) ||
         productosTxt.includes(q) ||
-        total.includes(q)
+        total.includes(q) ||
+        referencia.includes(q)
       )
     })
   }, [ventas, busquedaVentas, filtroMetodoPago, filtroTipoServicio, productos])
@@ -354,7 +362,7 @@ const Dashboard = () => {
       >
         {ver('ventas_totales') && (
           <TarjetaResumen titulo="Ventas Totales" valor={`$${formatPrecio(ventasTotales)}`} detalle="Hoy"
-            Icono={DollarSign} colorValor="text-emerald-600" colorFondo="bg-emerald-100" colorIcono="text-emerald-600" />
+            Icono={DollarSign} colorValor="text-verde-600" colorFondo="bg-verde-100" colorIcono="text-verde-600" />
         )}
         {ver('descuentos') && (
           <TarjetaResumen titulo="Total Descuentos" valor={`$${formatPrecio(totalDescuentos)}`} detalle="Hoy"
@@ -608,7 +616,7 @@ const Dashboard = () => {
             <input
               type="text"
               className="input pl-9 pr-9"
-              placeholder="Buscar por cliente, producto, total o ticket..."
+              placeholder="Buscar por cliente, producto, ticket o autorización..."
               value={busquedaVentas}
               onChange={(e) => setBusquedaVentas(e.target.value)}
             />
@@ -684,6 +692,7 @@ const Dashboard = () => {
                   <th className="text-center py-3 px-4 font-semibold text-gray-900" title="Propina">Prop.</th>
                 )}
                 <th className="text-left py-3 px-4 font-semibold text-gray-900">Método de pago</th>
+                <th className="text-left py-3 px-4 font-semibold text-gray-900">Referencia</th>
                 <th className="text-right py-3 px-4 font-semibold text-gray-900">Total</th>
                 <th className="text-right py-3 px-4 font-semibold text-gray-900">Detalle</th>
               </tr>
@@ -691,13 +700,13 @@ const Dashboard = () => {
             <tbody>
               {ventas.length === 0 ? (
                 <tr>
-                  <td colSpan={modoTienda ? 8 : 9} className="py-8 text-center text-gray-500">
+                  <td colSpan={modoTienda ? 9 : 10} className="py-8 text-center text-gray-500">
                     No hay ventas hoy
                   </td>
                 </tr>
               ) : ventasFiltradas.length === 0 ? (
                 <tr>
-                  <td colSpan={modoTienda ? 8 : 9} className="py-8 text-center text-gray-500">
+                  <td colSpan={modoTienda ? 9 : 10} className="py-8 text-center text-gray-500">
                     No hay ventas que coincidan con la búsqueda o filtros
                   </td>
                 </tr>
@@ -747,6 +756,9 @@ const Dashboard = () => {
                     )}
                     <td className="py-3 px-4 text-gray-700 capitalize">
                       {labelMetodoPago(venta.metodo_pago)}
+                    </td>
+                    <td className="py-3 px-4 text-gray-900 tabular-nums">
+                      {venta.referencia_pago || '—'}
                     </td>
                     <td className="py-3 px-4 text-right font-semibold text-marca-600 whitespace-nowrap">
                       ${formatPrecio(venta.total)}
@@ -850,6 +862,14 @@ const Dashboard = () => {
                         {labelMetodoPago(ventaDetalle.metodo_pago)}
                       </p>
                     </div>
+                    {etiquetaReferenciaPago(ventaDetalle.metodo_pago) && (
+                      <div>
+                        <p className="text-sm text-gray-600 mb-1">{etiquetaReferenciaPago(ventaDetalle.metodo_pago)}</p>
+                        <p className="font-medium text-gray-900 tabular-nums">
+                          {ventaDetalle.referencia_pago || '—'}
+                        </p>
+                      </div>
+                    )}
                     {ventaDetalle.tipo_servicio && (
                       <div>
                         <p className="text-sm text-gray-600 mb-1">Tipo de servicio</p>

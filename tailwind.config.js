@@ -25,6 +25,8 @@ export default {
       amber: colors.amber,
       blue: colors.blue,
       emerald: colors.emerald,
+      // Verde de dinero y del botón de efectivo. Más bajo que el esmeralda.
+      verde: escala('verde', [50, 100, 500, 600, 700]),
       purple: colors.purple,
       // Solo para el rol de mesero: no choca con el verde de Zona 2 ni con el azul de la demo
       rose: colors.rose,
