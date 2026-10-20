@@ -43,13 +43,11 @@ const DividirCuentaModal = ({ cuenta, onImprimir, onClose, textoAccion = 'Imprim
     }))
   })
 
-  // Lo mismo pedido en distintas rondas va junto, en el orden de su primera aparición
-  const grupoDe = (u) => `${u.nombre}|${u.notas || ''}|${u.precio}`
-  const ordenGrupo = new Map()
-  renglones.forEach((u) => {
-    if (!ordenGrupo.has(grupoDe(u))) ordenGrupo.set(grupoDe(u), ordenGrupo.size)
+  const unidades = [...renglones].sort((a, b) => {
+    const porNombre = a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' })
+    if (porNombre !== 0) return porNombre
+    return (a.notas || '').localeCompare(b.notas || '', 'es', { sensitivity: 'base' })
   })
-  const unidades = [...renglones].sort((a, b) => ordenGrupo.get(grupoDe(a)) - ordenGrupo.get(grupoDe(b)))
 
   const cambiarPersonas = (n) => {
     setPersonas(n)

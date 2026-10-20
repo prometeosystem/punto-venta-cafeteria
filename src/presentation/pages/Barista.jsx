@@ -68,8 +68,11 @@ const areaPorRol = (rol) => {
   return 'todo'
 }
 
+const ROLES_QUE_VEN_PAGO = ['vendedor', 'administrador', 'superadministrador']
+
 const Barista = () => {
   const { usuario } = useAuth()
+  const verEstadoPago = ROLES_QUE_VEN_PAGO.includes((usuario?.rol || '').toLowerCase())
   const [areaElegida, setAreaElegida] = useState(areaGuardada)
   const area = areaElegida || areaPorRol(usuario?.rol)
   const areaFiltro = area === 'todo' ? null : area
@@ -512,6 +515,11 @@ const Barista = () => {
     barra: comandas.filter((c) => tienePendientesEn(c, 'barra')).length,
   }
   const comandasVisibles = areaFiltro ? comandas.filter((c) => tienePendientesEn(c, areaFiltro)) : comandas
+  const historialVisible = historial.flatMap((comanda) => {
+    if (!areaFiltro) return [comanda]
+    const detalles = (comanda.detalles || []).filter((d) => areaDe(d) === areaFiltro)
+    return detalles.length ? [{ ...comanda, detalles }] : []
+  })
 
   return (
     <div className="flex flex-col lg:flex-row gap-3 lg:flex-1 lg:min-h-0">
@@ -606,7 +614,7 @@ const Barista = () => {
                         {servicio.texto}
                       </span>
                     )}
-                    {pagoConocido && (
+                    {verEstadoPago && pagoConocido && (
                       <span
                         className={`text-[10px] font-bold tracking-wide uppercase leading-none ${
                           sinPagar ? 'text-red-700' : 'text-marca-700'
@@ -782,7 +790,7 @@ const Barista = () => {
         </div>
       )}
       </div>
-      <HistorialComandas comandas={historial} />
+      <HistorialComandas comandas={historialVisible} mostrarPago={verEstadoPago} />
     </div>
   )
 }

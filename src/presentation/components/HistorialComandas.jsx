@@ -18,7 +18,7 @@ const notasDetalle = (detalle) =>
     ),
   ].filter(Boolean)
 
-const ComandaEntregada = ({ comanda }) => {
+const ComandaEntregada = ({ comanda, mostrarPago }) => {
   const servicio = servicioDe(comanda.pedido?.tipo_servicio, comanda.pedido?.metodo_pago)
   const pagoConocido = comanda.venta_pagada !== undefined && comanda.venta_pagada !== null
   const sinPagar = comanda.venta_pagada === 0 || comanda.venta_pagada === false
@@ -44,7 +44,7 @@ const ComandaEntregada = ({ comanda }) => {
               {servicio.texto}
             </span>
           )}
-          {pagoConocido && (
+          {mostrarPago && pagoConocido && (
             <span
               className={`text-[10px] font-bold tracking-wide uppercase leading-none ${
                 sinPagar ? 'text-red-700' : 'text-marca-700'
@@ -82,7 +82,7 @@ const ComandaEntregada = ({ comanda }) => {
   )
 }
 
-const HistorialComandas = ({ comandas }) => (
+const HistorialComandas = ({ comandas, mostrarPago = false }) => (
   <aside className="card !p-0 flex flex-col min-h-0 lg:w-80 xl:w-96 shrink-0 max-h-[60dvh] lg:max-h-none">
     <div className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-200">
       <History className="w-4 h-4 text-gray-500" />
@@ -95,7 +95,7 @@ const HistorialComandas = ({ comandas }) => (
     ) : (
       <ul className="flex-1 min-h-0 overflow-y-auto divide-y divide-gray-100">
         {comandas.map((comanda) => (
-          <ComandaEntregada key={comanda.id_comanda} comanda={comanda} />
+          <ComandaEntregada key={comanda.id_comanda} comanda={comanda} mostrarPago={mostrarPago} />
         ))}
       </ul>
     )}
