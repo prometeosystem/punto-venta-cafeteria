@@ -10,6 +10,7 @@ import { servicioDe } from '../utils/tipoServicio'
 import { useAuth } from '../context/AuthContext'
 import { useNotifications } from '../context/NotificationContext'
 import { claveBase } from '../utils/almacenLocal'
+import { comoLista, debeAvisarErrorDeCarga, mensajeCargaComandas } from '../utils/comandasLista'
 import Swal from 'sweetalert2'
 
 const INTERVALO_REFRESCO_MS = 15000
@@ -107,8 +108,7 @@ const Barista = () => {
   }
   const [comandas, setComandas] = useState([])
   const [historial, setHistorial] = useState([])
-  const [cargando, setCargando] = useState(true) // Iniciar como true para la primera carga
-  const [esPrimeraCarga, setEsPrimeraCarga] = useState(true)
+  const [cargando, setCargando] = useState(true)
   const navigate = useNavigate()
   const { obtenerComandas, actualizarEstado, loading } = useComandas()
   const { productos } = useProductos()
@@ -133,14 +133,15 @@ const Barista = () => {
         setCargando(true)
       }
       
-      // Obtener solo comandas pendientes y en preparación (NO terminadas)
-      const comandasPendientes = await obtenerComandas('pendiente')
-      const comandasEnPreparacion = await obtenerComandas('en_preparacion')
+      // Obtener solo comandas pendientes y en preparación (NO terminadas).
+      // Una lista vacía es válida. Un objeto {error} no se expande como si fuera la lista.
+      const comandasPendientes = comoLista(await obtenerComandas('pendiente'))
+      const comandasEnPreparacion = comoLista(await obtenerComandas('en_preparacion'))
       
       // Combinar y filtrar para asegurar que no haya terminadas
       const todasLasComandas = [
-        ...(comandasPendientes || []),
-        ...(comandasEnPreparacion || [])
+        ...comandasPendientes,
+        ...comandasEnPreparacion,
       ]
         .filter(comanda => comanda.estado === 'pendiente' || comanda.estado === 'en_preparacion')
         .sort((a, b) => {
@@ -159,29 +160,21 @@ const Barista = () => {
       avisarNovedades(todasLasComandas)
       setComandas(todasLasComandas)
       cargarHistorial()
-      
-      // Marcar que ya no es la primera carga
-      if (esPrimeraCarga) {
-        setEsPrimeraCarga(false)
-        setCargando(false)
-      } else if (esRefresh) {
-        // Si es un refresh, asegurarse de que el loading se desactive
-        setCargando(false)
-      }
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('Error al cargar comandas:', error)
       }
-      // Solo mostrar error en la primera carga o si es un error crítico
-      if (esPrimeraCarga) {
+      // El refresco automático no debe tapar la pantalla si ya se ve que no hay comandas.
+      if (debeAvisarErrorDeCarga(esRefresh)) {
         Swal.fire({
           icon: 'error',
           title: 'Error',
-          text: 'No se pudieron cargar las comandas',
+          text: mensajeCargaComandas(error),
           confirmButtonColor: 'rgb(var(--marca-500))',
         })
-        setCargando(false)
       }
+    } finally {
+      setCargando(false)
     }
   }
 
