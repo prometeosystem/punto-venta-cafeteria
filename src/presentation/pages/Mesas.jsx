@@ -72,6 +72,11 @@ const mitades = (capacidad) => {
 
 const limitar = (valor, min, max) => Math.min(max, Math.max(min, valor))
 
+// Dejar presionada una mesa este tiempo abre su edición (en el plano o fuera de él)
+const DURACION_PRESION_MS = 500
+// Recorrido horizontal mínimo para cambiar de sección deslizando
+const DESLIZ_MIN_PX = 60
+
 const extraerError = (error, porDefecto) =>
   error?.response?.data?.detail || error?.message || porDefecto
 
@@ -101,6 +106,12 @@ const Mesas = () => {
   // Mesas creadas en esta edición. Cancelar las quita; Guardar las deja.
   const mesasNuevas = useRef([])
   const listasVistas = useRef(null)
+  // { timer, x, y } mientras se mantiene presionada una mesa
+  const presion = useRef(null)
+  // El toque que terminó en presión larga o en deslizar no debe abrir la mesa
+  const ignorarClic = useRef(false)
+  // { x, y, t, scroll } al empezar a tocar el plano
+  const desliz = useRef(null)
 
   const elegirSeccion = (id) => {
     const valor = String(id || '')
@@ -318,7 +329,33 @@ const Mesas = () => {
     }
   }
 
+  const cancelarPresion = () => {
+    if (!presion.current) return
+    clearTimeout(presion.current.timer)
+    presion.current = null
+  }
+
+  const editarMesa = (mesa) => {
+    setFormMesa({ id_mesa: mesa.id_mesa, numero: String(mesa.numero), capacidad: mesa.capacidad })
+  }
+
   const alPresionar = (evento, mesa) => {
+    ignorarClic.current = false
+    cancelarPresion()
+    if (!editando && !esAdmin) return
+    presion.current = {
+      x: evento.clientX,
+      y: evento.clientY,
+      timer: setTimeout(() => {
+        presion.current = null
+        arrastre.current = null
+        ignorarClic.current = true
+        navigator.vibrate?.(30)
+        // Fuera del plano, la presión larga entra a editarlo con esa mesa abierta
+        if (!editando) entrarEdicion()
+        editarMesa(mesa)
+      }, DURACION_PRESION_MS),
+    }
     if (!editando) return
     evento.preventDefault()
     const p = posicionEnPlano(evento)
@@ -349,6 +386,7 @@ const Mesas = () => {
       if (!a) return
       if (!a.movio && Math.hypot(evento.clientX - a.inicioX, evento.clientY - a.inicioY) < 5) return
       a.movio = true
+      cancelarPresion()
       moverA(a, evento)
     }
     const soltar = (evento) => {
@@ -358,7 +396,8 @@ const Mesas = () => {
       if (a.movio || Math.hypot(evento.clientX - a.inicioX, evento.clientY - a.inicioY) >= 5) {
         moverA(a, evento)
       } else {
-        setFormMesa({ id_mesa: a.mesa.id_mesa, numero: String(a.mesa.numero), capacidad: a.mesa.capacidad })
+        cancelarPresion()
+        editarMesa(a.mesa)
       }
     }
     const cancelar = () => { arrastre.current = null }
@@ -371,6 +410,41 @@ const Mesas = () => {
       window.removeEventListener('pointercancel', cancelar)
     }
   }, [editando])
+
+  const moverPresion = (evento) => {
+    const p = presion.current
+    if (p && Math.hypot(evento.clientX - p.x, evento.clientY - p.y) >= 5) cancelarPresion()
+  }
+
+  // ---- Deslizar el plano a izquierda o derecha cambia de sección ----
+
+  const indiceSeccion = secciones.findIndex((s) => String(s.id_seccion) === String(seccionId))
+
+  const alTocarPlano = (evento) => {
+    if (editando || evento.touches.length !== 1) {
+      desliz.current = null
+      return
+    }
+    const t = evento.touches[0]
+    desliz.current = { x: t.clientX, y: t.clientY, t: Date.now(), scroll: evento.currentTarget.scrollLeft }
+  }
+
+  const alSoltarPlano = (evento) => {
+    const d = desliz.current
+    desliz.current = null
+    if (!d || editando || secciones.length < 2) return
+    // En pantallas angostas el plano se recorre de lado: eso no cuenta como deslizar
+    if (evento.currentTarget.scrollLeft !== d.scroll) return
+    const t = evento.changedTouches[0]
+    const dx = t.clientX - d.x
+    const dy = t.clientY - d.y
+    if (Math.abs(dx) < DESLIZ_MIN_PX || Math.abs(dx) < Math.abs(dy) * 1.5 || Date.now() - d.t > 800) return
+    const siguiente = secciones[indiceSeccion + (dx < 0 ? 1 : -1)]
+    if (!siguiente) return
+    cancelarPresion()
+    ignorarClic.current = true
+    elegirSeccion(siguiente.id_seccion)
+  }
 
   // Primer hueco del plano donde cabe la mesa sin encimarse con otra (ni con su etiqueta de cuenta)
   const lugarLibre = (capacidad) => {
@@ -543,7 +617,7 @@ const Mesas = () => {
     <div className="min-w-0 max-w-full space-y-3 lg:p-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         {editando ? (
-          <p className="text-sm text-gray-500">Arrastra las mesas. Toca una para cambiar su número o tipo.</p>
+          <p className="text-sm text-gray-500">Arrastra las mesas. Tócala o déjala presionada para cambiar su número o tipo.</p>
         ) : (
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
             {ESTADOS.map((e) => (
@@ -611,7 +685,12 @@ const Mesas = () => {
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
+      <div
+        className="overflow-x-auto rounded-xl border border-gray-200 bg-white"
+        onTouchStart={alTocarPlano}
+        onTouchEnd={alSoltarPlano}
+        onTouchCancel={() => { desliz.current = null }}
+      >
         <div
           ref={planoRef}
           onDragStart={(e) => e.preventDefault()}
@@ -642,10 +721,21 @@ const Mesas = () => {
               <button
                 key={mesa.id_mesa}
                 type="button"
-                onClick={() => !editando && abrirMesa(mesa)}
+                onClick={() => {
+                  if (ignorarClic.current) {
+                    ignorarClic.current = false
+                    return
+                  }
+                  if (!editando) abrirMesa(mesa)
+                }}
                 onPointerDown={(e) => alPresionar(e, mesa)}
+                onPointerMove={moverPresion}
+                onPointerUp={cancelarPresion}
+                onPointerLeave={cancelarPresion}
+                onPointerCancel={cancelarPresion}
+                onContextMenu={(e) => e.preventDefault()}
                 title={`Mesa ${mesa.numero}`}
-                className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-lg transition-transform focus:outline-none ${
+                className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-lg transition-transform focus:outline-none [-webkit-touch-callout:none] ${
                   editando
                     ? 'cursor-grab touch-none outline-dashed outline-1 outline-offset-4 outline-gray-300 active:cursor-grabbing'
                     : 'hover:scale-105 active:scale-95'
@@ -675,6 +765,22 @@ const Mesas = () => {
           })}
         </div>
       </div>
+
+      {/* Indica que hay más secciones a los lados del plano */}
+      {!editando && secciones.length > 1 && (
+        <div className="flex justify-center gap-1.5">
+          {secciones.map((s, i) => (
+            <button
+              key={s.id_seccion}
+              type="button"
+              onClick={() => elegirSeccion(s.id_seccion)}
+              title={s.nombre}
+              aria-label={`Sección ${s.nombre}`}
+              className={`h-2 rounded-full transition-all ${i === indiceSeccion ? 'w-5 bg-marca-500' : 'w-2 bg-gray-300'}`}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Detalle de una mesa ocupada */}
       {mesaDetalle && cuentaDetalle && (
