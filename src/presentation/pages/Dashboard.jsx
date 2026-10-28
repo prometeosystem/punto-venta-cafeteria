@@ -21,6 +21,7 @@ import {
   AlertTriangle,
   Ban,
   PieChart as PieChartIcon,
+  Printer,
 } from 'lucide-react'
 import { useVentas } from '../hooks/useVentas'
 import { servicioDe } from '../utils/tipoServicio'
@@ -32,6 +33,9 @@ import { formatPrecio } from '../utils/numberFormatter'
 import { METODOS_PAGO_DISPONIBLES } from '../utils/metodosPagoConfig'
 import { metricaVisible } from '../utils/preferenciasUi'
 import ModalEditarMetricas from '../components/ModalEditarMetricas'
+import { usePrinterContext } from '../context/PrinterContext'
+import { enviarTicket } from '../utils/enviarTicket'
+import marca from '@marca'
 import Swal from 'sweetalert2'
 import {
   AreaChart,
@@ -109,6 +113,7 @@ const Dashboard = () => {
   const { productos } = useProductos()
   const { preferencias, guardar, modoTienda } = usePreferencias()
   const { setHeaderAction } = useLayout()
+  const printer = usePrinterContext()
   const [ventas, setVentas] = useState([])
   const [ventasAyer, setVentasAyer] = useState([])
   const [ordenesActivas, setOrdenesActivas] = useState(0)
@@ -127,6 +132,7 @@ const Dashboard = () => {
   const [guardandoMetricas, setGuardandoMetricas] = useState(false)
   const [ventaDetalle, setVentaDetalle] = useState(null)
   const [cargandoDetalle, setCargandoDetalle] = useState(false)
+  const [reimprimiendo, setReimprimiendo] = useState(null)
   const [busquedaVentas, setBusquedaVentas] = useState('')
   const [filtroMetodoPago, setFiltroMetodoPago] = useState('')
   const [filtroTipoServicio, setFiltroTipoServicio] = useState('')
@@ -325,6 +331,48 @@ const Dashboard = () => {
       hour: '2-digit',
       minute: '2-digit',
     })
+  }
+
+  /** Vuelve a imprimir el recibo de una venta ya cobrada, con su fecha original. */
+  const reimprimirTicket = async (venta) => {
+    setReimprimiendo(venta.id_venta)
+    try {
+      const completa = await obtenerVenta(venta.id_venta)
+      const items = (completa.detalles || []).map((d) => ({
+        nombre: nombreProductoDetalle(d),
+        cantidad: Number(d.cantidad) || 1,
+        precio: parseFloat(d.precio_unitario) || 0,
+        subtotal: parseFloat(d.subtotal) || 0,
+        observaciones: d.observaciones || '',
+      }))
+      const descuento = parseFloat(completa.total_descuento) || 0
+      const propina = modoTienda ? 0 : parseFloat(completa.monto_propina) || 0
+      const vendedor = completa.vendedor_nombre_completo || completa.vendedor_nombre || venta.vendedor_nombre
+      await enviarTicket(
+        printer,
+        {
+          negocio: marca.nombreTicket,
+          tipo: 'venta',
+          numero: completa.id_venta,
+          fecha: completa.fecha_venta,
+          metodoPago: labelMetodoPago(completa.metodo_pago),
+          cajero: vendedor || null,
+          comentarios: completa.comentarios || null,
+          items,
+          subtotal: items.reduce((sum, item) => sum + item.subtotal, 0),
+          descuento,
+          propina,
+          // El total de la venta no incluye la propina
+          total: (parseFloat(completa.total) || 0) + propina,
+        },
+        'Ticket reimpreso',
+        `Venta #${completa.id_venta}`
+      )
+    } catch (error) {
+      Swal.fire('Error', error?.response?.data?.detail || 'No se pudo cargar la venta', 'error')
+    } finally {
+      setReimprimiendo(null)
+    }
   }
 
   const abrirModalDetalles = async (venta) => {
@@ -764,13 +812,29 @@ const Dashboard = () => {
                       ${formatPrecio(venta.total)}
                     </td>
                     <td className="py-3 px-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() => abrirModalDetalles(venta)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-marca-700 border border-marca-200 rounded-lg hover:bg-marca-50 transition-colors"
-                      >
-                        <Eye className="w-5 h-5" />
-                      </button>
+                      <div className="inline-flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => reimprimirTicket(venta)}
+                          disabled={reimprimiendo != null}
+                          title="Reimprimir ticket"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-marca-700 border border-marca-200 rounded-lg hover:bg-marca-50 transition-colors disabled:opacity-50"
+                        >
+                          {reimprimiendo === venta.id_venta ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                          ) : (
+                            <Printer className="w-5 h-5" />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => abrirModalDetalles(venta)}
+                          title="Ver detalle"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-marca-700 border border-marca-200 rounded-lg hover:bg-marca-50 transition-colors"
+                        >
+                          <Eye className="w-5 h-5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

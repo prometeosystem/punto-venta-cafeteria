@@ -199,7 +199,7 @@ export const PROPINA_SUGERIDA_PCT = 10
 export function generateCafeTicketBytes(ticket = {}, options = {}) {
   const width = charsFor(options.paperWidth || getPaperWidth())
   const esCuenta = ticket.tipo === 'cuenta'
-  const { fecha, hora } = fechaHoraTicket()
+  const { fecha, hora } = fechaHoraTicket(ticket.fecha ? new Date(ticket.fecha) : undefined)
   const commands = []
 
   commands.push(EscPosCommands.INIT)

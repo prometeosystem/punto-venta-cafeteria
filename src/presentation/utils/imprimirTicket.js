@@ -65,6 +65,7 @@ const seccionHtml = (seccion, esCuenta) => {
  * @param {Object} ticket
  * @param {'cuenta'|'venta'} [ticket.tipo]
  * @param {string|number} [ticket.numero]
+ * @param {string|Date} [ticket.fecha] fecha de la venta; sin ella se usa la actual
  * @param {string} [ticket.metodoPago]
  * @param {string} [ticket.cajero]
  * @param {string} [ticket.comentarios]
@@ -77,7 +78,7 @@ const seccionHtml = (seccion, esCuenta) => {
  */
 export function imprimirTicket(ticket) {
   const esCuenta = ticket.tipo === 'cuenta'
-  const { fecha, hora } = fechaHoraTicket()
+  const { fecha, hora } = fechaHoraTicket(ticket.fecha ? new Date(ticket.fecha) : undefined)
   const secciones = seccionesTicket(ticket)
   const division = ticket.division
 

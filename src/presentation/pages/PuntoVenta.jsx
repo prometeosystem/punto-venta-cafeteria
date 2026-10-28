@@ -10,7 +10,8 @@ import { usePreferencias } from '../context/PreferenciasContext'
 import { productoDelModo } from '../utils/preferenciasUi'
 import { useCaja } from '../hooks/useCaja'
 import { productosService } from '../../application/services/productosService'
-import { imprimirTicket, itemsDesdeCarrito } from '../utils/imprimirTicket'
+import { itemsDesdeCarrito } from '../utils/imprimirTicket'
+import { enviarTicket } from '../utils/enviarTicket'
 import { obtenerMetodosPagoActivos } from '../utils/metodosPagoConfig'
 import { obtenerImagenCacheada, obtenerPosConFotos, guardarPosConFotos } from '../utils/posVistaConfig'
 import { servicioDe } from '../utils/tipoServicio'
@@ -1169,49 +1170,8 @@ const PuntoVenta = () => {
     }
   }
 
-  /**
-   * Manda el ticket a la impresora térmica y, si falla o no hay conexión,
-   * ofrece la impresión por el navegador.
-   */
-  const enviarTicketAImpresora = async (ticket, tituloExito, textoExito) => {
-    if (printer.isConnected) {
-      try {
-        await printer.printTicket(ticket)
-        await Swal.fire({
-          icon: 'success',
-          title: tituloExito,
-          text: textoExito,
-          timer: 1600,
-          showConfirmButton: false,
-        })
-        return true
-      } catch (err) {
-        console.error('Error impresión térmica:', err)
-        const retry = await Swal.fire({
-          icon: 'warning',
-          title: 'Error en impresora térmica',
-          text: `${err.message || 'No se pudo imprimir'}. ¿Imprimir por el navegador?`,
-          showCancelButton: true,
-          confirmButtonText: 'Imprimir en navegador',
-          cancelButtonText: 'Cerrar',
-          confirmButtonColor: 'rgb(var(--marca-500))',
-        })
-        if (!retry.isConfirmed) return false
-      }
-    }
-
-    const printResult = imprimirTicket(ticket)
-      if (printResult?.error) {
-        await Swal.fire({
-          icon: 'warning',
-          title: 'No se pudo imprimir',
-          text: printResult.error,
-          confirmButtonColor: 'rgb(var(--marca-500))',
-        })
-        return false
-    }
-    return true
-  }
+  const enviarTicketAImpresora = (ticket, tituloExito, textoExito) =>
+    enviarTicket(printer, ticket, tituloExito, textoExito)
 
   const verificarCajaParaCobro = async () => {
     if ((metodoPago === 'efectivo' || metodoPago === 'mixto') && !estadoCaja?.abierta) {
