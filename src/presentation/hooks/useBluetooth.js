@@ -7,6 +7,11 @@ const PRINTER_CHARACTERISTIC_UUID = '00002af1-0000-1000-8000-00805f9b34fb'
 const ALT_SERVICE_UUID = 'e7810a71-73ae-499d-8c15-faa9aef0c3f2'
 const ALT_CHARACTERISTIC_UUID = 'bef8d6c9-9c21-4c9e-b632-bd58c1009f9f'
 
+// 180 bytes cabe en el MTU que negocian Chrome/Edge con estas impresoras;
+// si la impresora lo rechaza se baja al mínimo de BLE.
+const CHUNK_MAX = 180
+const CHUNK_MIN = 20
+
 const loadSavedDevice = () => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -76,6 +81,7 @@ export const useBluetooth = () => {
   const reconnectAttemptRef = useRef(0)
   const connectingRef = useRef(false)
   const tryReconnectRef = useRef(async () => false)
+  const chunkSizeRef = useRef(CHUNK_MAX)
 
   const clearReconnectTimer = () => {
     if (reconnectTimerRef.current) {
@@ -98,6 +104,7 @@ export const useBluetooth = () => {
   const finishConnected = useCallback((bluetoothDevice, writeCharacteristic) => {
     deviceRef.current = bluetoothDevice
     characteristicRef.current = writeCharacteristic
+    chunkSizeRef.current = CHUNK_MAX
     setDevice(bluetoothDevice)
     setCharacteristic(writeCharacteristic)
     setIsConnected(true)
@@ -249,15 +256,28 @@ export const useBluetooth = () => {
     else if (data instanceof Uint8Array) buffer = data
     else buffer = new Uint8Array(data)
 
-    const chunkSize = 20
-    for (let i = 0; i < buffer.length; i += chunkSize) {
+    // Con respuesta, el ACK de cada escritura ya regula el flujo y no hace falta esperar.
+    // Sin respuesta, una pausa corta evita desbordar el búfer de la impresora.
+    const conRespuesta = ch.properties.write
+    const enviar = (chunk) =>
+      conRespuesta ? ch.writeValueWithResponse(chunk) : ch.writeValueWithoutResponse(chunk)
+    const pausa = conRespuesta ? 0 : 15
+
+    let chunkSize = chunkSizeRef.current
+    let i = 0
+    while (i < buffer.length) {
       const chunk = buffer.slice(i, i + chunkSize)
-      if (ch.properties.writeWithoutResponse) {
-        await ch.writeValueWithoutResponse(chunk)
-      } else {
-        await ch.writeValue(chunk)
+      try {
+        await enviar(chunk)
+      } catch (err) {
+        // Algunas térmicas no aceptan paquetes mayores al MTU por defecto (20 bytes)
+        if (chunkSize === CHUNK_MIN) throw err
+        chunkSize = CHUNK_MIN
+        chunkSizeRef.current = CHUNK_MIN
+        continue
       }
-      await new Promise((resolve) => setTimeout(resolve, 50))
+      i += chunk.length
+      if (pausa) await new Promise((resolve) => setTimeout(resolve, pausa))
     }
   }, [])
 
