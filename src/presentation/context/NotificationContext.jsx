@@ -214,7 +214,7 @@ export const NotificationProvider = ({ children }) => {
         oscillator.start(startTime)
         oscillator.stop(endTime)
       })
-      
+      return
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('Error al reproducir sonido de error:', error)
@@ -494,6 +494,7 @@ export const NotificationProvider = ({ children }) => {
     addNotification,
     sonarAviso: playNotificationSound,
     sonarTicket: playTicketSound,
+    sonarAlerta: playErrorSound,
     markAsRead,
     markAllAsRead,
     removeNotification,

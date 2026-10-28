@@ -127,6 +127,38 @@
     }
   }
   
+
+  /* Comanda con 15 min o más: dos ondas rojas salen del borde, desfasadas */
+  .comanda-atrasada {
+    position: relative;
+  }
+
+  .comanda-atrasada::before,
+  .comanda-atrasada::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    pointer-events: none;
+    animation: comanda-onda 1.8s ease-out infinite;
+  }
+
+  .comanda-atrasada::after {
+    animation-delay: 0.9s;
+  }
+
+  @keyframes comanda-onda {
+    from { box-shadow: 0 0 0 0 rgb(239 68 68 / 0.6); }
+    to { box-shadow: 0 0 0 10px rgb(239 68 68 / 0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .comanda-atrasada::before,
+    .comanda-atrasada::after {
+      animation: none;
+      box-shadow: 0 0 0 3px rgb(239 68 68 / 0.4);
+    }
+  }
 }
 
 @layer utilities {

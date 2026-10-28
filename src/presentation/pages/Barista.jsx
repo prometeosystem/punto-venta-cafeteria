@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CheckCircle, Package, Loader2, Plus } from 'lucide-react'
+import { CheckCircle, Package, Loader2, Plus, Timer } from 'lucide-react'
 import { useComandas } from '../hooks/useComandas'
 import { useProductos } from '../hooks/useProductos'
 import { useInventario } from '../hooks/useInventario'
@@ -25,6 +25,26 @@ const NOMBRE_AREA = { cocina: 'Cocina', barra: 'Barra' }
 const CLAVE_AREA = claveBase('comandas-area')
 
 const areaDe = (detalle) => detalle.area_preparacion || 'barra'
+
+// Minutos de espera en que la comanda pasa a ámbar y a rojo (con onda y sonido)
+const MIN_AVISO = 10
+const MIN_ATRASADA = 15
+
+const llegadaDe = (comanda) => new Date(comanda.fecha_creacion || comanda.fecha_venta).getTime()
+
+const textoEspera = (ms) => {
+  const seg = Math.max(0, Math.floor(ms / 1000))
+  const h = Math.floor(seg / 3600)
+  const mm = String(Math.floor((seg % 3600) / 60)).padStart(2, '0')
+  const ss = String(seg % 60).padStart(2, '0')
+  return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`
+}
+
+const colorEspera = (min) => {
+  if (min >= MIN_ATRASADA) return 'bg-red-600 text-white'
+  if (min >= MIN_AVISO) return 'bg-amber-100 text-amber-800'
+  return 'bg-verde-100 text-verde-700'
+}
 
 /**
  * Cantidad pendiente por comanda y producto en el área. Se compara por contenido
@@ -81,7 +101,10 @@ const Barista = () => {
     localStorage.setItem(CLAVE_AREA, id)
     setAreaElegida(id)
   }
-  const { sonarAviso } = useNotifications()
+  const { sonarAviso, sonarAlerta } = useNotifications()
+  const [ahora, setAhora] = useState(() => Date.now())
+  // Comandas que ya sonaron al llegar a los 15 min, para que suene una sola vez
+  const atrasadasAvisadas = useRef(new Set())
   // El sondeo vive en un intervalo creado una sola vez: lee el área por ref
   const areaFiltroRef = useRef(areaFiltro)
   // null = todavía no hay referencia; la primera carga (o un cambio de área) no suena
@@ -219,6 +242,21 @@ const Barista = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    const id = setInterval(() => setAhora(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  // Recordatorio sonoro cuando una comanda de esta área cumple 15 min esperando
+  useEffect(() => {
+    const visibles = areaFiltro ? comandas.filter((c) => tienePendientesEn(c, areaFiltro)) : comandas
+    const nuevas = visibles.filter((c) => esAtrasada(c) && !atrasadasAvisadas.current.has(c.id_comanda))
+    if (!nuevas.length) return
+    nuevas.forEach((c) => atrasadasAvisadas.current.add(c.id_comanda))
+    sonarAlerta()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ahora, comandas, areaFiltro])
 
   // En barista solo importa la hora: la comanda siempre es del turno actual
   const formatHora = (fechaString) => {
@@ -508,6 +546,7 @@ const Barista = () => {
     barra: comandas.filter((c) => tienePendientesEn(c, 'barra')).length,
   }
   const comandasVisibles = areaFiltro ? comandas.filter((c) => tienePendientesEn(c, areaFiltro)) : comandas
+  const esAtrasada = (comanda) => ahora - llegadaDe(comanda) >= MIN_ATRASADA * 60000
   const historialVisible = historial.flatMap((comanda) => {
     if (!areaFiltro) return [comanda]
     const detalles = (comanda.detalles || []).filter((d) => areaDe(d) === areaFiltro)
@@ -583,10 +622,16 @@ const Barista = () => {
                 (d) => d.observaciones && (d.observaciones.includes('Leche') || d.observaciones.includes('Extras:'))
               )
 
+            const esperaMs = ahora - llegadaDe(comanda)
+            const esperaMin = esperaMs / 60000
+            const atrasada = esperaMin >= MIN_ATRASADA
+
             return (
               <div
                 key={comanda.id_comanda}
-                className="card !p-3 flex flex-col hover:shadow-lg transition-shadow duration-200"
+                className={`card !p-3 flex flex-col hover:shadow-lg transition-shadow duration-200 ${
+                  atrasada ? 'comanda-atrasada !border-red-500 !bg-red-50' : ''
+                }`}
               >
                 {/* Encabezado: número, cliente y estado en una sola franja */}
                 <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
@@ -597,9 +642,20 @@ const Barista = () => {
                     <p className="text-sm font-semibold text-gray-900 truncate">
                       {nombreCliente || 'Sin nombre'}
                     </p>
-                    <p className="text-[11px] text-gray-500">
-                      {formatHora(comanda.fecha_creacion || comanda.fecha_venta)}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] text-gray-500">
+                        {formatHora(comanda.fecha_creacion || comanda.fecha_venta)}
+                      </span>
+                      {Number.isFinite(esperaMs) && (
+                        <span
+                          className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-px text-[11px] font-semibold tabular-nums leading-tight ${colorEspera(esperaMin)}`}
+                          title="Tiempo desde que llegó la comanda"
+                        >
+                          <Timer className="w-3 h-3" />
+                          {textoEspera(esperaMs)}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0">
                     {servicio && (
