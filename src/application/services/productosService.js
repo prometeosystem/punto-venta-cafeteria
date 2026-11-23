@@ -46,6 +46,12 @@ export const productosService = {
     return response.data
   },
 
+  // Aplicar los mismos cambios a varios productos
+  editarMasivo: async (datos) => {
+    const response = await api.put('/api/productos/editar_masivo', datos)
+    return response.data
+  },
+
   // Eliminar producto (desactivar)
   eliminarProducto: async (idProducto) => {
     const response = await api.delete(`/api/productos/eliminar_producto/${idProducto}`)
