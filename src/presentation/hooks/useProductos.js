@@ -44,6 +44,16 @@ export const useProductos = () => {
     }
   }
 
+  const editarMasivo = async (datos) => {
+    try {
+      const response = await productosService.editarMasivo(datos)
+      await obtenerProductos()
+      return response
+    } catch (err) {
+      throw err.response?.data || err
+    }
+  }
+
   const eliminarProducto = async (idProducto) => {
     try {
       const response = await productosService.eliminarProducto(idProducto)
@@ -71,6 +81,7 @@ export const useProductos = () => {
     obtenerProducto,
     crearProducto,
     editarProducto,
+    editarMasivo,
     eliminarProducto,
   }
 }

@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search, Edit, Trash2, Loader2 } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Loader2, CheckSquare, Square, CheckCircle2, Circle } from 'lucide-react'
 import { useProductos } from '../hooks/useProductos'
 import { proveedoresService } from '../../application/services/proveedoresService'
 import { usePreferencias } from '../context/PreferenciasContext'
 import { productoDelModo } from '../utils/preferenciasUi'
 import { obtenerImagenCacheada } from '../utils/posVistaConfig'
 import { API_BASE_URL } from '../../infrastructure/api'
+import EdicionMasivaProductos from '../components/EdicionMasivaProductos'
 import Swal from 'sweetalert2'
 
 function MiniaturaProducto({ producto }) {
@@ -47,7 +48,12 @@ const Productos = () => {
   const [proveedores, setProveedores] = useState([])
   const [idsProductoProveedor, setIdsProductoProveedor] = useState(null)
 
-  const { productos: productosTodos, loading, eliminarProducto, obtenerProductos } = useProductos()
+  const [modoSeleccion, setModoSeleccion] = useState(false)
+  const [seleccionados, setSeleccionados] = useState(() => new Set())
+  const [modalMasivo, setModalMasivo] = useState(false)
+  const [guardandoMasivo, setGuardandoMasivo] = useState(false)
+
+  const { productos: productosTodos, loading, eliminarProducto, obtenerProductos, editarMasivo } = useProductos()
   const productos = productosTodos.filter((producto) => productoDelModo(producto, modoTienda))
 
   useEffect(() => {
@@ -129,6 +135,58 @@ const Productos = () => {
   // Obtener categorías únicas
   const categories = ['Todas las categorías', ...new Set(productos.map(p => p.categoria))]
 
+  const idsVisibles = filteredProducts.map((p) => p.id_producto)
+  const todosVisiblesMarcados = idsVisibles.length > 0 && idsVisibles.every((id) => seleccionados.has(id))
+
+  const alternarSeleccion = (id) =>
+    setSeleccionados((prev) => {
+      const nuevo = new Set(prev)
+      if (nuevo.has(id)) nuevo.delete(id)
+      else nuevo.add(id)
+      return nuevo
+    })
+
+  const alternarTodosVisibles = () =>
+    setSeleccionados((prev) => {
+      const nuevo = new Set(prev)
+      idsVisibles.forEach((id) => (todosVisiblesMarcados ? nuevo.delete(id) : nuevo.add(id)))
+      return nuevo
+    })
+
+  const salirSeleccion = () => {
+    setModoSeleccion(false)
+    setSeleccionados(new Set())
+  }
+
+  const handleGuardarMasivo = async (cambios) => {
+    setGuardandoMasivo(true)
+    try {
+      const res = await editarMasivo({ ids: [...seleccionados], ...cambios })
+      if (res?.error) throw res
+      setModalMasivo(false)
+      const fallidos = res.errores || []
+      await Swal.fire({
+        icon: fallidos.length ? 'warning' : 'success',
+        title: fallidos.length ? 'Actualizado con errores' : 'Productos actualizados',
+        text: fallidos.length
+          ? `${res.actualizados} actualizados, ${fallidos.length} con error: ${fallidos[0].error}`
+          : `${res.actualizados} producto(s) actualizados`,
+        confirmButtonColor: 'rgb(var(--marca-500))',
+        timer: fallidos.length ? undefined : 2000,
+      })
+      salirSeleccion()
+    } catch (error) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: error.error || error.detail || error.message || 'No se pudo aplicar la edición',
+        confirmButtonColor: 'rgb(var(--marca-500))',
+      })
+    } finally {
+      setGuardandoMasivo(false)
+    }
+  }
+
   const handleEliminar = async (idProducto) => {
     const result = await Swal.fire({
       title: '¿Desactivar producto?',
@@ -204,6 +262,20 @@ const Productos = () => {
           </div>
           <button
             type="button"
+            onClick={() => (modoSeleccion ? salirSeleccion() : setModoSeleccion(true))}
+            aria-pressed={modoSeleccion}
+            className={`order-2 flex h-[42px] shrink-0 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-medium transition-colors md:order-3 ${
+              modoSeleccion
+                ? 'border-marca-500 bg-marca-50 text-marca-700'
+                : 'border-gray-200 bg-white text-gray-600 hover:border-marca-300'
+            }`}
+            title="Seleccionar varios para editarlos juntos"
+          >
+            <CheckSquare className="h-5 w-5" />
+            <span className="hidden md:inline">Seleccionar</span>
+          </button>
+          <button
+            type="button"
             onClick={() => navigate('/productos/nuevo')}
             className="btn-primary order-2 flex h-[42px] w-[42px] shrink-0 items-center justify-center p-0 md:order-3 md:w-auto md:gap-2 md:px-4"
             aria-label="Agregar producto"
@@ -264,6 +336,40 @@ const Productos = () => {
         </div>
       </div>
 
+      {modoSeleccion && (
+        <div className="card sticky top-2 z-20 flex flex-wrap items-center gap-2 p-3">
+          <button type="button" onClick={alternarTodosVisibles} className="btn-secondary flex items-center gap-2 text-sm">
+            {todosVisiblesMarcados ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+            {todosVisiblesMarcados ? 'Quitar visibles' : `Marcar visibles (${idsVisibles.length})`}
+          </button>
+          <span className="text-sm text-gray-600 tabular-nums">{seleccionados.size} seleccionados</span>
+          <div className="ml-auto flex gap-2">
+            <button type="button" className="btn-secondary text-sm" onClick={salirSeleccion}>
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="btn-primary text-sm"
+              disabled={seleccionados.size === 0}
+              onClick={() => setModalMasivo(true)}
+            >
+              Editar {seleccionados.size || ''}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {modalMasivo && (
+        <EdicionMasivaProductos
+          cantidad={seleccionados.size}
+          categorias={categories.filter((c) => c !== 'Todas las categorías')}
+          modoTienda={modoTienda}
+          guardando={guardandoMasivo}
+          onGuardar={handleGuardarMasivo}
+          onCerrar={() => setModalMasivo(false)}
+        />
+      )}
+
       {/* Tabla de productos */}
       <div className="card overflow-x-auto p-2 sm:p-4">
         {loading ? (
@@ -284,11 +390,21 @@ const Productos = () => {
                   <li key={product.id_producto}>
                     <button
                       type="button"
-                      onClick={() => navigate(`/productos/${product.id_producto}/editar`)}
+                      onClick={() =>
+                        modoSeleccion
+                          ? alternarSeleccion(product.id_producto)
+                          : navigate(`/productos/${product.id_producto}/editar`)
+                      }
                       className={`flex w-full items-center gap-2.5 py-2 text-left ${
                         product.activo ? '' : 'opacity-50'
                       }`}
                     >
+                      {modoSeleccion &&
+                        (seleccionados.has(product.id_producto) ? (
+                          <CheckCircle2 className="h-5 w-5 shrink-0 text-marca-600" />
+                        ) : (
+                          <Circle className="h-5 w-5 shrink-0 text-gray-300" />
+                        ))}
                       <MiniaturaProducto producto={product} />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[11px] text-gray-500">
@@ -315,6 +431,16 @@ const Productos = () => {
           <table className="hidden w-full md:table">
             <thead>
               <tr className="border-b border-gray-200">
+                {modoSeleccion && (
+                  <th className="w-10 py-3 pl-4">
+                    <input
+                      type="checkbox"
+                      checked={todosVisiblesMarcados}
+                      onChange={alternarTodosVisibles}
+                      aria-label="Seleccionar todos los visibles"
+                    />
+                  </th>
+                )}
                 <th className="text-left py-3 px-4 font-semibold text-gray-900">
                   Producto
                 </th>
@@ -340,7 +466,7 @@ const Productos = () => {
             <tbody>
               {filteredProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={modoTienda ? 6 : 5} className="py-8 text-center text-gray-500">
+                  <td colSpan={(modoTienda ? 6 : 5) + (modoSeleccion ? 1 : 0)} className="py-8 text-center text-gray-500">
                     No se encontraron productos
                   </td>
                 </tr>
@@ -348,8 +474,22 @@ const Productos = () => {
                 filteredProducts.map((product) => (
                   <tr
                     key={product.id_producto}
-                    className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                    className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${
+                      modoSeleccion && seleccionados.has(product.id_producto) ? 'bg-marca-50' : ''
+                    }`}
+                    onClick={modoSeleccion ? () => alternarSeleccion(product.id_producto) : undefined}
                   >
+                    {modoSeleccion && (
+                      <td className="w-10 py-3 pl-4">
+                        <input
+                          type="checkbox"
+                          checked={seleccionados.has(product.id_producto)}
+                          onChange={() => alternarSeleccion(product.id_producto)}
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={`Seleccionar ${product.nombre}`}
+                        />
+                      </td>
+                    )}
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3 min-w-0">
                         <MiniaturaProducto producto={product} />
